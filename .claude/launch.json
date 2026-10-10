@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sahaya-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@sahaya/web", "dev", "--host", "127.0.0.1", "--port", "5173", "--strictPort"],
+      "env": { "VITE_API_BASE_URL": "http://127.0.0.1:3000" },
+      "port": 5173,
+      "url": "http://127.0.0.1:5173"
+    }
+  ]
+}
