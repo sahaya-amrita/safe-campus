@@ -5,13 +5,19 @@
  */
 import { z } from 'zod';
 
+/** An empty value (`GROQ_API_KEY=` as in .env.example) means "not set". */
+const optionalSecret = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  z.string().min(1).optional(),
+);
+
 const assistantEnvSchema = z
   .object({
     ASSISTANT_PROVIDER: z.enum(['disabled', 'mock', 'groq']).default('disabled'),
     /** Server-side only. Never expose to the web app or VITE_* variables. */
-    GROQ_API_KEY: z.string().min(1).optional(),
+    GROQ_API_KEY: optionalSecret,
     /** Required for groq; verified against Groq's live model list at startup. */
-    GROQ_MODEL: z.string().min(1).optional(),
+    GROQ_MODEL: optionalSecret,
     ASSISTANT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
     ASSISTANT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(120).default(8),
     ASSISTANT_RATE_LIMIT_PER_DAY: z.coerce.number().int().min(1).max(5000).default(150),

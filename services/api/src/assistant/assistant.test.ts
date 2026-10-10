@@ -664,6 +664,19 @@ describe('no credential or sensitive-data leakage', () => {
       }),
     ).toThrow(/requires GROQ_API_KEY and GROQ_MODEL/);
   });
+
+  it('config treats empty values copied from .env.example as unset', () => {
+    const config = loadAssistantConfig({
+      ASSISTANT_PROVIDER: 'mock',
+      GROQ_API_KEY: '',
+      GROQ_MODEL: '  ',
+    });
+    expect(config.GROQ_API_KEY).toBeUndefined();
+    expect(config.GROQ_MODEL).toBeUndefined();
+    expect(() =>
+      loadAssistantConfig({ ASSISTANT_PROVIDER: 'groq', GROQ_API_KEY: '', GROQ_MODEL: '' }),
+    ).toThrow(/requires GROQ_API_KEY and GROQ_MODEL/);
+  });
 });
 
 describe('deployment CORS', () => {
