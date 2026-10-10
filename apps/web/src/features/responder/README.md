@@ -21,23 +21,23 @@ import {
   canAccessResponderWorkspace,
   destinationForView,
   type ResponderView,
-} from "./features/responder";
-import { Tom, TourTargetProvider, type TomNavigationAdapter } from "./components/tom";
+} from './features/responder';
+import { Tom, TourTargetProvider, type TomNavigationAdapter } from './components/tom';
 
-const responderApi = new HttpResponderApi({ baseUrl: "" }); // cookie session; no tokens stored here
+const responderApi = new HttpResponderApi({ baseUrl: '' }); // cookie session; no tokens stored here
 
 // Route paths are the shell's choice; Tom only ever sees destination ids.
 const PATHS: Record<string, string> = {
-  "responder.help-requests": "/responder/help-requests",
-  "responder.hazard-review": "/responder/hazard-review",
-  "responder.roll-call": "/responder/roll-call",
-  "responder.contacts": "/responder/contacts",
+  'responder.help-requests': '/responder/help-requests',
+  'responder.hazard-review': '/responder/hazard-review',
+  'responder.roll-call': '/responder/roll-call',
+  'responder.contacts': '/responder/contacts',
 };
 
 function useTomNavigation(router, session): TomNavigationAdapter {
   return {
-    destinations: () => RESPONDER_DESTINATIONS,          // + student destinations, once defined
-    current: () => idForPath(router.location.pathname),  // shell helper
+    destinations: () => RESPONDER_DESTINATIONS, // + student destinations, once defined
+    current: () => idForPath(router.location.pathname), // shell helper
     canNavigate: (id) => id in PATHS && canAccessResponderWorkspace(session.role), // the shell's route guard
     navigate: (id) => (router.navigate(PATHS[id]), { ok: true }),
     canGoBack: () => router.canGoBack(),
@@ -48,23 +48,29 @@ function useTomNavigation(router, session): TomNavigationAdapter {
 // Shell layout: ONE provider around the page content and ONE Tom.
 <TourTargetProvider>
   <Routes>
-    <Route path="/responder/:view" element={<ResponderRoute />} />   {/* view from the URL */}
+    <Route path="/responder/:view" element={<ResponderRoute />} /> {/* view from the URL */}
   </Routes>
   <Tom
-    role={session.role}                 // from the authenticated session; picks help content only
-    context={currentDestinationId}      // e.g. "responder.hazard-review", "student.check-in"
-    mode={appMode}                      // "DEMO" | "DRILL" | "LIVE"
-    navigation={tomNavigation}          // typed adapter above; omit to disable navigation
+    role={session.role} // from the authenticated session; picks help content only
+    context={currentDestinationId} // e.g. "responder.hazard-review", "student.check-in"
+    mode={appMode} // "DEMO" | "DRILL" | "LIVE"
+    navigation={tomNavigation} // typed adapter above; omit to disable navigation
     approvedInstructions={publishedPacks} // APPROVED/PUBLISHED instruction packs only
-    contacts={CAMPUS_CONTACTS}          // LIVE shows institution-confirmed contacts only
+    contacts={CAMPUS_CONTACTS} // LIVE shows institution-confirmed contacts only
     messages={tomMessagesFor(language)} // optional; English by default (see TomMessages)
   />
-</TourTargetProvider>
+</TourTargetProvider>;
 
 function ResponderRoute() {
-  const view = useParams().view as ResponderView;      // controlled by the router
-  return <ResponderDashboard api={responderApi} mode={appMode} view={view}
-            onViewChange={(v) => router.navigate(PATHS[destinationForView(v)])} />;
+  const view = useParams().view as ResponderView; // controlled by the router
+  return (
+    <ResponderDashboard
+      api={responderApi}
+      mode={appMode}
+      view={view}
+      onViewChange={(v) => router.navigate(PATHS[destinationForView(v)])}
+    />
+  );
 }
 ```
 
@@ -175,19 +181,19 @@ function ResponderRoute() {
 mirror the proposal in `docs/api-contracts.md` and must be replaced by re-exports
 from the shared package. Nothing below is an established contract.
 
-| # | Assumption | Where |
-|---|---|---|
-| 1 | List endpoints return `{ items: T[], nextCursor: string \| null }` and accept `status`, `cursor`, `limit` query params (default limit 25). | `api.ts`, `contracts.ts` (`Page<T>`) |
-| 2 | `HelpRequest` may include `acknowledgedBy` (server-attributed) and a coarse, responder-only `locationReference`. `priority` is free text/nullable, displayed verbatim. | `responder/contracts.ts` |
-| 3 | `POST /responder/help-requests/:id/acknowledge` has no body, takes an `Idempotency-Key` header, returns the updated `HelpRequest`, and returns 409 if not `OPEN`. | `api.ts` |
-| 4 | `POST /responder/hazard-reports/:id/review` body is `{ decision: "VERIFIED" \| "REJECTED" \| "DUPLICATE" \| "RESOLVED", note?, duplicateOfId? }`. The server derives the reviewer and returns the updated `HazardReport`. | `incidents/contracts.ts` |
-| 5 | `HazardReport` may include `reviewNote` and `duplicateOfId`. | `incidents/contracts.ts` |
-| 6 | Review transitions are PENDING_REVIEW → VERIFIED/REJECTED/DUPLICATE, then VERIFIED → RESOLVED. Others are terminal. | `incidents/hazardReview.ts` |
-| 7 | Help-request transitions beyond acknowledge (ASSIGNED, RESOLVED, CANCELLED) are documented but **not offered in the UI** because no endpoints exist. | `responder/helpRequests.ts` |
-| 8 | **Roll call has no endpoint.** `RollCallSnapshot` is a UI-side proposal only. `HttpResponderApi.getRollCallSummary()` always reports "not available"; only the mock returns (labelled DEMO) data. | `responder/contracts.ts`, `api.ts` |
-| 9 | Errors use `{ error: { code, message, requestId? } }`. 401 → unauthenticated, 403 → forbidden, 409 → conflict, 501/`NOT_AVAILABLE` → unavailable. | `responder/apiError.ts` |
-| 10 | `Role = STUDENT \| VOLUNTEER \| RESPONDER \| ADMIN`, taken from `docs/safety-rules.md` rule 5. | `responder/contracts.ts` |
-| 11 | Instruction-pack links passed to Tom carry `approvalState`, `version`, `sourceLabel`, `language`, `expiresAt?`. Tom shows only `APPROVED`/`PUBLISHED`, unexpired packs with a source and version. | `components/tom/types.ts` |
+| #   | Assumption                                                                                                                                                                                                                | Where                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | List endpoints return `{ items: T[], nextCursor: string \| null }` and accept `status`, `cursor`, `limit` query params (default limit 25).                                                                                | `api.ts`, `contracts.ts` (`Page<T>`) |
+| 2   | `HelpRequest` may include `acknowledgedBy` (server-attributed) and a coarse, responder-only `locationReference`. `priority` is free text/nullable, displayed verbatim.                                                    | `responder/contracts.ts`             |
+| 3   | `POST /responder/help-requests/:id/acknowledge` has no body, takes an `Idempotency-Key` header, returns the updated `HelpRequest`, and returns 409 if not `OPEN`.                                                         | `api.ts`                             |
+| 4   | `POST /responder/hazard-reports/:id/review` body is `{ decision: "VERIFIED" \| "REJECTED" \| "DUPLICATE" \| "RESOLVED", note?, duplicateOfId? }`. The server derives the reviewer and returns the updated `HazardReport`. | `incidents/contracts.ts`             |
+| 5   | `HazardReport` may include `reviewNote` and `duplicateOfId`.                                                                                                                                                              | `incidents/contracts.ts`             |
+| 6   | Review transitions are PENDING_REVIEW → VERIFIED/REJECTED/DUPLICATE, then VERIFIED → RESOLVED. Others are terminal.                                                                                                       | `incidents/hazardReview.ts`          |
+| 7   | Help-request transitions beyond acknowledge (ASSIGNED, RESOLVED, CANCELLED) are documented but **not offered in the UI** because no endpoints exist.                                                                      | `responder/helpRequests.ts`          |
+| 8   | **Roll call has no endpoint.** `RollCallSnapshot` is a UI-side proposal only. `HttpResponderApi.getRollCallSummary()` always reports "not available"; only the mock returns (labelled DEMO) data.                         | `responder/contracts.ts`, `api.ts`   |
+| 9   | Errors use `{ error: { code, message, requestId? } }`. 401 → unauthenticated, 403 → forbidden, 409 → conflict, 501/`NOT_AVAILABLE` → unavailable.                                                                         | `responder/apiError.ts`              |
+| 10  | `Role = STUDENT \| VOLUNTEER \| RESPONDER \| ADMIN`, taken from `docs/safety-rules.md` rule 5.                                                                                                                            | `responder/contracts.ts`             |
+| 11  | Instruction-pack links passed to Tom carry `approvalState`, `version`, `sourceLabel`, `language`, `expiresAt?`. Tom shows only `APPROVED`/`PUBLISHED`, unexpired packs with a source and version.                         | `components/tom/types.ts`            |
 
 Migration into the shared `apps/web` scaffold: see [MIGRATION.md](./MIGRATION.md).
 

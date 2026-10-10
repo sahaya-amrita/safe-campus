@@ -19,6 +19,7 @@ Remove this entire directory once `apps/web` runs these tests itself (steps in
 the README linked above).
 
 Harness-only files:
+
 - `src/HarnessApp.tsx` mounts the workspace and exactly one Tom. It wraps them in
   a `TourTargetProvider` and wires `createResponderNavigation` to view state with
   a simple back stack, standing in for the router.

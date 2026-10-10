@@ -1,12 +1,12 @@
-import { useId, useRef, useState } from "react";
-import { newIdempotencyKey } from "../responder/api";
-import { describeError } from "../responder/apiError";
-import type { HazardReport, HazardReviewApi, HazardReviewDecision } from "./contracts";
-import { allowedDecisions, DECISION_LABELS, validateReview } from "./hazardReview";
+import { useId, useRef, useState } from 'react';
+import { newIdempotencyKey } from '../responder/api';
+import { describeError } from '../responder/apiError';
+import type { HazardReport, HazardReviewApi, HazardReviewDecision } from './contracts';
+import { allowedDecisions, DECISION_LABELS, validateReview } from './hazardReview';
 
 export interface HazardReviewFormProps {
   report: HazardReport;
-  api: Pick<HazardReviewApi, "reviewHazardReport">;
+  api: Pick<HazardReviewApi, 'reviewHazardReport'>;
   onReviewed: (report: HazardReport) => void;
 }
 
@@ -17,9 +17,9 @@ export interface HazardReviewFormProps {
 export function HazardReviewForm({ report, api, onReviewed }: HazardReviewFormProps) {
   const uid = useId();
   const [decision, setDecision] = useState<HazardReviewDecision | null>(null);
-  const [note, setNote] = useState("");
-  const [duplicateOfId, setDuplicateOfId] = useState("");
-  const [phase, setPhase] = useState<"idle" | "submitting">("idle");
+  const [note, setNote] = useState('');
+  const [duplicateOfId, setDuplicateOfId] = useState('');
+  const [phase, setPhase] = useState<'idle' | 'submitting'>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const idempotencyKey = useRef<string | null>(null);
   const decisions = allowedDecisions(report.status);
@@ -27,19 +27,19 @@ export function HazardReviewForm({ report, api, onReviewed }: HazardReviewFormPr
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (phase === "submitting") return;
+    if (phase === 'submitting') return;
     const review = {
       decision: decision ?? undefined,
       note: note.trim() || undefined,
-      duplicateOfId: decision === "DUPLICATE" ? duplicateOfId.trim() : undefined,
+      duplicateOfId: decision === 'DUPLICATE' ? duplicateOfId.trim() : undefined,
     };
     const check = validateReview(report.status, review);
     if (!check.ok || !review.decision) {
-      setMessage(check.message ?? "Choose a review decision.");
+      setMessage(check.message ?? 'Choose a review decision.');
       return;
     }
     idempotencyKey.current ??= newIdempotencyKey();
-    setPhase("submitting");
+    setPhase('submitting');
     setMessage(null);
     try {
       const updated = await api.reviewHazardReport(
@@ -52,7 +52,7 @@ export function HazardReviewForm({ report, api, onReviewed }: HazardReviewFormPr
     } catch (error) {
       setMessage(`Review not saved. ${describeError(error)} The report is unchanged.`);
     } finally {
-      setPhase("idle");
+      setPhase('idle');
     }
   }
 
@@ -68,30 +68,45 @@ export function HazardReviewForm({ report, api, onReviewed }: HazardReviewFormPr
         <legend>Your review decision</legend>
         {decisions.map((d) => (
           <label key={d} className="sc-review__option">
-            <input type="radio" name={`${uid}-decision`} value={d} checked={decision === d} onChange={() => choose(d)} />{" "}
+            <input
+              type="radio"
+              name={`${uid}-decision`}
+              value={d}
+              checked={decision === d}
+              onChange={() => choose(d)}
+            />{' '}
             {DECISION_LABELS[d]}
           </label>
         ))}
       </fieldset>
-      {decision === "DUPLICATE" && (
+      {decision === 'DUPLICATE' && (
         <label className="sc-review__field">
           Duplicate of report ID
-          <input type="text" value={duplicateOfId} onChange={(e) => setDuplicateOfId(e.target.value)} />
+          <input
+            type="text"
+            value={duplicateOfId}
+            onChange={(e) => setDuplicateOfId(e.target.value)}
+          />
         </label>
       )}
       <label className="sc-review__field">
         Review note (optional)
-        <textarea value={note} maxLength={1000} onChange={(e) => setNote(e.target.value)} rows={2} />
+        <textarea
+          value={note}
+          maxLength={1000}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+        />
       </label>
-      {decision === "VERIFIED" && (
+      {decision === 'VERIFIED' && (
         <p className="sc-muted">
           Verifying records your review only. It does not issue a campus alert or notify anyone.
         </p>
       )}
-      <button type="submit" className="sc-btn sc-btn--primary" disabled={phase === "submitting"}>
-        {phase === "submitting" ? "Saving review…" : "Submit review"}
+      <button type="submit" className="sc-btn sc-btn--primary" disabled={phase === 'submitting'}>
+        {phase === 'submitting' ? 'Saving review…' : 'Submit review'}
       </button>
-      {phase === "submitting" && (
+      {phase === 'submitting' && (
         <p role="status">Saving review… waiting for server confirmation.</p>
       )}
       {message && (

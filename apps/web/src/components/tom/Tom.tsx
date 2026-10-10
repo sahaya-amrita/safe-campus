@@ -1,20 +1,32 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { CampusContact } from "../../features/responder/campusDirectory";
-import { contactsForMode, VERIFICATION_PRESENTATION } from "../../features/responder/campusDirectory";
-import type { TomAiAdapter } from "./aiAdapter";
-import { disabledTomAi, isAiAvailable, MAX_AI_TEXT } from "./aiAdapter";
-import type { AssistantContext, AssistantReply } from "./assistant";
-import { interpret, LOCAL_ONLY_REPLIES } from "./assistant";
-import type { AssistantFallbackReason, AssistantHistoryTurn, TomAssistantBackend } from "./assistantClient";
-import { AssistantHttpError, checkSuggestedAction, disabledAssistantBackend, HISTORY_MAX_TURNS } from "./assistantClient";
-import { DEFAULT_TOM_KNOWLEDGE } from "./knowledgeBase";
-import type { TomDestination, TomNavigationAdapter, TomNavigationResult } from "./navigation";
-import { goBackSafely, navigateSafely } from "./navigation";
-import { TomAvatar } from "./TomAvatar";
-import type { TomMessages } from "./tomMessages";
-import { ACTION_WORDS_EN, TOM_MESSAGES_EN } from "./tomMessages";
-import { selectEntries, usableInstructions } from "./tomLogic";
-import type { TomStore } from "./tomStorage";
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { CampusContact } from '../../features/responder/campusDirectory';
+import {
+  contactsForMode,
+  VERIFICATION_PRESENTATION,
+} from '../../features/responder/campusDirectory';
+import type { TomAiAdapter } from './aiAdapter';
+import { disabledTomAi, isAiAvailable, MAX_AI_TEXT } from './aiAdapter';
+import type { AssistantContext, AssistantReply } from './assistant';
+import { interpret, LOCAL_ONLY_REPLIES } from './assistant';
+import type {
+  AssistantFallbackReason,
+  AssistantHistoryTurn,
+  TomAssistantBackend,
+} from './assistantClient';
+import {
+  AssistantHttpError,
+  checkSuggestedAction,
+  disabledAssistantBackend,
+  HISTORY_MAX_TURNS,
+} from './assistantClient';
+import { DEFAULT_TOM_KNOWLEDGE } from './knowledgeBase';
+import type { TomDestination, TomNavigationAdapter, TomNavigationResult } from './navigation';
+import { goBackSafely, navigateSafely } from './navigation';
+import { TomAvatar } from './TomAvatar';
+import type { TomMessages } from './tomMessages';
+import { ACTION_WORDS_EN, TOM_MESSAGES_EN } from './tomMessages';
+import { selectEntries, usableInstructions } from './tomLogic';
+import type { TomStore } from './tomStorage';
 import {
   defaultPersistentStore,
   defaultStore,
@@ -26,11 +38,18 @@ import {
   writeMinimised,
   writeOnboarded,
   writeShortcutOff,
-} from "./tomStorage";
-import { TourRunner } from "./TourRunner";
-import { useTourTarget } from "./tourTargets";
-import type { AppMode, ApprovedInstructionLink, Role, TomContext, TomEntry, TomTour } from "./types";
-import "./tom.css";
+} from './tomStorage';
+import { TourRunner } from './TourRunner';
+import { useTourTarget } from './tourTargets';
+import type {
+  AppMode,
+  ApprovedInstructionLink,
+  Role,
+  TomContext,
+  TomEntry,
+  TomTour,
+} from './types';
+import './tom.css';
 
 export interface TomProps {
   /** Role from the authenticated session, used only to choose help content. */
@@ -52,7 +71,7 @@ export interface TomProps {
    */
   assistant?: TomAssistantBackend;
   /** Language for assistant answers. Default "en". */
-  locale?: "en" | "ta";
+  locale?: 'en' | 'ta';
   /** Show the first-visit welcome. Default true. */
   onboarding?: boolean;
   /** Allow the "?" shortcut (users can still turn it off). Default true. */
@@ -66,19 +85,26 @@ export interface TomProps {
   messages?: TomMessages;
 }
 
-type NavState = "PENDING" | "DONE" | "NOT_REGISTERED" | "NOT_PERMITTED" | "UNAVAILABLE" | "FAILED";
+type NavState = 'PENDING' | 'DONE' | 'NOT_REGISTERED' | 'NOT_PERMITTED' | 'UNAVAILABLE' | 'FAILED';
 type ThreadItem =
-  | { id: number; from: "user"; text: string }
-  | { id: number; from: "tom"; reply: AssistantReply; nav?: NavState; pending?: boolean; notice?: string };
+  | { id: number; from: 'user'; text: string }
+  | {
+      id: number;
+      from: 'tom';
+      reply: AssistantReply;
+      nav?: NavState;
+      pending?: boolean;
+      notice?: string;
+    };
 
 const MAX_THREAD = 12;
 
 function isEditable(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
-  return t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName);
+  return t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName);
 }
 
-const toNavState = (r: TomNavigationResult): NavState => (r.ok ? "DONE" : r.reason);
+const toNavState = (r: TomNavigationResult): NavState => (r.ok ? 'DONE' : r.reason);
 
 /**
  * Tom: an optional, closed-by-default in-app guide. The panel is a non-modal
@@ -97,7 +123,7 @@ export function Tom({
   navigation,
   ai = disabledTomAi,
   assistant = disabledAssistantBackend,
-  locale = "en",
+  locale = 'en',
   onboarding = true,
   keyboardShortcut = true,
   store,
@@ -115,19 +141,27 @@ export function Tom({
   const [welcome, setWelcome] = useState(() => onboarding && !readOnboarded(persist));
   const [shortcutOn, setShortcutOn] = useState(() => !readShortcutOff(persist));
   const [thread, setThread] = useState<ThreadItem[]>([]);
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState('');
   const [tour, setTour] = useState<TomTour | null>(null);
-  const [announcement, setAnnouncement] = useState("");
+  const [announcement, setAnnouncement] = useState('');
   const launcherRef = useRef<HTMLButtonElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef(false);
-  const tourReturn = useRef<{ focus: Element | null; destination: string | null }>({ focus: null, destination: null });
+  const tourReturn = useRef<{ focus: Element | null; destination: string | null }>({
+    focus: null,
+    destination: null,
+  });
   const nextId = useRef(1);
-  const registerLauncher = useTourTarget("tom.launcher");
+  const registerLauncher = useTourTarget('tom.launcher');
 
   const nowDate = now();
-  const { hints, faqs, tours } = selectEntries(knowledgeBase, { role, context, mode, now: nowDate });
+  const { hints, faqs, tours } = selectEntries(knowledgeBase, {
+    role,
+    context,
+    mode,
+    now: nowDate,
+  });
   const instructions = usableInstructions(approvedInstructions, nowDate);
   const shownContacts = contactsForMode(contacts, mode).shown;
   const visibleHints = hints.filter((h) => !dismissed.has(h.id));
@@ -159,7 +193,7 @@ export function Tom({
   }, [open, minimised]);
 
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView?.({ block: "nearest" });
+    threadEndRef.current?.scrollIntoView?.({ block: 'nearest' });
   }, [thread]);
 
   const markOnboarded = useCallback(() => {
@@ -194,7 +228,15 @@ export function Tom({
   useEffect(() => {
     if (!keyboardShortcut || !shortcutOn || tour) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "?" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || isEditable(e.target)) return;
+      if (
+        e.key !== '?' ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey ||
+        e.defaultPrevented ||
+        isEditable(e.target)
+      )
+        return;
       e.preventDefault();
       if (minimised) {
         writeMinimised(session, false);
@@ -202,8 +244,8 @@ export function Tom({
       }
       openPanel();
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [keyboardShortcut, shortcutOn, tour, minimised, session, openPanel]);
 
   // ---- tours -------------------------------------------------------------
@@ -213,7 +255,10 @@ export function Tom({
       setAnnouncement(m.tourUnavailable);
       return;
     }
-    tourReturn.current = { focus: document.activeElement, destination: navigation?.current() ?? null };
+    tourReturn.current = {
+      focus: document.activeElement,
+      destination: navigation?.current() ?? null,
+    };
     setOpen(false);
     setTour(t);
   }
@@ -221,38 +266,45 @@ export function Tom({
   const endTour = useCallback(() => {
     setTour(null);
     const { focus, destination } = tourReturn.current;
-    const back = destination && navigation && navigation.current() !== destination ? destination : null;
-    const label = back ? destinations.find((d) => d.id === back)?.label ?? back : null;
+    const back =
+      destination && navigation && navigation.current() !== destination ? destination : null;
+    const label = back ? (destinations.find((d) => d.id === back)?.label ?? back) : null;
     if (back) void navigateSafely(navigation, back);
     setAnnouncement(label ? `${m.tourEnded} ${m.navDone(label)}` : m.tourEnded);
     requestAnimationFrame(() => {
-      const target = focus instanceof HTMLElement && focus.isConnected && focus !== document.body ? focus : launcherRef.current;
+      const target =
+        focus instanceof HTMLElement && focus.isConnected && focus !== document.body
+          ? focus
+          : launcherRef.current;
       target?.focus();
     });
   }, [navigation, destinations, m]);
 
   // ---- assistant ---------------------------------------------------------
-  function pushTom(reply: AssistantReply, extra: Partial<Extract<ThreadItem, { from: "tom" }>> = {}): number {
+  function pushTom(
+    reply: AssistantReply,
+    extra: Partial<Extract<ThreadItem, { from: 'tom' }>> = {},
+  ): number {
     const id = nextId.current++;
-    setThread((t) => [...t, { id, from: "tom" as const, reply, ...extra }].slice(-MAX_THREAD));
+    setThread((t) => [...t, { id, from: 'tom' as const, reply, ...extra }].slice(-MAX_THREAD));
     return id;
   }
 
   function setNav(id: number, nav: NavState) {
-    setThread((t) => t.map((i) => (i.id === id && i.from === "tom" ? { ...i, nav } : i)));
+    setThread((t) => t.map((i) => (i.id === id && i.from === 'tom' ? { ...i, nav } : i)));
   }
 
   async function goTo(destination: TomDestination) {
-    const id = pushTom({ kind: "NAVIGATE", destination }, { nav: "PENDING" });
+    const id = pushTom({ kind: 'NAVIGATE', destination }, { nav: 'PENDING' });
     setNav(id, toNavState(await navigateSafely(navigation, destination.id)));
   }
 
   async function act(reply: AssistantReply) {
-    if (reply.kind === "NAVIGATE") {
-      const id = pushTom(reply, { nav: "PENDING" });
+    if (reply.kind === 'NAVIGATE') {
+      const id = pushTom(reply, { nav: 'PENDING' });
       setNav(id, toNavState(await navigateSafely(navigation, reply.destination.id)));
-    } else if (reply.kind === "BACK") {
-      const id = pushTom(reply, { nav: "PENDING" });
+    } else if (reply.kind === 'BACK') {
+      const id = pushTom(reply, { nav: 'PENDING' });
       setNav(id, toNavState(await goBackSafely(navigation)));
     } else {
       pushTom(reply);
@@ -263,9 +315,9 @@ export function Tom({
   function recentHistory(): AssistantHistoryTurn[] {
     const turns: AssistantHistoryTurn[] = [];
     for (const item of thread) {
-      if (item.from === "user") turns.push({ role: "user", content: item.text });
-      else if (item.reply.kind === "SERVER_ANSWER" && item.reply.origin.source === "AI") {
-        turns.push({ role: "assistant", content: item.reply.answer });
+      if (item.from === 'user') turns.push({ role: 'user', content: item.text });
+      else if (item.reply.kind === 'SERVER_ANSWER' && item.reply.origin.source === 'AI') {
+        turns.push({ role: 'assistant', content: item.reply.answer });
       }
     }
     return turns.slice(-HISTORY_MAX_TURNS);
@@ -275,14 +327,22 @@ export function Tom({
    * Asks the assistant API. Returns a validated SERVER_ANSWER, or a notice
    * explaining why Tom is answering from built-in help instead.
    */
-  async function askServer(q: string, history: AssistantHistoryTurn[]): Promise<{ reply: AssistantReply } | { notice: string }> {
+  async function askServer(
+    q: string,
+    history: AssistantHistoryTurn[],
+  ): Promise<{ reply: AssistantReply } | { notice: string }> {
     try {
-      const res = await assistant.interpret({ question: q, context: { screen: context, locale }, history });
-      if (res.type === "safety_redirect") return { reply: { kind: "EMERGENCY_FALLBACK" } };
-      if (res.type === "unavailable") return { notice: m.aiServiceUnavailable(reasonText(res.origin.fallbackReason)) };
+      const res = await assistant.interpret({
+        question: q,
+        context: { screen: context, locale },
+        history,
+      });
+      if (res.type === 'safety_redirect') return { reply: { kind: 'EMERGENCY_FALLBACK' } };
+      if (res.type === 'unavailable')
+        return { notice: m.aiServiceUnavailable(reasonText(res.origin.fallbackReason)) };
       return {
         reply: {
-          kind: "SERVER_ANSWER",
+          kind: 'SERVER_ANSWER',
           responseType: res.type,
           answer: res.answer,
           references: res.references,
@@ -294,7 +354,7 @@ export function Tom({
       if (error instanceof AssistantHttpError) {
         if (error.status === 401 || error.status === 403) return { notice: m.aiSignedOut };
         if (error.status === 429) return { notice: m.aiRateLimited(error.retryAfter) };
-        if (error.code === "INVALID_RESPONSE") return { notice: m.aiInvalid };
+        if (error.code === 'INVALID_RESPONSE') return { notice: m.aiInvalid };
       }
       return { notice: m.aiUnreachable };
     }
@@ -309,19 +369,21 @@ export function Tom({
     if (!q) return;
     markOnboarded();
     const history = recentHistory();
-    setThread((t) => [...t, { id: nextId.current++, from: "user" as const, text: q }].slice(-MAX_THREAD));
-    setQuestion("");
+    setThread((t) =>
+      [...t, { id: nextId.current++, from: 'user' as const, text: q }].slice(-MAX_THREAD),
+    );
+    setQuestion('');
     const local = interpret(q, assistantCtx);
     if (!backendOn || LOCAL_ONLY_REPLIES.has(local.kind)) {
       await act(local);
       return;
     }
-    const waitId = pushTom({ kind: "EMPTY" }, { pending: true });
+    const waitId = pushTom({ kind: 'EMPTY' }, { pending: true });
     const result = await askServer(q, history);
     setThread((t) => t.filter((i) => i.id !== waitId));
-    if ("reply" in result) {
+    if ('reply' in result) {
       await act(result.reply);
-    } else if (local.kind === "NAVIGATE" || local.kind === "BACK") {
+    } else if (local.kind === 'NAVIGATE' || local.kind === 'BACK') {
       await act(local);
     } else {
       pushTom(local, { notice: result.notice });
@@ -343,8 +405,8 @@ export function Tom({
 
   const otherDestination = destinations.find((d) => d.id !== currentDestination) ?? null;
   const suggestions = [
-    "What can I do here?",
-    workspaceTour ? "Give me a tour" : null,
+    'What can I do here?',
+    workspaceTour ? 'Give me a tour' : null,
     otherDestination ? `Take me to ${otherDestination.label}` : null,
     faqs[0]?.title ?? null,
   ].filter((s): s is string => Boolean(s));
@@ -383,7 +445,7 @@ export function Tom({
           className="sc-tom__welcome"
           aria-labelledby={`${uid}-welcome`}
           onKeyDown={(e) => {
-            if (e.key === "Escape") markOnboarded();
+            if (e.key === 'Escape') markOnboarded();
           }}
         >
           <TomAvatar size={34} />
@@ -392,7 +454,11 @@ export function Tom({
             <p>{m.welcomeBody}</p>
             <div className="sc-tom__row">
               {workspaceTour && (
-                <button type="button" className="sc-tom__primary" onClick={() => startTour(workspaceTour)}>
+                <button
+                  type="button"
+                  className="sc-tom__primary"
+                  onClick={() => startTour(workspaceTour)}
+                >
                   {m.welcomeTour}
                 </button>
               )}
@@ -410,7 +476,7 @@ export function Tom({
           className="sc-tom__panel"
           aria-labelledby={`${uid}-tom-title`}
           onKeyDown={(e) => {
-            if (e.key === "Escape") {
+            if (e.key === 'Escape') {
               e.stopPropagation();
               close();
             }
@@ -421,24 +487,33 @@ export function Tom({
             <h2 id={`${uid}-tom-title`} tabIndex={-1} ref={headingRef}>
               {m.panelTitle}
             </h2>
-            <button type="button" className="sc-tom__close" onClick={close} aria-label={m.closePanel}>
+            <button
+              type="button"
+              className="sc-tom__close"
+              onClick={close}
+              aria-label={m.closePanel}
+            >
               <span aria-hidden="true">×</span>
             </button>
           </div>
           <div className="sc-tom__body">
             <p className="sc-tom__scope">{m.scope}</p>
-            {mode !== "LIVE" && <p className="sc-tom__draft">{m.draftNotice(mode)}</p>}
+            {mode !== 'LIVE' && <p className="sc-tom__draft">{m.draftNotice(mode)}</p>}
 
             <section aria-label="Ask Tom" className="sc-tom__section sc-tom__ask-section">
               <div className="sc-tom__thread" role="log" aria-label={m.threadLabel}>
                 {thread.map((item) =>
-                  item.from === "user" ? (
+                  item.from === 'user' ? (
                     <p key={item.id} className="sc-tom__msg sc-tom__msg--user">
                       <span className="sc-tom__sr">{m.you}: </span>
                       {item.text}
                     </p>
                   ) : (
-                    <div key={item.id} className="sc-tom__msg sc-tom__msg--tom" data-reply={item.reply.kind}>
+                    <div
+                      key={item.id}
+                      className="sc-tom__msg sc-tom__msg--tom"
+                      data-reply={item.reply.kind}
+                    >
                       {item.pending && (
                         <p className="sc-tom__muted sc-tom__thinking" aria-busy="true">
                           {m.thinking}
@@ -468,7 +543,12 @@ export function Tom({
                   <p className="sc-tom__muted">{m.suggestionsLabel}</p>
                   <div className="sc-tom__chips">
                     {suggestions.map((s) => (
-                      <button key={s} type="button" className="sc-tom__chip" onClick={() => void ask(s)}>
+                      <button
+                        key={s}
+                        type="button"
+                        className="sc-tom__chip"
+                        onClick={() => void ask(s)}
+                      >
                         {s}
                       </button>
                     ))}
@@ -496,7 +576,9 @@ export function Tom({
                   </button>
                 </div>
               </form>
-              <p className="sc-tom__muted sc-tom__proto">{backendOn ? m.prototypeNoticeAi : m.prototypeNotice}</p>
+              <p className="sc-tom__muted sc-tom__proto">
+                {backendOn ? m.prototypeNoticeAi : m.prototypeNotice}
+              </p>
             </section>
 
             <section aria-label={m.tipsHeading} className="sc-tom__section">
@@ -510,7 +592,12 @@ export function Tom({
                       <p>
                         <strong>{h.title}.</strong> {h.body}
                       </p>
-                      <button type="button" className="sc-tom__link" onClick={() => dismissHint(h.id)} aria-label={m.dismissTip(h.title)}>
+                      <button
+                        type="button"
+                        className="sc-tom__link"
+                        onClick={() => dismissHint(h.id)}
+                        aria-label={m.dismissTip(h.title)}
+                      >
                         {m.dismissTipButton}
                       </button>
                     </li>
@@ -523,7 +610,11 @@ export function Tom({
                 </button>
               )}
               {workspaceTour && (
-                <button type="button" className="sc-tom__primary sc-tom__tour-start" onClick={() => startTour(workspaceTour)}>
+                <button
+                  type="button"
+                  className="sc-tom__primary sc-tom__tour-start"
+                  onClick={() => startTour(workspaceTour)}
+                >
                   {m.tourStart(workspaceTour.steps.length)}
                 </button>
               )}
@@ -534,7 +625,9 @@ export function Tom({
               {faqs.length === 0 ? (
                 <p className="sc-tom__muted">{m.noFaqs}</p>
               ) : (
-                faqs.map((f) => <FaqItem key={f.id} entry={f} role={role} ai={aiOn ? ai : null} m={m} />)
+                faqs.map((f) => (
+                  <FaqItem key={f.id} entry={f} role={role} ai={aiOn ? ai : null} m={m} />
+                ))
               )}
             </section>
 
@@ -553,7 +646,7 @@ export function Tom({
                     setShortcutOn(e.target.checked);
                     writeShortcutOff(persist, !e.target.checked);
                   }}
-                />{" "}
+                />{' '}
                 {m.shortcutToggle}
               </label>
             )}
@@ -569,7 +662,7 @@ export function Tom({
         className="sc-tom__launcher"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        aria-keyshortcuts={keyboardShortcut && shortcutOn ? "Shift+?" : undefined}
+        aria-keyshortcuts={keyboardShortcut && shortcutOn ? 'Shift+?' : undefined}
         onClick={() => (open ? close() : openPanel())}
       >
         <TomAvatar size={30} />
@@ -588,7 +681,7 @@ function ReplyView({
   onGo,
   onTour,
 }: {
-  item: Extract<ThreadItem, { from: "tom" }>;
+  item: Extract<ThreadItem, { from: 'tom' }>;
   m: TomMessages;
   role: Role;
   instructions: ApprovedInstructionLink[];
@@ -604,18 +697,18 @@ function ReplyView({
   );
   const body = (() => {
     switch (r.kind) {
-      case "EMPTY":
+      case 'EMPTY':
         return null;
-      case "SERVER_ANSWER": {
+      case 'SERVER_ANSWER': {
         const o = r.origin;
         const label =
-          o.source === "AI"
-            ? o.provider === "mock"
+          o.source === 'AI'
+            ? o.provider === 'mock'
               ? m.mockAnswerLabel
               : m.aiAnswerLabel(o.provider, o.model)
-            : o.source === "RULES"
+            : o.source === 'RULES'
               ? m.rulesAnswerLabel
-              : m.fallbackLabel(m.fallbackReasons[o.fallbackReason ?? "UNAVAILABLE"]);
+              : m.fallbackLabel(m.fallbackReasons[o.fallbackReason ?? 'UNAVAILABLE']);
         const a = r.action;
         return (
           <>
@@ -629,8 +722,11 @@ function ReplyView({
                 <ul className="sc-tom__list">
                   {r.references.map((ref) => (
                     <li key={ref.id} data-review={ref.reviewState}>
-                      {ref.title} <span className="sc-tom__muted">({m.refMeta(ref.source, ref.version)})</span>
-                      {ref.reviewState === "DRAFT" && <span className="sc-tom__muted"> — {m.draftRef}</span>}
+                      {ref.title}{' '}
+                      <span className="sc-tom__muted">({m.refMeta(ref.source, ref.version)})</span>
+                      {ref.reviewState === 'DRAFT' && (
+                        <span className="sc-tom__muted"> — {m.draftRef}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -638,13 +734,17 @@ function ReplyView({
             )}
             {a && (
               <div className="sc-tom__chips">
-                {a.type === "NAVIGATE" && goButton(a.destination)}
-                {a.type === "START_GUIDED_TOUR" && (
-                  <button type="button" className="sc-tom__chip sc-tom__chip--primary" onClick={() => onTour(a.tour)}>
+                {a.type === 'NAVIGATE' && goButton(a.destination)}
+                {a.type === 'START_GUIDED_TOUR' && (
+                  <button
+                    type="button"
+                    className="sc-tom__chip sc-tom__chip--primary"
+                    onClick={() => onTour(a.tour)}
+                  >
                     {m.tourStartButton}
                   </button>
                 )}
-                {a.type === "OPEN_APPROVED_INSTRUCTIONS" && (
+                {a.type === 'OPEN_APPROVED_INSTRUCTIONS' && (
                   <a className="sc-tom__chip" href={a.instruction.href}>
                     {m.openInstructions(a.instruction.title)}
                   </a>
@@ -654,16 +754,16 @@ function ReplyView({
           </>
         );
       }
-      case "NAVIGATE": {
+      case 'NAVIGATE': {
         const label = r.destination.label;
         const status =
-          item.nav === "PENDING"
-            ? "…"
-            : item.nav === "DONE"
+          item.nav === 'PENDING'
+            ? '…'
+            : item.nav === 'DONE'
               ? m.navDone(label)
-              : item.nav === "NOT_PERMITTED"
+              : item.nav === 'NOT_PERMITTED'
                 ? m.navNotPermitted(label)
-                : item.nav === "FAILED"
+                : item.nav === 'FAILED'
                   ? m.navFailed(label)
                   : m.navUnavailable(label);
         return (
@@ -675,25 +775,29 @@ function ReplyView({
           </>
         );
       }
-      case "BACK":
-        return <p>{item.nav === "PENDING" ? "…" : item.nav === "DONE" ? m.backDone : m.backUnavailable}</p>;
-      case "ALREADY_HERE":
+      case 'BACK':
+        return (
+          <p>
+            {item.nav === 'PENDING' ? '…' : item.nav === 'DONE' ? m.backDone : m.backUnavailable}
+          </p>
+        );
+      case 'ALREADY_HERE':
         return <p>{m.navAlreadyHere(r.destination.label, r.destination.description)}</p>;
-      case "SUGGEST_NAVIGATE":
+      case 'SUGGEST_NAVIGATE':
         return (
           <>
             <p>{m.navSuggest(r.destination.label, r.destination.description)}</p>
             <div className="sc-tom__chips">{goButton(r.destination)}</div>
           </>
         );
-      case "AMBIGUOUS":
+      case 'AMBIGUOUS':
         return (
           <>
             <p>{m.ambiguous}</p>
             <div className="sc-tom__chips">{r.destinations.map(goButton)}</div>
           </>
         );
-      case "EXPLAIN_SCREEN":
+      case 'EXPLAIN_SCREEN':
         return (
           <>
             <p>{m.screenIntro(r.destination?.label ?? null, r.destination?.description ?? null)}</p>
@@ -708,7 +812,7 @@ function ReplyView({
             )}
           </>
         );
-      case "EXPLAIN_TOPIC":
+      case 'EXPLAIN_TOPIC':
         return (
           <>
             <p>{m.matchIntro}</p>
@@ -721,48 +825,52 @@ function ReplyView({
             </ul>
           </>
         );
-      case "TOUR":
+      case 'TOUR':
         return (
           <>
             <p>{m.tourOffer(r.tour.title, r.tour.steps.length)}</p>
             <div className="sc-tom__chips">
-              <button type="button" className="sc-tom__chip sc-tom__chip--primary" onClick={() => onTour(r.tour)}>
+              <button
+                type="button"
+                className="sc-tom__chip sc-tom__chip--primary"
+                onClick={() => onTour(r.tour)}
+              >
                 {m.tourStartButton}
               </button>
             </div>
           </>
         );
-      case "NO_TOUR":
+      case 'NO_TOUR':
         return <p>{m.noTour}</p>;
-      case "INSTRUCTIONS":
+      case 'INSTRUCTIONS':
         return (
           <>
             <p>{m.instructionsIntro}</p>
             <InstructionLinks instructions={instructions} m={m} />
           </>
         );
-      case "EMERGENCY_FALLBACK":
+      case 'EMERGENCY_FALLBACK':
         return (
           <div className="sc-tom__fallback">
             <p>
               <strong>{m.emergencyRefusal}</strong> {m.emergencyFollowProcedures}
             </p>
-            {role === "STUDENT" || role === "VOLUNTEER" ? <p>{m.emergencyStudentNav}</p> : null}
+            {role === 'STUDENT' || role === 'VOLUNTEER' ? <p>{m.emergencyStudentNav}</p> : null}
             <ContactList contacts={contacts} m={m} />
             <InstructionLinks instructions={instructions} m={m} />
           </div>
         );
-      case "REFUSE_ACTION":
+      case 'REFUSE_ACTION':
         return (
           <>
             <p>
-              <strong>{m.refuse(ACTION_WORDS_EN[r.action] ?? "do that")}</strong>
-              {r.destination ? ` ${m.refuseWhere(r.destination.label)}` : ""}
+              <strong>{m.refuse(ACTION_WORDS_EN[r.action] ?? 'do that')}</strong>
+              {r.destination ? ` ${m.refuseWhere(r.destination.label)}` : ''}
             </p>
             {r.destination && <div className="sc-tom__chips">{goButton(r.destination)}</div>}
           </>
         );
-      case "UNKNOWN":
+      case 'UNKNOWN':
         return (
           <>
             <p>{m.unknownAnswer}</p>
@@ -774,14 +882,22 @@ function ReplyView({
   return <>{body}</>;
 }
 
-function InstructionLinks({ instructions, m }: { instructions: ApprovedInstructionLink[]; m: TomMessages }) {
+function InstructionLinks({
+  instructions,
+  m,
+}: {
+  instructions: ApprovedInstructionLink[];
+  m: TomMessages;
+}) {
   if (instructions.length === 0) return <p>{m.noInstructions}</p>;
   return (
     <ul className="sc-tom__list">
       {instructions.map((i) => (
         <li key={i.id}>
-          <a href={i.href}>{i.title}</a>{" "}
-          <span className="sc-tom__muted">{m.instructionMeta(i.sourceLabel, i.version, i.language)}</span>
+          <a href={i.href}>{i.title}</a>{' '}
+          <span className="sc-tom__muted">
+            {m.instructionMeta(i.sourceLabel, i.version, i.language)}
+          </span>
         </li>
       ))}
     </ul>
@@ -799,16 +915,22 @@ function ContactList({ contacts, m }: { contacts: CampusContact[]; m: TomMessage
         {contacts.map((c) => (
           <li key={c.id} data-verification={c.verification}>
             {c.label}: <span className="sc-tom__number">{c.phoneDisplay}</span>
-            {c.verification !== "INSTITUTION_CONFIRMED" && (
+            {c.verification !== 'INSTITUTION_CONFIRMED' && (
               <span className="sc-tom__muted">
-                {" "}
-                ({VERIFICATION_PRESENTATION[c.verification].label.toLowerCase()}; {m.contactUnconfirmed})
+                {' '}
+                ({VERIFICATION_PRESENTATION[c.verification].label.toLowerCase()};{' '}
+                {m.contactUnconfirmed})
               </span>
             )}
             {c.source.url && (
               <>
-                {" "}
-                <a href={c.source.url} target="_blank" rel="noopener noreferrer" className="sc-tom__source">
+                {' '}
+                <a
+                  href={c.source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="sc-tom__source"
+                >
                   {m.sourceLink}
                 </a>
               </>
@@ -820,19 +942,31 @@ function ContactList({ contacts, m }: { contacts: CampusContact[]; m: TomMessage
   );
 }
 
-function FaqItem({ entry, role, ai, m }: { entry: TomEntry; role: Role; ai: TomAiAdapter | null; m: TomMessages }) {
+function FaqItem({
+  entry,
+  role,
+  ai,
+  m,
+}: {
+  entry: TomEntry;
+  role: Role;
+  ai: TomAiAdapter | null;
+  m: TomMessages;
+}) {
   const [explanation, setExplanation] = useState<
-    { phase: "idle" } | { phase: "loading" } | { phase: "done"; text: string } | { phase: "error" }
-  >({ phase: "idle" });
+    { phase: 'idle' } | { phase: 'loading' } | { phase: 'done'; text: string } | { phase: 'error' }
+  >({ phase: 'idle' });
 
   async function explain() {
     if (!ai) return;
-    setExplanation({ phase: "loading" });
+    setExplanation({ phase: 'loading' });
     try {
       const text = (await ai.explain({ entry, role })).trim();
-      setExplanation(text ? { phase: "done", text: text.slice(0, MAX_AI_TEXT) } : { phase: "error" });
+      setExplanation(
+        text ? { phase: 'done', text: text.slice(0, MAX_AI_TEXT) } : { phase: 'error' },
+      );
     } catch {
-      setExplanation({ phase: "error" });
+      setExplanation({ phase: 'error' });
     }
   }
 
@@ -843,18 +977,18 @@ function FaqItem({ entry, role, ai, m }: { entry: TomEntry; role: Role; ai: TomA
       {!entry.review.reviewed && <p className="sc-tom__muted">{m.draftEntry}</p>}
       {ai && (
         <div className="sc-tom__ai">
-          {explanation.phase !== "done" && (
-            <button type="button" onClick={explain} disabled={explanation.phase === "loading"}>
-              {explanation.phase === "loading" ? m.explaining : m.explainButton}
+          {explanation.phase !== 'done' && (
+            <button type="button" onClick={explain} disabled={explanation.phase === 'loading'}>
+              {explanation.phase === 'loading' ? m.explaining : m.explainButton}
             </button>
           )}
-          {explanation.phase === "done" && (
+          {explanation.phase === 'done' && (
             <figure>
-              <figcaption>{ai.status === "MOCK" ? m.aiCaptionMock : m.aiCaptionLive}</figcaption>
+              <figcaption>{ai.status === 'MOCK' ? m.aiCaptionMock : m.aiCaptionLive}</figcaption>
               <p>{explanation.text}</p>
             </figure>
           )}
-          {explanation.phase === "error" && <p>{m.aiUnavailable}</p>}
+          {explanation.phase === 'error' && <p>{m.aiUnavailable}</p>}
         </div>
       )}
     </details>

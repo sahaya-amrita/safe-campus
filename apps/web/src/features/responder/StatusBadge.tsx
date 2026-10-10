@@ -11,7 +11,7 @@ export function StatusBadge({ label, icon, tone, description }: StatusBadgeProps
     <span className={`sc-badge sc-badge--${tone}`} title={description} data-status-tone={tone}>
       <span aria-hidden="true" className="sc-badge__icon">
         {icon}
-      </span>{" "}
+      </span>{' '}
       <span className="sc-badge__label">{label}</span>
     </span>
   );

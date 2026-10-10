@@ -9,12 +9,12 @@
 
 **What exists today:**
 
-| Piece | Where | State |
-|---|---|---|
-| Contract, flow, trust boundaries | this file | proposal |
-| Reference server implementation (contract schemas, service, provider interface, mock provider, Claude adapter, rate limiter, router, 39 tests) | [`REFERENCE_IMPLEMENTATION.md`](./REFERENCE_IMPLEMENTATION.md) | type-checked and tested **in an isolated scratch workspace** against `@anthropic-ai/sdk` 0.133.0, zod 4.6, express 5. **Not** in `services/api`. |
-| Claude adapter | same | **untested against the live API.** Never called; exercised only with a fake client. |
-| Tom client (`HttpTomAssistantBackend`, response validator, client-side action checks, AI-answer UI) | `components/tom/assistantClient.ts`, `Tom.tsx` | implemented and tested in the Tom module; **disabled by default**. It has not been run against a real server, because the endpoint doesn't exist yet. |
+| Piece                                                                                                                                          | Where                                                          | State                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contract, flow, trust boundaries                                                                                                               | this file                                                      | proposal                                                                                                                                              |
+| Reference server implementation (contract schemas, service, provider interface, mock provider, Claude adapter, rate limiter, router, 39 tests) | [`REFERENCE_IMPLEMENTATION.md`](./REFERENCE_IMPLEMENTATION.md) | type-checked and tested **in an isolated scratch workspace** against `@anthropic-ai/sdk` 0.133.0, zod 4.6, express 5. **Not** in `services/api`.      |
+| Claude adapter                                                                                                                                 | same                                                           | **untested against the live API.** Never called; exercised only with a fake client.                                                                   |
+| Tom client (`HttpTomAssistantBackend`, response validator, client-side action checks, AI-answer UI)                                            | `components/tom/assistantClient.ts`, `Tom.tsx`                 | implemented and tested in the Tom module; **disabled by default**. It has not been run against a real server, because the endpoint doesn't exist yet. |
 
 ## 1. Endpoint
 
@@ -29,12 +29,12 @@
 }
 ```
 
-| Field | Rule |
-|---|---|
-| `question` | string, control characters stripped, trimmed, 1–500 chars |
+| Field            | Rule                                                                     |
+| ---------------- | ------------------------------------------------------------------------ |
+| `question`       | string, control characters stripped, trimmed, 1–500 chars                |
 | `context.screen` | registered screen id, `^[a-z][a-z0-9-]*(\.[a-z0-9-]+){0,3}$`, ≤ 64 chars |
-| `context.locale` | `"en"` or `"ta"` (default `"en"`) |
-| anything else | **rejected (400)**: both objects are `.strict()` |
+| `context.locale` | `"en"` or `"ta"` (default `"en"`)                                        |
+| anything else    | **rejected (400)**: both objects are `.strict()`                         |
 
 The user's identity and roles come **only** from the verified access token (`request.auth`). A body containing `role`, `roles`, `userId`, record ids or any other field is rejected, not ignored. Route body limit: **2 KB**, tighter than the global 256 KB.
 
@@ -46,8 +46,14 @@ The user's identity and roles come **only** from the verified access token (`req
   "answer": "Hazard reports are reviewed in Hazard review. A reviewer records a decision there.",
   "suggestedAction": { "type": "NAVIGATE", "destinationId": "responder.hazard-review" },
   "references": [
-    { "id": "help.hazard-review", "kind": "APP_HELP", "title": "Reviewing hazard reports",
-      "version": "1", "source": "SAFE CAMPUS app help v1", "reviewState": "APPROVED" }
+    {
+      "id": "help.hazard-review",
+      "kind": "APP_HELP",
+      "title": "Reviewing hazard reports",
+      "version": "1",
+      "source": "SAFE CAMPUS app help v1",
+      "reviewState": "APPROVED"
+    }
   ],
   "provider": { "kind": "LLM", "model": "claude-opus-5-5" },
   "degraded": false,
@@ -55,27 +61,27 @@ The user's identity and roles come **only** from the verified access token (`req
 }
 ```
 
-| Field | Meaning |
-|---|---|
-| `status` | `ANSWERED` (grounded answer) · `NEEDS_CLARIFICATION` (`answer` asks one question) · `UNSUPPORTED` (out of scope, or a request for an action Tom may not take) · `SAFETY_REDIRECT` (**proposed addition**: emergency-sounding question; fixed safe text; model not called) · `UNAVAILABLE` (provider down and no deterministic answer) |
-| `answer` | ≤ 1200 chars. Never contains URLs, unverified phone numbers, official emergency/evacuation wording, or claims that an action was performed (server post-checks). |
-| `suggestedAction` | `null` or exactly one of the **allowlist**: `NAVIGATE {destinationId}` · `START_GUIDED_TOUR {tourId}` · `OPEN_APPROVED_INSTRUCTIONS {instructionPackId}`. The target must be registered **and** permitted for the caller's roles. It is a suggestion only: the server never executes it. |
-| `references` | ≤ 5 approved documents that were actually supplied to the model. `reviewState: "DRAFT"` appears only if drafts are explicitly enabled for DEMO. |
-| `provider.kind` | `LLM` (real model) · `MOCK` (development stand-in) · `RULES` (deterministic). It lets the UI label answers honestly. |
-| `degraded` | `true` when the provider failed or its output was rejected and rules answered instead |
+| Field             | Meaning                                                                                                                                                                                                                                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`          | `ANSWERED` (grounded answer) · `NEEDS_CLARIFICATION` (`answer` asks one question) · `UNSUPPORTED` (out of scope, or a request for an action Tom may not take) · `SAFETY_REDIRECT` (**proposed addition**: emergency-sounding question; fixed safe text; model not called) · `UNAVAILABLE` (provider down and no deterministic answer) |
+| `answer`          | ≤ 1200 chars. Never contains URLs, unverified phone numbers, official emergency/evacuation wording, or claims that an action was performed (server post-checks).                                                                                                                                                                      |
+| `suggestedAction` | `null` or exactly one of the **allowlist**: `NAVIGATE {destinationId}` · `START_GUIDED_TOUR {tourId}` · `OPEN_APPROVED_INSTRUCTIONS {instructionPackId}`. The target must be registered **and** permitted for the caller's roles. It is a suggestion only: the server never executes it.                                              |
+| `references`      | ≤ 5 approved documents that were actually supplied to the model. `reviewState: "DRAFT"` appears only if drafts are explicitly enabled for DEMO.                                                                                                                                                                                       |
+| `provider.kind`   | `LLM` (real model) · `MOCK` (development stand-in) · `RULES` (deterministic). It lets the UI label answers honestly.                                                                                                                                                                                                                  |
+| `degraded`        | `true` when the provider failed or its output was rejected and rules answered instead                                                                                                                                                                                                                                                 |
 
 There is deliberately **no field that could carry an executed result**.
 
 ### Errors (shared shape `{ error: { code, message, requestId } }`)
 
-| HTTP | `code` | When |
-|---|---|---|
-| 400 | `VALIDATION_ERROR` | bad or extra fields, question too long, bad screen id |
-| 401 | `UNAUTHORIZED` | no or invalid token |
-| 403 | `FORBIDDEN` | role not allowed to use the assistant (proposal: all five roles allowed) |
-| 413 | (Express) | body > 2 KB |
-| 429 | `RATE_LIMITED` | per-user limit hit; `Retry-After` header set |
-| 500 | `INTERNAL_ERROR` | unexpected; never includes prompts, keys or stack traces |
+| HTTP | `code`             | When                                                                     |
+| ---- | ------------------ | ------------------------------------------------------------------------ |
+| 400  | `VALIDATION_ERROR` | bad or extra fields, question too long, bad screen id                    |
+| 401  | `UNAUTHORIZED`     | no or invalid token                                                      |
+| 403  | `FORBIDDEN`        | role not allowed to use the assistant (proposal: all five roles allowed) |
+| 413  | (Express)          | body > 2 KB                                                              |
+| 429  | `RATE_LIMITED`     | per-user limit hit; `Retry-After` header set                             |
+| 500  | `INTERNAL_ERROR`   | unexpected; never includes prompts, keys or stack traces                 |
 
 Provider timeouts, refusals and invalid output are **not** HTTP errors. They return 200 with a deterministic fallback (`degraded: true`), or `UNAVAILABLE`.
 
@@ -102,6 +108,7 @@ flowchart LR
 ```
 
 **Trust rules**
+
 1. **Browser → API:** the browser is untrusted. It sends a question and screen id only. Roles come from the token. The client holds no model key; `HttpTomAssistantBackend` contains no credentials (tested).
 2. **API → model:** the model is untrusted. It sees only the question, screen, locale, the **approved, eligible** documents retrieved for this question, and the ids and labels of targets **permitted for this caller**. No user id, email, incident or help-request records, student data, locations, or unconfirmed contacts.
 3. **Model → API:** every output is validated. Structured output is parsed with Zod, then lengths, references (must be supplied docs), action type (allowlist), target (registered and permitted) and answer text (no URLs, unverified numbers, official-instruction wording, or claimed actions) are checked. Any failure means the model answer is discarded and rules answer instead.
@@ -112,12 +119,12 @@ flowchart LR
 
 A `KnowledgeDoc` is `{ id, kind, title, body, keywords?, audience: Role[] | "ALL", locale, version, source, review: { state, reviewedBy?, reviewedAt?, validUntil? }, instructionPackId? }`.
 
-| `kind` | Content | Rule |
-|---|---|---|
-| `APP_HELP` | how to use student/responder screens | approved; drafts only if `ASSISTANT_ALLOW_DRAFT_CONTENT=true` (DEMO), and labelled `DRAFT` |
-| `STATUS_GLOSSARY` | meaning of request/incident/hazard statuses | as above |
-| `WORKFLOW` | approved application workflow docs | as above |
-| `CAMPUS_CONTACT` | **institution-confirmed** contacts only | **always** approved and current; numbers in these docs are the only numbers an answer may contain |
+| `kind`             | Content                                             | Rule                                                                                                  |
+| ------------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `APP_HELP`         | how to use student/responder screens                | approved; drafts only if `ASSISTANT_ALLOW_DRAFT_CONTENT=true` (DEMO), and labelled `DRAFT`            |
+| `STATUS_GLOSSARY`  | meaning of request/incident/hazard statuses         | as above                                                                                              |
+| `WORKFLOW`         | approved application workflow docs                  | as above                                                                                              |
+| `CAMPUS_CONTACT`   | **institution-confirmed** contacts only             | **always** approved and current; numbers in these docs are the only numbers an answer may contain     |
 | `INSTRUCTION_PACK` | metadata of `APPROVED`/`PUBLISHED`, unexpired packs | **always** approved and current; the pack **content** is not summarised by the model; Tom links to it |
 
 Eligibility filters by caller roles, locale, review state and `validUntil` **before** retrieval, so drafts, expired docs and unconfirmed contacts never reach the model. Retrieval is a small keyword scorer (top 6). It can be swapped for BM25 or embeddings without changing callers.
@@ -130,11 +137,25 @@ Eligibility filters by caller roles, locale, review state and `validUntil` **bef
 
 ```ts
 interface AssistantProvider {
-  readonly kind: "LLM" | "MOCK";
+  readonly kind: 'LLM' | 'MOCK';
   readonly model: string | null;
-  generate(input: ProviderInput, signal: AbortSignal): Promise<
-    { ok: true; output: ModelOutput } |
-    { ok: false; reason: "DISABLED" | "TIMEOUT" | "RATE_LIMITED" | "REFUSED" | "TRUNCATED" | "INVALID_OUTPUT" | "UNAVAILABLE" }>;
+  generate(
+    input: ProviderInput,
+    signal: AbortSignal,
+  ): Promise<
+    | { ok: true; output: ModelOutput }
+    | {
+        ok: false;
+        reason:
+          | 'DISABLED'
+          | 'TIMEOUT'
+          | 'RATE_LIMITED'
+          | 'REFUSED'
+          | 'TRUNCATED'
+          | 'INVALID_OUTPUT'
+          | 'UNAVAILABLE';
+      }
+  >;
 }
 ```
 
@@ -198,6 +219,7 @@ const assistant = new HttpTomAssistantBackend({
 ```
 
 **What Tom does:**
+
 - **Always answered locally, never sent:** emergencies, refusals, explicit "take me to…", back, tours and instruction requests.
 - **Sent:** other questions, as `{ question, context: { screen, locale } }` only.
 - **Rendered:** `ANSWERED` and `NEEDS_CLARIFICATION`, with a label based on `provider.kind`, the references, and a `degraded` note.

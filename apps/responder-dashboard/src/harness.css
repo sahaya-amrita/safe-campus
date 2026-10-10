@@ -1,28 +1,135 @@
 /* TEMPORARY harness page reset: lets the responder workspace fill the viewport.
    The real shell owns global styles. */
-html, body, #root { margin: 0; min-height: 100%; }
-html { color-scheme: light dark; }
-body { background: #f2f4f7; }
-@media (prefers-color-scheme: dark) { body { background: #0b1118; } }
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+html {
+  color-scheme: light dark;
+}
+body {
+  background: #f2f4f7;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0b1118;
+  }
+}
 
 /* Harness-only AI connection chip (top-right). */
 /* Sits at the bottom, left of Tom's launcher, so it never covers the workspace header. */
-.hx-conn { position: fixed; bottom: 1.4rem; right: 11rem; z-index: 39; font: 0.8rem/1.4 system-ui, sans-serif; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 0.4rem; }
-.hx-conn__chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.65rem; border-radius: 999px; border: 1px solid #8892a0; background: #ffffff; color: #17202b; font: inherit; font-weight: 600; cursor: pointer; }
-.hx-conn__dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #8892a0; }
-.hx-conn__dot--ok { background: #237a3b; }
-.hx-conn__panel { width: min(21rem, calc(100vw - 1.5rem)); display: grid; gap: 0.45rem; padding: 0.75rem 0.85rem; border-radius: 10px; border: 1px solid #c8d0da; background: #ffffff; color: #17202b; box-shadow: 0 10px 30px rgb(0 0 0 / 0.2); }
-.hx-conn__panel p { margin: 0; }
-.hx-conn__api { color: #566475; word-break: break-all; }
-.hx-conn__form { display: grid; gap: 0.3rem; }
-.hx-conn__form input { padding: 0.4rem 0.5rem; border: 1px solid #c8d0da; border-radius: 6px; font: inherit; }
-.hx-conn__panel button { justify-self: start; padding: 0.35rem 0.8rem; border-radius: 6px; border: 1px solid #c8d0da; background: #f2f4f7; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
-.hx-conn__link { border: 0 !important; background: none !important; padding: 0 !important; text-decoration: underline; color: #1c64d6 !important; }
-.hx-conn :focus-visible { outline: 3px solid #f0a500; outline-offset: 2px; }
-@media (prefers-color-scheme: dark) {
-  .hx-conn__chip, .hx-conn__panel { background: #131c27; color: #e5ebf2; border-color: #33404f; }
-  .hx-conn__form input { background: #0b1118; color: #e5ebf2; border-color: #33404f; }
-  .hx-conn__panel button { background: #1a2533; border-color: #33404f; }
-  .hx-conn__api { color: #93a2b3; }
+.hx-conn {
+  position: fixed;
+  bottom: 1.4rem;
+  right: 11rem;
+  z-index: 39;
+  font:
+    0.8rem/1.4 system-ui,
+    sans-serif;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 0.4rem;
 }
-@media (max-width: 720px) { .hx-conn { bottom: 1.4rem; left: 0.75rem; right: auto; align-items: flex-start; } }
+.hx-conn__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid #8892a0;
+  background: #ffffff;
+  color: #17202b;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hx-conn__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #8892a0;
+}
+.hx-conn__dot--ok {
+  background: #237a3b;
+}
+.hx-conn__panel {
+  width: min(21rem, calc(100vw - 1.5rem));
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #c8d0da;
+  background: #ffffff;
+  color: #17202b;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.2);
+}
+.hx-conn__panel p {
+  margin: 0;
+}
+.hx-conn__api {
+  color: #566475;
+  word-break: break-all;
+}
+.hx-conn__form {
+  display: grid;
+  gap: 0.3rem;
+}
+.hx-conn__form input {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #c8d0da;
+  border-radius: 6px;
+  font: inherit;
+}
+.hx-conn__panel button {
+  justify-self: start;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #c8d0da;
+  background: #f2f4f7;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hx-conn__link {
+  border: 0 !important;
+  background: none !important;
+  padding: 0 !important;
+  text-decoration: underline;
+  color: #1c64d6 !important;
+}
+.hx-conn :focus-visible {
+  outline: 3px solid #f0a500;
+  outline-offset: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  .hx-conn__chip,
+  .hx-conn__panel {
+    background: #131c27;
+    color: #e5ebf2;
+    border-color: #33404f;
+  }
+  .hx-conn__form input {
+    background: #0b1118;
+    color: #e5ebf2;
+    border-color: #33404f;
+  }
+  .hx-conn__panel button {
+    background: #1a2533;
+    border-color: #33404f;
+  }
+  .hx-conn__api {
+    color: #93a2b3;
+  }
+}
+@media (max-width: 720px) {
+  .hx-conn {
+    bottom: 1.4rem;
+    left: 0.75rem;
+    right: auto;
+    align-items: flex-start;
+  }
+}

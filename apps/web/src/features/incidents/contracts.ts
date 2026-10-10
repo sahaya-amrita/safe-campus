@@ -2,14 +2,14 @@
  * PROVISIONAL hazard-report contract types mirroring docs/api-contracts.md.
  * Replace with re-exports from packages/contracts once Codex 1 publishes it.
  */
-import type { Page } from "../responder/contracts";
+import type { Page } from '../responder/contracts';
 
 export const HAZARD_STATUSES = [
-  "PENDING_REVIEW",
-  "VERIFIED",
-  "REJECTED",
-  "DUPLICATE",
-  "RESOLVED",
+  'PENDING_REVIEW',
+  'VERIFIED',
+  'REJECTED',
+  'DUPLICATE',
+  'RESOLVED',
 ] as const;
 export type HazardStatus = (typeof HAZARD_STATUSES)[number];
 
@@ -30,7 +30,7 @@ export interface HazardReport {
 }
 
 /** Decisions a human reviewer can record. PENDING_REVIEW is never a decision. */
-export type HazardReviewDecision = Exclude<HazardStatus, "PENDING_REVIEW">;
+export type HazardReviewDecision = Exclude<HazardStatus, 'PENDING_REVIEW'>;
 
 /**
  * ASSUMPTION: body of POST /api/v1/responder/hazard-reports/:id/review.

@@ -1,5 +1,5 @@
-import type { HelpRequest, HelpRequestStatus } from "./contracts";
-import { HELP_REQUEST_STATUSES } from "./contracts";
+import type { HelpRequest, HelpRequestStatus } from './contracts';
+import { HELP_REQUEST_STATUSES } from './contracts';
 
 /**
  * Responder-side lifecycle. Terminal states have no outgoing transitions.
@@ -7,9 +7,9 @@ import { HELP_REQUEST_STATUSES } from "./contracts";
  * (see AVAILABLE_ACTIONS); the rest are documented here for the integrator.
  */
 export const HELP_REQUEST_TRANSITIONS: Record<HelpRequestStatus, readonly HelpRequestStatus[]> = {
-  OPEN: ["ACKNOWLEDGED", "CANCELLED"],
-  ACKNOWLEDGED: ["ASSIGNED", "RESOLVED", "CANCELLED"],
-  ASSIGNED: ["RESOLVED", "CANCELLED"],
+  OPEN: ['ACKNOWLEDGED', 'CANCELLED'],
+  ACKNOWLEDGED: ['ASSIGNED', 'RESOLVED', 'CANCELLED'],
+  ASSIGNED: ['RESOLVED', 'CANCELLED'],
   RESOLVED: [],
   CANCELLED: [],
 };
@@ -23,8 +23,8 @@ export function isTerminal(status: HelpRequestStatus): boolean {
 }
 
 /** Only acknowledgement has a proposed endpoint today. */
-export function canAcknowledge(request: Pick<HelpRequest, "status">): boolean {
-  return request.status === "OPEN";
+export function canAcknowledge(request: Pick<HelpRequest, 'status'>): boolean {
+  return request.status === 'OPEN';
 }
 
 export interface StatusPresentation {
@@ -32,44 +32,44 @@ export interface StatusPresentation {
   /** Non-colour cue so states are distinguishable without colour. */
   icon: string;
   description: string;
-  tone: "urgent" | "progress" | "assigned" | "done" | "neutral";
+  tone: 'urgent' | 'progress' | 'assigned' | 'done' | 'neutral';
 }
 
 export const HELP_REQUEST_STATUS_PRESENTATION: Record<HelpRequestStatus, StatusPresentation> = {
   OPEN: {
-    label: "Open",
-    icon: "●",
-    description: "Not yet acknowledged by any responder.",
-    tone: "urgent",
+    label: 'Open',
+    icon: '●',
+    description: 'Not yet acknowledged by any responder.',
+    tone: 'urgent',
   },
   ACKNOWLEDGED: {
-    label: "Acknowledged",
-    icon: "◐",
-    description: "A responder has recorded that they saw this request. Not yet assigned.",
-    tone: "progress",
+    label: 'Acknowledged',
+    icon: '◐',
+    description: 'A responder has recorded that they saw this request. Not yet assigned.',
+    tone: 'progress',
   },
   ASSIGNED: {
-    label: "Assigned",
-    icon: "◆",
-    description: "Assigned to a responder in the system.",
-    tone: "assigned",
+    label: 'Assigned',
+    icon: '◆',
+    description: 'Assigned to a responder in the system.',
+    tone: 'assigned',
   },
   RESOLVED: {
-    label: "Resolved",
-    icon: "✓",
-    description: "Closed as resolved.",
-    tone: "done",
+    label: 'Resolved',
+    icon: '✓',
+    description: 'Closed as resolved.',
+    tone: 'done',
   },
   CANCELLED: {
-    label: "Cancelled",
-    icon: "✕",
-    description: "Cancelled; no further action recorded.",
-    tone: "neutral",
+    label: 'Cancelled',
+    icon: '✕',
+    description: 'Cancelled; no further action recorded.',
+    tone: 'neutral',
   },
 };
 
 export function isHelpRequestStatus(value: unknown): value is HelpRequestStatus {
-  return typeof value === "string" && (HELP_REQUEST_STATUSES as readonly string[]).includes(value);
+  return typeof value === 'string' && (HELP_REQUEST_STATUSES as readonly string[]).includes(value);
 }
 
 /** Oldest first, so the longest-waiting request is at the top. */
@@ -77,21 +77,29 @@ export function sortForTriage(requests: readonly HelpRequest[]): HelpRequest[] {
   return [...requests].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 }
 
-const isOptionalString = (v: unknown) => v === undefined || v === null || typeof v === "string";
+const isOptionalString = (v: unknown) => v === undefined || v === null || typeof v === 'string';
 
 /** Boundary validation for data arriving from the network. */
 export function parseHelpRequest(value: unknown): HelpRequest {
-  if (typeof value !== "object" || value === null) throw new TypeError("Help request must be an object");
+  if (typeof value !== 'object' || value === null)
+    throw new TypeError('Help request must be an object');
   const v = value as Record<string, unknown>;
-  if (typeof v.id !== "string" || v.id.length === 0) throw new TypeError("Help request id missing");
-  if (!isHelpRequestStatus(v.status)) throw new TypeError(`Unknown help request status: ${String(v.status)}`);
-  if (typeof v.createdAt !== "string" || Number.isNaN(Date.parse(v.createdAt))) {
-    throw new TypeError("Help request createdAt invalid");
+  if (typeof v.id !== 'string' || v.id.length === 0) throw new TypeError('Help request id missing');
+  if (!isHelpRequestStatus(v.status))
+    throw new TypeError(`Unknown help request status: ${String(v.status)}`);
+  if (typeof v.createdAt !== 'string' || Number.isNaN(Date.parse(v.createdAt))) {
+    throw new TypeError('Help request createdAt invalid');
   }
-  if (typeof v.lastUpdatedAt !== "string" || Number.isNaN(Date.parse(v.lastUpdatedAt))) {
-    throw new TypeError("Help request lastUpdatedAt invalid");
+  if (typeof v.lastUpdatedAt !== 'string' || Number.isNaN(Date.parse(v.lastUpdatedAt))) {
+    throw new TypeError('Help request lastUpdatedAt invalid');
   }
-  for (const key of ["priority", "acknowledgedAt", "assignedResponderId", "acknowledgedBy", "locationReference"]) {
+  for (const key of [
+    'priority',
+    'acknowledgedAt',
+    'assignedResponderId',
+    'acknowledgedBy',
+    'locationReference',
+  ]) {
     if (!isOptionalString(v[key])) throw new TypeError(`Help request ${key} invalid`);
   }
   return {

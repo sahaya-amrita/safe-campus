@@ -1,9 +1,9 @@
-import { useTourTarget } from "../../components/tom/tourTargets";
-import type { CampusContact, OfficialResource } from "./campusDirectory";
-import { contactsForMode, VERIFICATION_PRESENTATION } from "./campusDirectory";
-import type { AppMode } from "./contracts";
-import { Icon } from "./Icon";
-import { StatusBadge } from "./StatusBadge";
+import { useTourTarget } from '../../components/tom/tourTargets';
+import type { CampusContact, OfficialResource } from './campusDirectory';
+import { contactsForMode, VERIFICATION_PRESENTATION } from './campusDirectory';
+import type { AppMode } from './contracts';
+import { Icon } from './Icon';
+import { StatusBadge } from './StatusBadge';
 
 export interface ContactsViewProps {
   contacts: readonly CampusContact[];
@@ -15,26 +15,32 @@ function formatChecked(date: string): string {
   const t = Date.parse(`${date}T00:00:00Z`);
   return Number.isNaN(t)
     ? date
-    : new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    : new Date(t).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
 }
 
 export function ContactsView({ contacts, resources, mode }: ContactsViewProps) {
   const { shown, withheld } = contactsForMode(contacts, mode);
-  const listTarget = useTourTarget("responder.contacts-list");
+  const listTarget = useTourTarget('responder.contacts-list');
   return (
     <section aria-labelledby="sc-ct-title" className="sc-view">
       <div className="sc-view__head">
         <h2 id="sc-ct-title">Campus contacts</h2>
         <p className="sc-muted">
-          Office and service lines only. Each number shows where it came from and whether the institution has
-          confirmed it. Unconfirmed numbers must be confirmed by the institution before a LIVE deployment.
+          Office and service lines only. Each number shows where it came from and whether the
+          institution has confirmed it. Unconfirmed numbers must be confirmed by the institution
+          before a LIVE deployment.
         </p>
       </div>
 
       {withheld > 0 && (
         <p className="sc-notice sc-notice--warn">
-          {withheld} contact{withheld === 1 ? " is" : "s are"} withheld because the institution has not confirmed{" "}
-          {withheld === 1 ? "it" : "them"} for LIVE use.
+          {withheld} contact{withheld === 1 ? ' is' : 's are'} withheld because the institution has
+          not confirmed {withheld === 1 ? 'it' : 'them'} for LIVE use.
         </p>
       )}
 
@@ -49,14 +55,22 @@ export function ContactsView({ contacts, resources, mode }: ContactsViewProps) {
           {shown.map((c) => {
             const v = VERIFICATION_PRESENTATION[c.verification];
             return (
-              <li key={c.id} className={`sc-contact sc-contact--${v.tone}`} data-verification={c.verification}>
+              <li
+                key={c.id}
+                className={`sc-contact sc-contact--${v.tone}`}
+                data-verification={c.verification}
+              >
                 <div className="sc-contact__top">
                   <h3>{c.label}</h3>
                   <StatusBadge label={v.label} icon={v.icon} tone={v.tone} />
                 </div>
                 <p className="sc-contact__number">
                   <span className="sc-mono">{c.phoneDisplay}</span>
-                  <a className="sc-btn sc-btn--ghost" href={`tel:${c.phoneDial}`} aria-label={`Call ${c.label}, ${c.phoneDisplay}`}>
+                  <a
+                    className="sc-btn sc-btn--ghost"
+                    href={`tel:${c.phoneDial}`}
+                    aria-label={`Call ${c.label}, ${c.phoneDisplay}`}
+                  >
                     <Icon name="phone" size={16} /> Call
                   </a>
                 </p>
@@ -84,8 +98,8 @@ export function ContactsView({ contacts, resources, mode }: ContactsViewProps) {
       <div className="sc-view__head">
         <h2 id="sc-res-title">Official campus resources</h2>
         <p className="sc-muted">
-          General institution pages. No approved emergency instruction pack, evacuation route or assembly point is
-          configured in this prototype, so none is shown.
+          General institution pages. No approved emergency instruction pack, evacuation route or
+          assembly point is configured in this prototype, so none is shown.
         </p>
       </div>
       <ul className="sc-resources" aria-labelledby="sc-res-title">

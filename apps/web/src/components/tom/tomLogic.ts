@@ -1,7 +1,14 @@
-import { TOUR_TITLES } from "./knowledgeBase";
-import type { AppMode, ApprovedInstructionLink, Role, TomContext, TomEntry, TomTour } from "./types";
+import { TOUR_TITLES } from './knowledgeBase';
+import type {
+  AppMode,
+  ApprovedInstructionLink,
+  Role,
+  TomContext,
+  TomEntry,
+  TomTour,
+} from './types';
 
-const PUBLISHED_STATES = new Set(["APPROVED", "PUBLISHED"]);
+const PUBLISHED_STATES = new Set(['APPROVED', 'PUBLISHED']);
 
 export function isVisible(
   entry: TomEntry,
@@ -10,10 +17,10 @@ export function isVisible(
   mode: AppMode,
   now: Date = new Date(),
 ): boolean {
-  if (entry.contentType !== "APP_HELP") return false;
+  if (entry.contentType !== 'APP_HELP') return false;
   if (!entry.roles.includes(role)) return false;
-  if (!entry.contexts.includes("*") && !entry.contexts.includes(context)) return false;
-  if (mode === "LIVE") {
+  if (!entry.contexts.includes('*') && !entry.contexts.includes(context)) return false;
+  if (mode === 'LIVE') {
     // LIVE: reviewed and still current only.
     if (!entry.review.reviewed) return false;
     if (entry.review.validUntil) {
@@ -30,9 +37,9 @@ export function selectEntries(
 ) {
   const visible = kb.filter((e) => isVisible(e, opts.role, opts.context, opts.mode, opts.now));
   return {
-    hints: visible.filter((e) => e.kind === "HINT"),
-    faqs: visible.filter((e) => e.kind === "FAQ"),
-    tours: groupTours(visible.filter((e) => e.kind === "TOUR_STEP")),
+    hints: visible.filter((e) => e.kind === 'HINT'),
+    faqs: visible.filter((e) => e.kind === 'FAQ'),
+    tours: groupTours(visible.filter((e) => e.kind === 'TOUR_STEP')),
   };
 }
 
@@ -40,12 +47,12 @@ export function selectEntries(
 export function groupTours(steps: readonly TomEntry[]): TomTour[] {
   const byTour = new Map<string, TomEntry[]>();
   for (const s of steps) {
-    const id = s.tourId ?? "default";
+    const id = s.tourId ?? 'default';
     byTour.set(id, [...(byTour.get(id) ?? []), s]);
   }
   return [...byTour.entries()].map(([id, entries]) => ({
     id,
-    title: TOUR_TITLES[id] ?? "Guided tour",
+    title: TOUR_TITLES[id] ?? 'Guided tour',
     steps: entries
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
       .map((e) => ({
@@ -76,28 +83,84 @@ export function usableInstructions(
 }
 
 const EMERGENCY_TERMS = [
-  "emergency", "fire", "smoke", "flood", "earthquake", "evacuate", "evacuation", "exit", "route", "escape",
-  "injured", "injury", "hurt", "bleeding", "unconscious", "ambulance", "police", "danger", "attack", "threat",
-  "weapon", "gas", "leak", "trapped", "assembly", "shelter", "lockdown", "contact", "phone", "number", "call",
-  "dying", "unsafe", "chemical", "explosion",
+  'emergency',
+  'fire',
+  'smoke',
+  'flood',
+  'earthquake',
+  'evacuate',
+  'evacuation',
+  'exit',
+  'route',
+  'escape',
+  'injured',
+  'injury',
+  'hurt',
+  'bleeding',
+  'unconscious',
+  'ambulance',
+  'police',
+  'danger',
+  'attack',
+  'threat',
+  'weapon',
+  'gas',
+  'leak',
+  'trapped',
+  'assembly',
+  'shelter',
+  'lockdown',
+  'contact',
+  'phone',
+  'number',
+  'call',
+  'dying',
+  'unsafe',
+  'chemical',
+  'explosion',
 ];
 
 function tokenize(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean);
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9-]+/)
+    .filter(Boolean);
 }
 
 export function isEmergencyQuestion(question: string): boolean {
   const tokens = new Set(tokenize(question));
-  return EMERGENCY_TERMS.some((t) => tokens.has(t)) || /help\s+(me|now|us)|need\s+help/i.test(question);
+  return (
+    EMERGENCY_TERMS.some((t) => tokens.has(t)) || /help\s+(me|now|us)|need\s+help/i.test(question)
+  );
 }
 
 export type TomAnswer =
-  | { kind: "EMPTY" }
-  | { kind: "EMERGENCY_FALLBACK" }
-  | { kind: "MATCH"; entries: TomEntry[] }
-  | { kind: "UNKNOWN" };
+  | { kind: 'EMPTY' }
+  | { kind: 'EMERGENCY_FALLBACK' }
+  | { kind: 'MATCH'; entries: TomEntry[] }
+  | { kind: 'UNKNOWN' };
 
-const STOPWORDS = new Set(["the", "a", "an", "i", "is", "do", "does", "how", "what", "my", "to", "of", "it", "this", "can", "in", "on", "and", "or"]);
+const STOPWORDS = new Set([
+  'the',
+  'a',
+  'an',
+  'i',
+  'is',
+  'do',
+  'does',
+  'how',
+  'what',
+  'my',
+  'to',
+  'of',
+  'it',
+  'this',
+  'can',
+  'in',
+  'on',
+  'and',
+  'or',
+]);
 
 /**
  * Keyword lookup over reviewed/visible FAQ entries. Emergency-sounding
@@ -106,17 +169,21 @@ const STOPWORDS = new Set(["the", "a", "an", "i", "is", "do", "does", "how", "wh
  */
 export function answerQuestion(question: string, faqs: readonly TomEntry[]): TomAnswer {
   const q = question.trim();
-  if (!q) return { kind: "EMPTY" };
-  if (isEmergencyQuestion(q)) return { kind: "EMERGENCY_FALLBACK" };
+  if (!q) return { kind: 'EMPTY' };
+  if (isEmergencyQuestion(q)) return { kind: 'EMERGENCY_FALLBACK' };
   const terms = tokenize(q).filter((t) => !STOPWORDS.has(t));
-  if (terms.length === 0) return { kind: "UNKNOWN" };
+  if (terms.length === 0) return { kind: 'UNKNOWN' };
   const scored = faqs
     .map((e) => {
-      const vocab = new Set([...(e.keywords ?? []).map((k) => k.toLowerCase()), ...tokenize(e.title)].filter((t) => !STOPWORDS.has(t)));
+      const vocab = new Set(
+        [...(e.keywords ?? []).map((k) => k.toLowerCase()), ...tokenize(e.title)].filter(
+          (t) => !STOPWORDS.has(t),
+        ),
+      );
       return { e, score: terms.filter((t) => vocab.has(t)).length };
     })
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score);
-  if (scored.length === 0) return { kind: "UNKNOWN" };
-  return { kind: "MATCH", entries: scored.slice(0, 3).map((s) => s.e) };
+  if (scored.length === 0) return { kind: 'UNKNOWN' };
+  return { kind: 'MATCH', entries: scored.slice(0, 3).map((s) => s.e) };
 }

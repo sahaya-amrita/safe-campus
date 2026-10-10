@@ -1,23 +1,30 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import type { TomNavigationAdapter } from "./navigation";
-import { navigateSafely } from "./navigation";
-import type { TomMessages } from "./tomMessages";
-import { useRegisteredTarget } from "./tourTargets";
-import type { TomTour } from "./types";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import type { TomNavigationAdapter } from './navigation';
+import { navigateSafely } from './navigation';
+import type { TomMessages } from './tomMessages';
+import { useRegisteredTarget } from './tourTargets';
+import type { TomTour } from './types';
 
 export interface TourRunnerProps {
   tour: TomTour;
   navigation?: TomNavigationAdapter;
   messages: TomMessages;
   /** Called when the tour ends (finished, skipped or Escape). */
-  onEnd: (how: "FINISHED" | "SKIPPED") => void;
+  onEnd: (how: 'FINISHED' | 'SKIPPED') => void;
 }
 
 type Rect = { top: number; left: number; width: number; height: number };
 
 const prefersReducedMotion = () =>
-  typeof window !== "undefined" && typeof window.matchMedia === "function"
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : true;
 
 /**
@@ -42,7 +49,8 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
     let active = true;
     setNavNote(null);
     if (step.destination && navigation && navigation.current() !== step.destination) {
-      const label = navigation.destinations().find((d) => d.id === step.destination)?.label ?? step.destination;
+      const label =
+        navigation.destinations().find((d) => d.id === step.destination)?.label ?? step.destination;
       setNavNote(m.tourOpening(label));
       void navigateSafely(navigation, step.destination).then((r) => {
         if (!active) return;
@@ -80,38 +88,39 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
       setRect(null);
       return;
     }
-    const behavior: ScrollBehavior = prefersReducedMotion() ? "auto" : "smooth";
+    const behavior: ScrollBehavior = prefersReducedMotion() ? 'auto' : 'smooth';
     if (window.innerWidth < 720) {
       // Phones: the card docks at the bottom, so bring the target near the top,
       // below a sticky header, where the card cannot cover it.
       const top = target.getBoundingClientRect().top;
-      if (top < 80 || top > window.innerHeight * 0.35) window.scrollBy?.({ top: top - 88, behavior });
+      if (top < 80 || top > window.innerHeight * 0.35)
+        window.scrollBy?.({ top: top - 88, behavior });
     } else {
-      target.scrollIntoView?.({ block: "center", inline: "nearest", behavior });
+      target.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior });
     }
     measure();
     // Measure directly on scroll/resize (one rect read), plus two settle checks
     // for smooth scrolling, so the highlight never lags behind its target.
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
     const settle = [setTimeout(measure, 350), setTimeout(measure, 900)];
     return () => {
       settle.forEach(clearTimeout);
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
     };
   }, [target, measure]);
 
   // Escape ends the tour from anywhere on the page.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        onEnd("SKIPPED");
+        onEnd('SKIPPED');
       }
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [onEnd]);
 
   const missing = !target && (!step.optional || !canSkip);
@@ -124,7 +133,12 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
           className="sc-tour__highlight"
           aria-hidden="true"
           data-testid="tour-highlight"
-          style={{ top: rect.top - 6, left: rect.left - 6, width: rect.width + 12, height: rect.height + 12 }}
+          style={{
+            top: rect.top - 6,
+            left: rect.left - 6,
+            width: rect.width + 12,
+            height: rect.height + 12,
+          }}
         />
       )}
       <div
@@ -135,7 +149,7 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
         aria-labelledby="sc-tour-title"
         aria-describedby="sc-tour-body"
         style={cardStyle}
-        data-placement={cardStyle ? "anchored" : "docked"}
+        data-placement={cardStyle ? 'anchored' : 'docked'}
       >
         <p className="sc-tour__progress">
           {tour.title} · {m.tourProgress(index + 1, tour.steps.length)}
@@ -152,7 +166,7 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
         {missing && <p className="sc-tour__note">{m.tourTargetMissing}</p>}
         <div className="sc-tour__dots" aria-hidden="true">
           {tour.steps.map((s, i) => (
-            <span key={s.id} className={i === index ? "is-active" : undefined} />
+            <span key={s.id} className={i === index ? 'is-active' : undefined} />
           ))}
         </div>
         <div className="sc-tour__controls">
@@ -166,11 +180,11 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
           >
             {m.tourBack}
           </button>
-          <button type="button" onClick={() => onEnd("SKIPPED")}>
+          <button type="button" onClick={() => onEnd('SKIPPED')}>
             {m.tourSkip}
           </button>
           {isLast ? (
-            <button type="button" className="sc-tour__primary" onClick={() => onEnd("FINISHED")}>
+            <button type="button" className="sc-tour__primary" onClick={() => onEnd('FINISHED')}>
               {m.tourFinish}
             </button>
           ) : (
@@ -193,7 +207,7 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
 
 /** Anchors the card beside the target on wide screens; docks it on phones. */
 function placeCard(rect: Rect | null): CSSProperties | undefined {
-  if (!rect || typeof window === "undefined" || window.innerWidth < 720) return undefined;
+  if (!rect || typeof window === 'undefined' || window.innerWidth < 720) return undefined;
   const cardW = 340;
   const gap = 14;
   const vw = window.innerWidth;
@@ -202,6 +216,7 @@ function placeCard(rect: Rect | null): CSSProperties | undefined {
   const below = rect.top + rect.height + gap;
   if (below + 220 < vh) return { top: below, left, width: cardW };
   const right = rect.left + rect.width + gap;
-  if (right + cardW + 16 < vw) return { top: Math.max(16, Math.min(rect.top, vh - 260)), left: right, width: cardW };
+  if (right + cardW + 16 < vw)
+    return { top: Math.max(16, Math.min(rect.top, vh - 260)), left: right, width: cardW };
   return { top: Math.max(16, rect.top - 230), left, width: cardW };
 }

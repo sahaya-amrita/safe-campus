@@ -1,24 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
-import { useTourTarget } from "../../components/tom/tourTargets";
-import { HazardReviewQueue } from "../incidents/HazardReviewQueue";
-import type { ResponderApi } from "./api";
-import { classifyError } from "./apiError";
-import type { CampusContact, OfficialResource } from "./campusDirectory";
-import { CAMPUS_CONTACTS, OFFICIAL_RESOURCES } from "./campusDirectory";
-import { ContactsView } from "./ContactsView";
-import type { AppMode } from "./contracts";
-import { HelpRequestQueue } from "./HelpRequestQueue";
-import { Icon, type IconName } from "./Icon";
-import { RollCallSummary } from "./RollCallSummary";
-import "./responder.css";
+import { useCallback, useEffect, useState } from 'react';
+import { useTourTarget } from '../../components/tom/tourTargets';
+import { HazardReviewQueue } from '../incidents/HazardReviewQueue';
+import type { ResponderApi } from './api';
+import { classifyError } from './apiError';
+import type { CampusContact, OfficialResource } from './campusDirectory';
+import { CAMPUS_CONTACTS, OFFICIAL_RESOURCES } from './campusDirectory';
+import { ContactsView } from './ContactsView';
+import type { AppMode } from './contracts';
+import { HelpRequestQueue } from './HelpRequestQueue';
+import { Icon, type IconName } from './Icon';
+import { RollCallSummary } from './RollCallSummary';
+import './responder.css';
 
-export type ResponderView = "help-requests" | "hazard-review" | "roll-call" | "contacts";
+export type ResponderView = 'help-requests' | 'hazard-review' | 'roll-call' | 'contacts';
 
 const VIEWS: Array<{ id: ResponderView; label: string; icon: IconName }> = [
-  { id: "help-requests", label: "Help requests", icon: "inbox" },
-  { id: "hazard-review", label: "Hazard review", icon: "hazard" },
-  { id: "roll-call", label: "Roll-call summary", icon: "rollcall" },
-  { id: "contacts", label: "Contacts & resources", icon: "phone" },
+  { id: 'help-requests', label: 'Help requests', icon: 'inbox' },
+  { id: 'hazard-review', label: 'Hazard review', icon: 'hazard' },
+  { id: 'roll-call', label: 'Roll-call summary', icon: 'rollcall' },
+  { id: 'contacts', label: 'Contacts & resources', icon: 'phone' },
 ];
 
 export interface ResponderDashboardProps {
@@ -35,18 +35,23 @@ export interface ResponderDashboardProps {
   resources?: readonly OfficialResource[];
 }
 
-type Count = { kind: "loading" } | { kind: "count"; value: number; more: boolean } | { kind: "denied" } | { kind: "error" };
+type Count =
+  | { kind: 'loading' }
+  | { kind: 'count'; value: number; more: boolean }
+  | { kind: 'denied' }
+  | { kind: 'error' };
 
 function toCount(p: PromiseSettledResult<{ items: unknown[]; nextCursor: string | null }>): Count {
-  if (p.status === "fulfilled") return { kind: "count", value: p.value.items.length, more: p.value.nextCursor !== null };
+  if (p.status === 'fulfilled')
+    return { kind: 'count', value: p.value.items.length, more: p.value.nextCursor !== null };
   const k = classifyError(p.reason);
-  return k === "FORBIDDEN" || k === "UNAUTHENTICATED" ? { kind: "denied" } : { kind: "error" };
+  return k === 'FORBIDDEN' || k === 'UNAUTHENTICATED' ? { kind: 'denied' } : { kind: 'error' };
 }
 
 function CountValue({ c }: { c: Count }) {
-  if (c.kind === "loading") return <>…</>;
-  if (c.kind === "denied") return <span className="sc-summary__na">No access</span>;
-  if (c.kind === "error") return <span className="sc-summary__na">Unavailable</span>;
+  if (c.kind === 'loading') return <>…</>;
+  if (c.kind === 'denied') return <span className="sc-summary__na">No access</span>;
+  if (c.kind === 'error') return <span className="sc-summary__na">Unavailable</span>;
   return <>{c.more ? `${c.value}+` : c.value}</>;
 }
 
@@ -58,21 +63,21 @@ function CountValue({ c }: { c: Count }) {
 export function ResponderDashboard({
   api,
   now = () => new Date(),
-  initialView = "help-requests",
+  initialView = 'help-requests',
   view: controlledView,
   onViewChange,
-  mode = api.kind === "MOCK" ? "DEMO" : "LIVE",
+  mode = api.kind === 'MOCK' ? 'DEMO' : 'LIVE',
   contacts = CAMPUS_CONTACTS,
   resources = OFFICIAL_RESOURCES,
 }: ResponderDashboardProps) {
   const [ownView, setOwnView] = useState<ResponderView>(initialView);
   const view = controlledView ?? ownView;
-  const navTarget = useTourTarget("responder.nav");
-  const summaryTarget = useTourTarget("responder.summary");
-  const bannerTarget = useTourTarget("responder.mode-banner");
+  const navTarget = useTourTarget('responder.nav');
+  const summaryTarget = useTourTarget('responder.summary');
+  const bannerTarget = useTourTarget('responder.mode-banner');
   const [summary, setSummary] = useState<{ open: Count; pending: Count; at: Date | null }>({
-    open: { kind: "loading" },
-    pending: { kind: "loading" },
+    open: { kind: 'loading' },
+    pending: { kind: 'loading' },
     at: null,
   });
   const [summaryKey, setSummaryKey] = useState(0);
@@ -84,8 +89,8 @@ export function ResponderDashboard({
     let active = true;
     // Previous counts stay visible (with their "Updated" time) until new ones arrive.
     Promise.allSettled([
-      api.listHelpRequests({ status: "OPEN" }),
-      api.listHazardReports({ status: "PENDING_REVIEW" }),
+      api.listHelpRequests({ status: 'OPEN' }),
+      api.listHazardReports({ status: 'PENDING_REVIEW' }),
     ]).then(([open, pending]) => {
       if (active) setSummary({ open: toCount(open), pending: toCount(pending), at: now() });
     });
@@ -95,7 +100,7 @@ export function ResponderDashboard({
     // `now` is a clock, not an input: re-running on its identity would loop.
   }, [api, summaryKey, view]);
 
-  const isDemoData = api.kind === "MOCK";
+  const isDemoData = api.kind === 'MOCK';
   const current = VIEWS.find((v) => v.id === view) ?? VIEWS[0]!;
 
   return (
@@ -116,8 +121,8 @@ export function ResponderDashboard({
               key={v.id}
               type="button"
               title={v.label}
-              aria-current={view === v.id ? "page" : undefined}
-              className={view === v.id ? "sc-nav__item sc-nav__item--active" : "sc-nav__item"}
+              aria-current={view === v.id ? 'page' : undefined}
+              className={view === v.id ? 'sc-nav__item sc-nav__item--active' : 'sc-nav__item'}
               onClick={() => {
                 if (controlledView === undefined) setOwnView(v.id);
                 onViewChange?.(v.id);
@@ -129,7 +134,8 @@ export function ResponderDashboard({
           ))}
         </nav>
         <p className="sc-rail__foot">
-          Prototype. Supplements, and does not replace, campus security and official emergency procedures.
+          Prototype. Supplements, and does not replace, campus security and official emergency
+          procedures.
         </p>
       </aside>
 
@@ -155,12 +161,17 @@ export function ResponderDashboard({
                 </dd>
               </div>
             </dl>
-            <button type="button" className="sc-btn sc-btn--ghost" onClick={refreshSummary} aria-label="Refresh queue summary">
+            <button
+              type="button"
+              className="sc-btn sc-btn--ghost"
+              onClick={refreshSummary}
+              aria-label="Refresh queue summary"
+            >
               <Icon name="refresh" size={16} />
               <span className="sc-summary__at">
                 {summary.at
-                  ? `Updated ${summary.at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`
-                  : "Loading"}
+                  ? `Updated ${summary.at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+                  : 'Loading'}
               </span>
             </button>
           </div>
@@ -168,21 +179,27 @@ export function ResponderDashboard({
 
         {isDemoData && (
           <p className="sc-demo-label" role="note" ref={bannerTarget}>
-            DEMO MODE — synthetic records only. These are not real people, incidents or locations, and no action
-            here reaches anyone.
+            DEMO MODE — synthetic records only. These are not real people, incidents or locations,
+            and no action here reaches anyone.
           </p>
         )}
-        {!isDemoData && mode === "DRILL" && (
+        {!isDemoData && mode === 'DRILL' && (
           <p className="sc-demo-label" role="note" ref={bannerTarget}>
             DRILL MODE — exercise data. No real emergency messages are sent.
           </p>
         )}
 
         <div className="sc-workspace">
-          {view === "help-requests" && <HelpRequestQueue api={api} now={now} onChanged={refreshSummary} />}
-          {view === "hazard-review" && <HazardReviewQueue api={api} now={now} onChanged={refreshSummary} />}
-          {view === "roll-call" && <RollCallSummary api={api} now={now} />}
-          {view === "contacts" && <ContactsView contacts={contacts} resources={resources} mode={mode} />}
+          {view === 'help-requests' && (
+            <HelpRequestQueue api={api} now={now} onChanged={refreshSummary} />
+          )}
+          {view === 'hazard-review' && (
+            <HazardReviewQueue api={api} now={now} onChanged={refreshSummary} />
+          )}
+          {view === 'roll-call' && <RollCallSummary api={api} now={now} />}
+          {view === 'contacts' && (
+            <ContactsView contacts={contacts} resources={resources} mode={mode} />
+          )}
         </div>
       </div>
     </div>

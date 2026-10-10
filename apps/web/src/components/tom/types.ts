@@ -1,4 +1,4 @@
-import type { AppMode, Role } from "../../features/responder/contracts";
+import type { AppMode, Role } from '../../features/responder/contracts';
 
 /** DEMO/DRILL may show draft app help; LIVE shows only reviewed, current content. */
 export type { AppMode, Role };
@@ -6,7 +6,7 @@ export type { AppMode, Role };
 /** Screen identifier supplied by the app shell, e.g. "responder.hazard-review". */
 export type TomContext = string;
 
-export type TomEntryKind = "HINT" | "FAQ" | "TOUR_STEP";
+export type TomEntryKind = 'HINT' | 'FAQ' | 'TOUR_STEP';
 
 export interface TomEntry {
   id: string;
@@ -31,7 +31,7 @@ export interface TomEntry {
    * Tom's own knowledge base holds app-usage help only. It never contains
    * emergency procedures; those come from approved instruction packs.
    */
-  contentType: "APP_HELP";
+  contentType: 'APP_HELP';
   /** Whether a named person has reviewed the copy. LIVE mode requires true. */
   review: { reviewed: boolean; reviewer?: string; reviewedAt?: string; validUntil?: string };
 }

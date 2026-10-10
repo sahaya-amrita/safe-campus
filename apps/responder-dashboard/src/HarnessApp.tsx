@@ -1,8 +1,8 @@
 // TEMPORARY dev-only harness (not the production shell). Mounts the responder
 // workspace and exactly one Tom against the isolated mock adapter (DEMO data),
 // and wires Tom's typed navigation adapter to simple view state with history.
-import { useMemo, useRef, useState } from "react";
-import { AssistantConnection, type AssistantSession } from "./AssistantConnection";
+import { useMemo, useRef, useState } from 'react';
+import { AssistantConnection, type AssistantSession } from './AssistantConnection';
 import {
   CAMPUS_CONTACTS,
   createResponderNavigation,
@@ -12,8 +12,13 @@ import {
   type ResponderApi,
   type ResponderView,
   type Role,
-} from "@web/features/responder";
-import { HttpTomAssistantBackend, Tom, TourTargetProvider, type TomStore } from "@web/components/tom";
+} from '@web/features/responder';
+import {
+  HttpTomAssistantBackend,
+  Tom,
+  TourTargetProvider,
+  type TomStore,
+} from '@web/components/tom';
 
 export interface HarnessAppProps {
   api: ResponderApi;
@@ -26,7 +31,13 @@ export interface HarnessAppProps {
   fetchImpl?: typeof fetch;
 }
 
-export function HarnessApp({ api, role = "RESPONDER", persistentStore, apiBaseUrl = "", fetchImpl }: HarnessAppProps) {
+export function HarnessApp({
+  api,
+  role = 'RESPONDER',
+  persistentStore,
+  apiBaseUrl = '',
+  fetchImpl,
+}: HarnessAppProps) {
   const [session, setSession] = useState<AssistantSession | null>(null);
   const tokenRef = useRef<string | null>(null);
   tokenRef.current = session && session.expiresAt > Date.now() ? session.accessToken : null;
@@ -34,11 +45,15 @@ export function HarnessApp({ api, role = "RESPONDER", persistentStore, apiBaseUr
   const assistant = useMemo(
     () =>
       apiBaseUrl
-        ? new HttpTomAssistantBackend({ baseUrl: apiBaseUrl, getAccessToken: () => tokenRef.current, ...(fetchImpl ? { fetchImpl } : {}) })
+        ? new HttpTomAssistantBackend({
+            baseUrl: apiBaseUrl,
+            getAccessToken: () => tokenRef.current,
+            ...(fetchImpl ? { fetchImpl } : {}),
+          })
         : undefined,
     [apiBaseUrl, fetchImpl],
   );
-  const [view, setView] = useState<ResponderView>("help-requests");
+  const [view, setView] = useState<ResponderView>('help-requests');
   const history = useRef<ResponderView[]>([]);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -73,9 +88,15 @@ export function HarnessApp({ api, role = "RESPONDER", persistentStore, apiBaseUr
 
   return (
     <TourTargetProvider>
-      <ResponderDashboard api={api} mode="DEMO" view={view} onViewChange={go} contacts={CAMPUS_CONTACTS} />
+      <ResponderDashboard
+        api={api}
+        mode="DEMO"
+        view={view}
+        onViewChange={go}
+        contacts={CAMPUS_CONTACTS}
+      />
       <Tom
-        role={role ?? "STUDENT"}
+        role={role ?? 'STUDENT'}
         context={destinationForView(view)}
         mode="DEMO"
         contacts={CAMPUS_CONTACTS}
@@ -83,7 +104,9 @@ export function HarnessApp({ api, role = "RESPONDER", persistentStore, apiBaseUr
         persistentStore={persistentStore}
         {...(session && assistant ? { assistant } : {})}
       />
-      {apiBaseUrl && <AssistantConnection apiBaseUrl={apiBaseUrl} session={session} onSession={setSession} />}
+      {apiBaseUrl && (
+        <AssistantConnection apiBaseUrl={apiBaseUrl} session={session} onSession={setSession} />
+      )}
     </TourTargetProvider>
   );
 }

@@ -9,17 +9,17 @@
  */
 
 /** DEMO/DRILL use synthetic or exercise data; LIVE is an approved deployment. */
-export type AppMode = "DEMO" | "DRILL" | "LIVE";
+export type AppMode = 'DEMO' | 'DRILL' | 'LIVE';
 
-export const ROLES = ["STUDENT", "VOLUNTEER", "RESPONDER", "ADMIN"] as const;
+export const ROLES = ['STUDENT', 'VOLUNTEER', 'RESPONDER', 'ADMIN'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const HELP_REQUEST_STATUSES = [
-  "OPEN",
-  "ACKNOWLEDGED",
-  "ASSIGNED",
-  "RESOLVED",
-  "CANCELLED",
+  'OPEN',
+  'ACKNOWLEDGED',
+  'ASSIGNED',
+  'RESOLVED',
+  'CANCELLED',
 ] as const;
 export type HelpRequestStatus = (typeof HELP_REQUEST_STATUSES)[number];
 
@@ -56,7 +56,7 @@ export interface RollCallSnapshot {
   /** Human-readable description of exactly which population is covered. */
   scopeLabel: string;
   /** PARTIAL = known subset; UNKNOWN = the data source cannot say. */
-  scopeKind: "PARTIAL" | "UNKNOWN";
+  scopeKind: 'PARTIAL' | 'UNKNOWN';
   /** null when the expected headcount for the scope is not known. */
   expectedCount: number | null;
   safeCount: number;

@@ -3,7 +3,7 @@
  * Components opt in with useTourTarget("stable.id"); the tour looks targets
  * up by id only. No CSS selectors, no querying arbitrary DOM.
  */
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 export class TourTargetRegistry {
   private readonly elements = new Map<string, HTMLElement>();
@@ -28,7 +28,13 @@ export class TourTargetRegistry {
 
 const RegistryContext = createContext<TourTargetRegistry | null>(null);
 
-export function TourTargetProvider({ children, registry }: { children: ReactNode; registry?: TourTargetRegistry }) {
+export function TourTargetProvider({
+  children,
+  registry,
+}: {
+  children: ReactNode;
+  registry?: TourTargetRegistry;
+}) {
   const [value] = useState(() => registry ?? new TourTargetRegistry());
   return <RegistryContext.Provider value={value}>{children}</RegistryContext.Provider>;
 }
