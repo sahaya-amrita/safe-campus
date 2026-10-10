@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MockResponderApi } from "@web/features/responder";
 import { HarnessApp } from "./HarnessApp";
 
@@ -154,4 +154,71 @@ describe("Tom guides the real responder workspace", () => {
     await user.click(screen.getByRole("button", { name: "Finish tour" }));
     await waitFor(() => expect(screen.getByRole("heading", { level: 1, name: "Help requests" })).toBeInTheDocument());
   }, 15000);
+});
+
+describe("Tom ↔ assistant API wiring (simulated API via fetch stub, not a live model)", () => {
+  const API = "https://api.example.test";
+  function fakeApi() {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchImpl = vi.fn((url: string, init: RequestInit = {}) => {
+      calls.push({ url, init });
+      if (url.endsWith("/api/v1/assistant/health")) return Promise.resolve(Response.json({ status: "ready", provider: "groq", model: "test-model", modelCheck: "ok" }));
+      if (url.endsWith("/api/v1/auth/demo-login")) return Promise.resolve(Response.json({ accessToken: "demo-token", expiresInSeconds: 7200, user: { email: "responder.demo@example.invalid", roles: ["RESPONDER"] } }));
+      if (url.endsWith("/api/v1/assistant/interpret")) {
+        return Promise.resolve(
+          Response.json({
+            type: "answer",
+            answer: "Acknowledged means a responder recorded that they saw the request.",
+            action: null,
+            references: [{ id: "glossary.help-request-status", kind: "STATUS_GLOSSARY", title: "Help request statuses", version: "1", source: "SAFE CAMPUS app help (draft v1)", reviewState: "DRAFT" }],
+            origin: { source: "AI", provider: "groq", model: "test-model", fallbackReason: null },
+            generatedAt: "2026-10-10T12:00:00Z",
+          }),
+        );
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    return { fetchImpl, calls };
+  }
+
+  it("before sign-in Tom uses built-in help and never calls the API", async () => {
+    seen();
+    const user = userEvent.setup();
+    const api = fakeApi();
+    vi.stubGlobal("fetch", api.fetchImpl);
+    render(<HarnessApp api={new MockResponderApi()} apiBaseUrl={API} fetchImpl={api.fetchImpl as unknown as typeof fetch} />);
+    expect(await screen.findByRole("button", { name: "Tom AI: not signed in" })).toBeInTheDocument();
+    await user.click(launcher());
+    const thread = await ask(user, "what does the acknowledged status really mean for the student?");
+    await waitFor(() => expect(thread).toHaveTextContent(/This might help|I don't know/));
+    expect(api.calls.some((c) => c.url.endsWith("/interpret"))).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("after demo sign-in Tom sends the question with the bearer token and shows the labelled answer", async () => {
+    seen();
+    const user = userEvent.setup();
+    const api = fakeApi();
+    vi.stubGlobal("fetch", api.fetchImpl);
+    render(<HarnessApp api={new MockResponderApi()} apiBaseUrl={API} fetchImpl={api.fetchImpl as unknown as typeof fetch} />);
+    await user.click(await screen.findByRole("button", { name: "Tom AI: not signed in" }));
+    expect(await screen.findByText(/AI assistant: groq · test-model \(model verified\)/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Demo email"), "responder.demo@example.invalid");
+    await user.type(screen.getByLabelText("Demo password"), "fixture-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("button", { name: "Tom AI: signed in as responder.demo@example.invalid" })).toBeInTheDocument();
+
+    await user.click(launcher());
+    const thread = await ask(user, "what does the acknowledged status really mean for the student?");
+    await waitFor(() => expect(thread).toHaveTextContent("AI answer (groq · test-model) based on SAFE CAMPUS help. Not an official instruction."));
+    expect(thread).toHaveTextContent("Acknowledged means a responder recorded that they saw the request.");
+    const call = api.calls.find((c) => c.url === `${API}/api/v1/assistant/interpret`)!;
+    expect((call.init.headers as Record<string, string>).Authorization).toBe("Bearer demo-token");
+    expect(JSON.parse(call.init.body as string)).toEqual({
+      question: "what does the acknowledged status really mean for the student?",
+      context: { screen: "responder.help-requests", locale: "en" },
+      history: [],
+    });
+    vi.unstubAllGlobals();
+  });
 });

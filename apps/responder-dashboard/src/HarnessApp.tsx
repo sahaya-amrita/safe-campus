@@ -2,6 +2,7 @@
 // workspace and exactly one Tom against the isolated mock adapter (DEMO data),
 // and wires Tom's typed navigation adapter to simple view state with history.
 import { useMemo, useRef, useState } from "react";
+import { AssistantConnection, type AssistantSession } from "./AssistantConnection";
 import {
   CAMPUS_CONTACTS,
   createResponderNavigation,
@@ -12,16 +13,31 @@ import {
   type ResponderView,
   type Role,
 } from "@web/features/responder";
-import { Tom, TourTargetProvider, type TomStore } from "@web/components/tom";
+import { HttpTomAssistantBackend, Tom, TourTargetProvider, type TomStore } from "@web/components/tom";
 
 export interface HarnessAppProps {
   api: ResponderApi;
   /** Session role; the real shell gets this from authentication. */
   role?: Role | null;
   persistentStore?: TomStore | null;
+  /** Base URL of the SAFE CAMPUS API for Tom's assistant. Empty = AI off. */
+  apiBaseUrl?: string;
+  /** Tests only. */
+  fetchImpl?: typeof fetch;
 }
 
-export function HarnessApp({ api, role = "RESPONDER", persistentStore }: HarnessAppProps) {
+export function HarnessApp({ api, role = "RESPONDER", persistentStore, apiBaseUrl = "", fetchImpl }: HarnessAppProps) {
+  const [session, setSession] = useState<AssistantSession | null>(null);
+  const tokenRef = useRef<string | null>(null);
+  tokenRef.current = session && session.expiresAt > Date.now() ? session.accessToken : null;
+  // Tom calls the API only when signed in; the token is read per request and never stored by Tom.
+  const assistant = useMemo(
+    () =>
+      apiBaseUrl
+        ? new HttpTomAssistantBackend({ baseUrl: apiBaseUrl, getAccessToken: () => tokenRef.current, ...(fetchImpl ? { fetchImpl } : {}) })
+        : undefined,
+    [apiBaseUrl, fetchImpl],
+  );
   const [view, setView] = useState<ResponderView>("help-requests");
   const history = useRef<ResponderView[]>([]);
   const viewRef = useRef(view);
@@ -65,7 +81,9 @@ export function HarnessApp({ api, role = "RESPONDER", persistentStore }: Harness
         contacts={CAMPUS_CONTACTS}
         navigation={navigation}
         persistentStore={persistentStore}
+        {...(session && assistant ? { assistant } : {})}
       />
+      {apiBaseUrl && <AssistantConnection apiBaseUrl={apiBaseUrl} session={session} onSession={setSession} />}
     </TourTargetProvider>
   );
 }
