@@ -3,12 +3,13 @@
 // The integration owner replaces this with the real application shell.
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { StudentApp } from './features/student';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');
 
 createRoot(root).render(
   <StrictMode>
-    <p>SAFE CAMPUS web scaffold is running. No feature is mounted yet.</p>
+    <StudentApp />
   </StrictMode>,
 );
