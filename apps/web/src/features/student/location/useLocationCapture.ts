@@ -106,7 +106,7 @@ export function useLocationCapture(environment?: LocationEnvironment) {
 
     // If the browser already knows permission is denied, say so without waiting.
     try {
-      const status = await env.permissions?.query({ name: 'geolocation' as PermissionName });
+      const status = await env.permissions?.query({ name: 'geolocation' });
       if (status?.state === 'denied') return finish({ kind: 'denied' });
     } catch {
       // Permissions API missing or unsupported for geolocation (older Safari): just ask.

@@ -25,6 +25,8 @@ export const API_PATHS = {
   checkins: '/api/v1/checkins',
   drills: '/api/v1/drills',
   instructionPacks: '/api/v1/instruction-packs',
+  alertInbox: '/api/v1/alerts/inbox',
+  incidents: '/api/v1/incidents',
 } as const;
 
 /** `instructionPackListQuerySchema.language` accepts only these. Other UI languages fall back explicitly. */

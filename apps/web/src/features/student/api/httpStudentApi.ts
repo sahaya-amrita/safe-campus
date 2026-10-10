@@ -5,6 +5,7 @@ import {
   toWireBody,
   type CheckInDraft,
   type CheckInReceipt,
+  type CheckInSession,
   type OperatingMode,
   type StudentInstructionPack,
 } from '../contracts/studentContract';
@@ -21,6 +22,33 @@ interface DrillRow {
   status: string;
 }
 
+interface InboxRow {
+  incidentId?: string | null;
+  incidentVerificationStatus?: string | null;
+  title: string;
+  mode: OperatingMode;
+}
+
+interface IncidentRow {
+  id: string;
+  type: string;
+  mode: OperatingMode;
+  verificationStatus: string;
+}
+
+const CLOSED_INCIDENT = new Set(['RESOLVED', 'DISMISSED']);
+
+export interface HttpStudentApiAuth {
+  /** Bearer token from the app session. Never stored by this adapter. */
+  getAccessToken?: () => string | null;
+  /** Session the student picked explicitly; used when it is still a candidate. */
+  preferredSessionId?: () => string | null;
+}
+
+export type SessionListResult =
+  | { kind: 'ok'; sessions: CheckInSession[] }
+  | { kind: 'error'; problem: RequestProblem };
+
 /** HTTP adapter for Codex 1's API. The only file in the student feature that knows endpoint paths. */
 export class HttpStudentApi implements StudentApi {
   constructor(
@@ -28,6 +56,7 @@ export class HttpStudentApi implements StudentApi {
     private readonly fetchImpl: typeof fetch = (...args) => fetch(...args),
     private readonly isOnline: () => boolean = () => navigator.onLine,
     private readonly timeoutMs = REQUEST_TIMEOUT_MS,
+    private readonly auth: HttpStudentApiAuth = {},
   ) {}
 
   async submitCheckIn(draft: CheckInDraft, clientActionId: string, clientCreatedAt: string): Promise<SendOutcome<CheckInReceipt>> {
@@ -55,6 +84,55 @@ export class HttpStudentApi implements StudentApi {
   }
 
   async getActiveSession(): Promise<SessionResult> {
+    if (!this.auth.getAccessToken) return this.activeDrillSession();
+    const listed = await this.listSessions();
+    if (listed.kind === 'error') return listed;
+    const preferred = this.auth.preferredSessionId?.();
+    const session = listed.sessions.find((s) => s.id === preferred) ?? listed.sessions[0];
+    return session ? { kind: 'found', session } : { kind: 'none' };
+  }
+
+  /**
+   * Events a signed-in student can check in to, most relevant first: incidents
+   * from alerts targeted to them, open incidents they reported, then active
+   * drills. The server decides which incidents a student can see.
+   */
+  async listSessions(): Promise<SessionListResult> {
+    const [inbox, incidents, drills] = await Promise.all([
+      this.request(API_PATHS.alertInbox, { method: 'GET' }),
+      this.request(`${API_PATHS.incidents}?limit=25`, { method: 'GET' }),
+      this.request(API_PATHS.drills, { method: 'GET' }),
+    ]);
+    if ('problem' in drills) return { kind: 'error', problem: drills.problem };
+    const sessions: CheckInSession[] = [];
+    const seen = new Set<string>();
+    const add = (session: CheckInSession) => {
+      if (seen.has(session.id)) return;
+      seen.add(session.id);
+      sessions.push(session);
+    };
+    if (!('problem' in inbox)) {
+      const body = (await readJson(inbox)) as { items?: InboxRow[] } | null;
+      for (const row of body?.items ?? []) {
+        if (!row.incidentId || CLOSED_INCIDENT.has(row.incidentVerificationStatus ?? '')) continue;
+        add({ kind: 'incident', id: row.incidentId, name: row.title, mode: row.mode });
+      }
+    }
+    if (!('problem' in incidents)) {
+      const body = (await readJson(incidents)) as { items?: IncidentRow[] } | null;
+      for (const row of body?.items ?? []) {
+        if (CLOSED_INCIDENT.has(row.verificationStatus)) continue;
+        add({ kind: 'incident', id: row.id, name: `${row.type} (reported by you)`, mode: row.mode });
+      }
+    }
+    const drillBody = (await readJson(drills)) as { items?: DrillRow[] } | null;
+    for (const d of drillBody?.items ?? []) {
+      if (d.status === 'ACTIVE') add({ kind: 'drill', id: d.id, name: d.name, mode: d.mode });
+    }
+    return { kind: 'ok', sessions };
+  }
+
+  private async activeDrillSession(): Promise<SessionResult> {
     const response = await this.request(API_PATHS.drills, { method: 'GET' });
     if ('problem' in response) return { kind: 'error', problem: response.problem };
     const body = (await readJson(response)) as { items?: DrillRow[] } | null;
@@ -82,9 +160,14 @@ export class HttpStudentApi implements StudentApi {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     let response: Response;
     try {
+      const token = this.auth.getAccessToken?.();
       response = await this.fetchImpl(`${this.baseUrl}${path}`, {
         ...init,
-        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          ...(init.headers as Record<string, string> | undefined),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         signal: controller.signal,
       });
     } catch (error) {

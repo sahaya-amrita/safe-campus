@@ -89,6 +89,22 @@ async function transitionResponse(
 export function helpRequestsRouter(pool: DatabasePool) {
   const router = Router();
 
+  // A student's own requests, so the app can show server-recorded lifecycle state.
+  // Responder identity is not exposed; only whether someone is assigned.
+  router.get('/mine', requireRoles('STUDENT'), async (request, response) => {
+    const result = await pool.query(
+      `SELECT id, incident_id AS "incidentId", drill_id AS "drillId", status, details,
+              assigned_responder_id IS NOT NULL AS "responderAssigned",
+              acknowledged_at AS "acknowledgedAt", assigned_at AS "assignedAt",
+              resolved_at AS "resolvedAt", cancelled_at AS "cancelledAt",
+              created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM help_requests WHERE student_id = $1
+       ORDER BY created_at DESC, id DESC LIMIT 50`,
+      [request.auth!.id],
+    );
+    response.json({ items: result.rows });
+  });
+
   router.get(
     '/',
     requireRoles('RESPONDER', 'INCIDENT_VERIFIER', 'ADMIN'),

@@ -46,7 +46,7 @@ export function parseCampusData(input: unknown): CampusData {
   for (const value of input.features as unknown[]) {
     if (!record(value) || !nonempty(value.id) || !/^way\/\d+(?::\d+)?$/.test(value.id)
       || ids.has(value.id) || !Number.isSafeInteger(value.osmId) || Number(value.osmId) <= 0
-      || !(value.id === `way/${value.osmId}` || value.id.startsWith(`way/${value.osmId}:`)) || !kinds.includes(String(value.kind))
+      || !(value.id === `way/${String(value.osmId)}` || value.id.startsWith(`way/${String(value.osmId)}:`)) || !kinds.includes(String(value.kind))
       || !Number.isSafeInteger(value.version) || Number(value.version) < 1 || !date(value.updatedAt)
       || !record(value.tags) || Object.keys(value.tags).length > 20
       || !Object.values(value.tags).every((tag) => typeof tag === 'string' && tag.length <= 600)

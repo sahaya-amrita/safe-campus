@@ -19,14 +19,15 @@ export class MemoryQueueStore<P, R> implements QueueStore<P, R> {
   failWrites = false;
   failReads = false;
 
-  async loadAll(): Promise<QueueEntry<P, R>[]> {
-    if (this.failReads) throw new Error('Simulated read failure');
-    return [...this.rows.values()].map((row) => structuredClone(row));
+  loadAll(): Promise<QueueEntry<P, R>[]> {
+    if (this.failReads) return Promise.reject(new Error('Simulated read failure'));
+    return Promise.resolve([...this.rows.values()].map((row) => structuredClone(row)));
   }
 
-  async put(entry: QueueEntry<P, R>): Promise<void> {
-    if (this.failWrites) throw new Error('Simulated write failure');
+  put(entry: QueueEntry<P, R>): Promise<void> {
+    if (this.failWrites) return Promise.reject(new Error('Simulated write failure'));
     this.rows.set(entry.key, structuredClone(entry));
+    return Promise.resolve();
   }
 }
 

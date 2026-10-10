@@ -13,6 +13,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   OPERATING_MODE: operatingModeSchema.default('DEMO'),
   OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(25),
+  /** In-process simulated outbox worker interval; 0 disables it (use `pnpm outbox:once`). */
+  OUTBOX_POLL_MS: z.coerce.number().int().min(0).max(3_600_000).optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

@@ -100,6 +100,15 @@ export function drillsRouter(pool: DatabasePool) {
 
 export function trainingRouter(pool: DatabasePool) {
   const router = Router();
+  router.get('/results/mine', async (request, response) => {
+    const result = await pool.query(
+      `SELECT id, drill_id AS "drillId", scenario_ref AS "scenarioRef",
+              scenario_version AS "scenarioVersion", score::float, completed_at AS "completedAt"
+       FROM training_results WHERE user_id = $1 ORDER BY completed_at DESC LIMIT 50`,
+      [request.auth!.id],
+    );
+    response.json({ items: result.rows });
+  });
   router.post('/results', validateBody(trainingResultSchema), async (request, response) => {
     const body = trainingResultSchema.parse(request.body);
     const auth = request.auth!;

@@ -1,15 +1,17 @@
 {
-  "name": "@safe-campus/web",
+  "name": "@sahaya/web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "TEMPORARY bootstrap scaffold for the SAFE CAMPUS web client. Integration-owned; see SCAFFOLD.md.",
+  "description": "Amrita Sahaya unified web client: student PWA, responder workspace, Tom and the campus digital twin.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run && pnpm run test:node",
+    "test:unit": "vitest run",
+    "test:node": "node --test src/features/maps/*.test.mjs src/features/drills/*.test.mjs ../../modules/maps-drills/timeline.test.mjs"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "^5.3.0",
@@ -18,8 +20,10 @@
     "@fontsource/noto-sans-malayalam": "^5.3.0",
     "@fontsource/noto-sans-tamil": "^5.3.0",
     "@fontsource/noto-sans-telugu": "^5.3.0",
+    "@sahaya/contracts": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "three": "0.180.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { loadConfig } from '../config.js';
 import { createPool, withTransaction } from '../db.js';
 import { hashPassword } from '../security.js';
@@ -14,14 +15,42 @@ const users = [
   ],
 ] as const;
 
+// The fictional building is drawn on one mapped campus footprint purely for
+// illustration. It is not a surveyed location and never implies routing.
+const demoBuildingMetadata = {
+  synthetic: true,
+  mapFeatureId: 'way/380702789',
+  mapPlacement: 'ILLUSTRATIVE',
+};
+
+// Synthetic preparedness copy for exercising the review workflow. It is created
+// as a DRAFT: a demo verifier/admin must review and publish it in the app.
+const demoPackContent = {
+  sections: [
+    {
+      heading: 'About this DEMO pack',
+      body: 'Synthetic content for testing Amrita Sahaya. It is not institutional safety guidance and contains no evacuation routes or assembly points.',
+    },
+    {
+      heading: 'Before an emergency',
+      body: 'Save official campus security numbers from your institution, keep your phone charged, and know how to open this app offline.',
+    },
+    {
+      heading: 'During an emergency',
+      body: 'Follow alarms, trained staff and official instructions first. Call 112 if life is at risk. Use "I am safe" or "Need help" only for a real or drill event shown in the app.',
+    },
+  ],
+};
+
 const config = loadConfig();
 const pool = createPool(config);
 try {
   await withTransaction(pool, async (client) => {
     const building = await client.query<{ id: string }>(
       `INSERT INTO buildings (name, mode, geometry_version, geometry_approved, metadata)
-       VALUES ('DEMO Building Alpha', 'DEMO', 'demo-v1', false, '{"synthetic":true}')
+       VALUES ('DEMO Building Alpha', 'DEMO', 'demo-v1', false, $1::jsonb)
        ON CONFLICT (name, mode) DO UPDATE SET metadata = EXCLUDED.metadata RETURNING id`,
+      [JSON.stringify(demoBuildingMetadata)],
     );
     const buildingId = building.rows[0]!.id;
     const floor = await client.query<{ id: string }>(
@@ -68,6 +97,27 @@ try {
        ON CONFLICT (user_id) DO UPDATE SET assigned_zone_id = EXCLUDED.assigned_zone_id,
          availability = 'AVAILABLE', verified = true`,
       [ids.get('responder.demo@example.invalid'), zoneId, ids.get('admin.demo@example.invalid')],
+    );
+    await client.query(
+      `INSERT INTO drills (name, building_id, scenario_ref, scenario_version, mode, status,
+                           assumptions, created_by)
+       SELECT 'DEMO familiarisation drill', $1, 'demo-familiarisation', '1', 'SIMULATION',
+              'ACTIVE', '{"synthetic":true}'::jsonb, $2
+       WHERE NOT EXISTS (SELECT 1 FROM drills WHERE name = 'DEMO familiarisation drill')`,
+      [buildingId, ids.get('admin.demo@example.invalid')],
+    );
+    const packJson = JSON.stringify(demoPackContent);
+    await client.query(
+      `INSERT INTO instruction_packs
+         (version, language, title, content, content_hash, source_label, created_by, mode)
+       VALUES ('demo-1', 'en', 'DEMO preparedness basics (synthetic)', $1::jsonb, $2,
+               'DEMO synthetic content — not institutional guidance', $3, 'DEMO')
+       ON CONFLICT (version, language) DO NOTHING`,
+      [
+        packJson,
+        createHash('sha256').update(packJson).digest('hex'),
+        ids.get('admin.demo@example.invalid'),
+      ],
     );
   });
   process.stdout.write('Seeded fictional DEMO data only.\n');

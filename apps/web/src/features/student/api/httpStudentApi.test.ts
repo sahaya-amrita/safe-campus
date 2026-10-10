@@ -143,3 +143,64 @@ describe('HttpStudentApi.listInstructionPacks', () => {
     expect(await api.listInstructionPacks('en')).toEqual({ kind: 'error', problem: 'PERMISSION_DENIED' });
   });
 });
+
+describe('HttpStudentApi with an app session', () => {
+  const incidentId = '11111111-1111-4111-8111-111111111111';
+  const ownIncidentId = '22222222-2222-4222-8222-222222222222';
+  const drillId = '33333333-3333-4333-8333-333333333333';
+
+  function signedIn(preferred: string | null = null) {
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/alerts/inbox')) {
+        return json({
+          items: [
+            { incidentId, incidentVerificationStatus: 'VERIFIED', title: 'Smoke near block', mode: 'DEMO' },
+            { incidentId: null, title: 'General notice', mode: 'DEMO' },
+          ],
+        });
+      }
+      if (url.includes('/incidents')) {
+        return json({
+          items: [
+            { id: ownIncidentId, type: 'MEDICAL', mode: 'DEMO', verificationStatus: 'REPORTED' },
+            { id: 'closed', type: 'OLD', mode: 'DEMO', verificationStatus: 'RESOLVED' },
+          ],
+        });
+      }
+      return json({ items: [{ id: drillId, name: 'Drill', mode: 'SIMULATION', status: 'ACTIVE' }] });
+    });
+    const api = new HttpStudentApi('https://api.example.test', fetchImpl, () => true, 50, {
+      getAccessToken: () => 'token-123',
+      preferredSessionId: () => preferred,
+    });
+    return { api, fetchImpl };
+  }
+
+  it('sends the bearer token on every request', async () => {
+    const { api, fetchImpl } = signedIn();
+    await api.submitCheckIn(safe, key, createdAt);
+    const headers = fetchImpl.mock.calls[0]![1]?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer token-123');
+    expect(headers['Idempotency-Key']).toBe(key);
+  });
+
+  it('orders alert-linked incidents, then own open reports, then active drills', async () => {
+    const { api } = signedIn();
+    const listed = await api.listSessions();
+    expect(listed).toEqual({
+      kind: 'ok',
+      sessions: [
+        { kind: 'incident', id: incidentId, name: 'Smoke near block', mode: 'DEMO' },
+        { kind: 'incident', id: ownIncidentId, name: 'MEDICAL (reported by you)', mode: 'DEMO' },
+        { kind: 'drill', id: drillId, name: 'Drill', mode: 'SIMULATION' },
+      ],
+    });
+    expect(await api.getActiveSession()).toMatchObject({ kind: 'found', session: { id: incidentId } });
+  });
+
+  it('honours the session the student picked while it is still available', async () => {
+    const { api } = signedIn(drillId);
+    expect(await api.getActiveSession()).toMatchObject({ kind: 'found', session: { id: drillId } });
+  });
+});

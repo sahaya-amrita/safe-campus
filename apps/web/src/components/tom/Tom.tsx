@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CampusContact } from '../../features/responder/campusDirectory';
 import {
   contactsForMode,
@@ -168,7 +168,8 @@ export function Tom({
   const aiOn = isAiAvailable(ai, mode);
   // `tours` / `instructions` are what this client can actually start or open.
   const backendOn = isAiAvailable(assistant, mode);
-  const destinations = navigation?.destinations() ?? [];
+  // The host replaces the adapter whenever its registered destinations change.
+  const destinations = useMemo(() => navigation?.destinations() ?? [], [navigation]);
   const currentDestination = navigation?.current() ?? context;
   const assistantCtx: AssistantContext = { destinations, currentDestination, hints, faqs, tours };
   const workspaceTour = tours.find((t) => t.steps.length > 0) ?? null;

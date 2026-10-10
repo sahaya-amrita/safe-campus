@@ -738,4 +738,126 @@ describe('safety-critical API behavior', () => {
       'SERVER_RECEIVED',
     ]);
   });
+  it('shows a student only their own help requests with server lifecycle state', async () => {
+    const created = await createUrgentIncident();
+    const studentToken = await token(studentId, 'student@test.invalid', ['STUDENT']);
+    await request(app)
+      .post('/api/v1/checkins')
+      .set('authorization', `Bearer ${studentToken}`)
+      .set('idempotency-key', 'mine-checkin')
+      .send({
+        incidentId: created.body.id,
+        status: 'HELP_REQUESTED',
+        helpDetails: 'Synthetic request for the mine endpoint',
+        clientCreatedAt: new Date().toISOString(),
+        clientActionId: randomUUID(),
+      });
+    const mine = await request(app)
+      .get('/api/v1/help-requests/mine')
+      .set('authorization', `Bearer ${studentToken}`);
+    expect(mine.status).toBe(200);
+    expect(mine.body.items).toHaveLength(1);
+    expect(mine.body.items[0]).toMatchObject({
+      incidentId: created.body.id,
+      status: 'OPEN',
+      responderAssigned: false,
+    });
+    expect(mine.body.items[0]).not.toHaveProperty('assignedResponderId');
+
+    const other = await request(app)
+      .get('/api/v1/help-requests/mine')
+      .set(
+        'authorization',
+        `Bearer ${await token(otherStudentId, 'other@test.invalid', ['STUDENT'])}`,
+      );
+    expect(other.body.items).toEqual([]);
+
+    const verifier = await request(app)
+      .get('/api/v1/help-requests/mine')
+      .set(
+        'authorization',
+        `Bearer ${await token(verifierId, 'verifier@test.invalid', ['INCIDENT_VERIFIER'])}`,
+      );
+    expect(verifier.status).toBe(403);
+  });
+
+  it('links inbox alerts to incident verification state and lists alerts only for staff', async () => {
+    const created = await createUrgentIncident();
+    const adminToken = await token(adminId, 'admin@test.invalid', ['ADMIN']);
+    const draft = await request(app)
+      .post('/api/v1/alerts')
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', 'linked-alert-draft')
+      .send({
+        incidentId: created.body.id,
+        zoneIds: [zoneId],
+        title: 'Synthetic linked warning',
+        message: 'TEST-only linked warning.',
+        precautionary: true,
+        mode: 'TEST',
+      });
+    await request(app)
+      .post(`/api/v1/alerts/${draft.body.id}/authorize`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', 'linked-alert-authorize');
+
+    const studentToken = await token(studentId, 'student@test.invalid', ['STUDENT']);
+    const inbox = await request(app)
+      .get('/api/v1/alerts/inbox')
+      .set('authorization', `Bearer ${studentToken}`);
+    expect(inbox.body.items[0]).toMatchObject({
+      id: draft.body.id,
+      incidentId: created.body.id,
+      incidentVerificationStatus: 'REPORTED',
+      alertStatus: 'QUEUED',
+      acknowledgedAt: null,
+    });
+
+    const staffList = await request(app)
+      .get('/api/v1/alerts')
+      .set('authorization', `Bearer ${adminToken}`);
+    expect(staffList.body.items[0]).toMatchObject({
+      id: draft.body.id,
+      status: 'QUEUED',
+      recipientCount: 2,
+      acknowledgedCount: 0,
+    });
+    const studentList = await request(app)
+      .get('/api/v1/alerts')
+      .set('authorization', `Bearer ${studentToken}`);
+    expect(studentList.status).toBe(403);
+  });
+
+  it('lists buildings with their approval state for authenticated users only', async () => {
+    const studentToken = await token(studentId, 'student@test.invalid', ['STUDENT']);
+    const listed = await request(app)
+      .get('/api/v1/maps/buildings')
+      .set('authorization', `Bearer ${studentToken}`);
+    expect(listed.status).toBe(200);
+    expect(listed.body.items.length).toBeGreaterThan(0);
+    expect(listed.body.items[0]).toHaveProperty('geometryApproved');
+    const anonymous = await request(app).get('/api/v1/maps/buildings');
+    expect(anonymous.status).toBe(401);
+  });
+  it('returns only the caller own training results', async () => {
+    const studentToken = await token(studentId, 'student@test.invalid', ['STUDENT']);
+    const saved = await request(app)
+      .post('/api/v1/training/results')
+      .set('authorization', `Bearer ${studentToken}`)
+      .set('idempotency-key', 'training-mine-key')
+      .send({ scenarioRef: 'digital-drill', scenarioVersion: '1', score: 75, answers: { a: 1 } });
+    expect(saved.status).toBe(201);
+    const mine = await request(app)
+      .get('/api/v1/training/results/mine')
+      .set('authorization', `Bearer ${studentToken}`);
+    expect(mine.body.items).toHaveLength(1);
+    expect(mine.body.items[0]).toMatchObject({ scenarioRef: 'digital-drill', score: 75 });
+    const other = await request(app)
+      .get('/api/v1/training/results/mine')
+      .set(
+        'authorization',
+        `Bearer ${await token(otherStudentId, 'other@test.invalid', ['STUDENT'])}`,
+      );
+    expect(other.body.items).toEqual([]);
+  });
 });

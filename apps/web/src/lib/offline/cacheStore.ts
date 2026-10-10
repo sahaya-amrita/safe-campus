@@ -41,12 +41,13 @@ export class MemoryPackCacheStore<T extends { id: string }> implements GroupedCa
   records: CachedRecord<T>[] = [];
   failReads = false;
 
-  async load(group: string): Promise<CachedRecord<T>[]> {
-    if (this.failReads) throw new Error('Simulated read failure');
-    return structuredClone(this.records.filter((r) => r.group === group));
+  load(group: string): Promise<CachedRecord<T>[]> {
+    if (this.failReads) return Promise.reject(new Error('Simulated read failure'));
+    return Promise.resolve(structuredClone(this.records.filter((r) => r.group === group)));
   }
 
-  async replaceGroup(group: string, records: CachedRecord<T>[]): Promise<void> {
+  replaceGroup(group: string, records: CachedRecord<T>[]): Promise<void> {
     this.records = [...this.records.filter((r) => r.group !== group), ...structuredClone(records)];
+    return Promise.resolve();
   }
 }

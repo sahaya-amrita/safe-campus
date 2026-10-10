@@ -1,6 +1,8 @@
 # apps/web — temporary bootstrap scaffold
 
-**Status:** temporary. **Owner:** the integration owner. Claude Code 1 created it so the student PWA could run in a browser before the real application shell existed. Creating it does **not** transfer ownership.
+**Status:** superseded on 11 Oct 2026 — `src/main.tsx` now mounts the integrated app shell in `src/app`, and the app is part of the pnpm workspace. The notes below are kept for history.
+
+**Original status:** temporary. **Owner:** the integration owner. Claude Code 1 created it so the student PWA could run in a browser before the real application shell existed. Creating it does **not** transfer ownership.
 
 ## Placeholder files (review or replace)
 

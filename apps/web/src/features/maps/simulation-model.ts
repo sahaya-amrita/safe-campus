@@ -102,8 +102,8 @@ export function createDemoSimulation(buildingIds: readonly string[], now: () => 
         id: command.requestId, at, simulatedSeconds: tick * 15, actor: `Demo ${actor.role}`, summary,
       });
       let incident = 'incidentId' in command ? next.incidents.find(i => i.id === command.incidentId) : undefined;
-      let alert = 'alertId' in command ? next.alerts.find(a => a.id === command.alertId) : undefined;
-      if (alert) incident = next.incidents.find(i => i.id === alert!.incidentId);
+      const alert = 'alertId' in command ? next.alerts.find(a => a.id === command.alertId) : undefined;
+      if (alert) incident = next.incidents.find(i => i.id === alert.incidentId);
       if (command.type === 'report') {
         if (actor.role !== 'reporter') throw new Error('Reports require the demonstration reporter role');
         if (incident || !buildings.has(command.buildingId) || next.incidents.length >= 100) throw new Error('Duplicate incident, unknown building or simulation limit reached');

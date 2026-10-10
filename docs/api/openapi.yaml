@@ -261,6 +261,15 @@ paths:
           description: Cursor-paginated help requests; responders are restricted to their verified assigned zone
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /help-requests/mine:
+    get:
+      tags: [Help requests]
+      operationId: listMyHelpRequests
+      summary: The authenticated student's own help requests and their server-recorded lifecycle
+      description: Requires STUDENT. Responder identity is not exposed; only whether one is assigned.
+      responses:
+        '200': { description: "Up to 50 of the caller's help requests, newest first" }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /help-requests/{helpRequestId}/acknowledge:
     post:
       tags: [Help requests]
@@ -357,6 +366,14 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /alerts:
+    get:
+      tags: [Alerts]
+      operationId: listAlerts
+      summary: Staff list of alerts with zone, recipient and acknowledgment counts
+      description: Requires RESPONDER, INCIDENT_VERIFIER or ADMIN.
+      responses:
+        '200': { description: 'Up to 100 alerts, newest first' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [Alerts]
       operationId: createAlert
@@ -389,7 +406,10 @@ paths:
       tags: [Alerts]
       operationId: getAlertInbox
       responses:
-        '200': { description: Alerts targeted to the authenticated test user }
+        '200':
+          description: >-
+            Alerts targeted to the authenticated user, with alert status, linked incident id and
+            that incident's verification status so clients never present a report as verified.
   /alerts/{alertId}/acknowledge:
     post:
       tags: [Alerts]
@@ -487,6 +507,12 @@ paths:
             schema: { $ref: '#/components/schemas/TrainingResult' }
       responses:
         '201': { description: Training result persisted }
+  /training/results/mine:
+    get:
+      tags: [Training]
+      operationId: listMyTrainingResults
+      responses:
+        '200': { description: "Up to 50 of the caller's training results, newest first" }
   /instruction-packs:
     get:
       tags: [Instruction packs]
@@ -566,6 +592,14 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /maps/buildings:
+    get:
+      tags: [Maps]
+      operationId: listBuildings
+      summary: Buildings with their geometry approval state (for location pickers and the map)
+      responses:
+        '200': { description: Up to 200 buildings }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /maps/{buildingId}/approved:
     get:
       tags: [Maps]

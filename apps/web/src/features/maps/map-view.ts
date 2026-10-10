@@ -14,6 +14,11 @@ export interface MapViewerOptions {
   onStartDrill?: (simulation: DemoSimulationAdapter, incidentId: string, recipientId: string) => void;
   /** Optional integration/QA hook; exposes no operational actions. */
   onSceneReady?: (scene: CampusScene) => void;
+  /**
+   * The standalone preview runs a page-memory incident simulation. The app shell
+   * sets this to false and overlays server incidents through onSceneReady instead.
+   */
+  localSimulation?: boolean;
 }
 
 /** Read-only OSM exploration. The retained verified viewer owns operational guards. */
@@ -156,6 +161,7 @@ export function mountMapViewer(host: HTMLElement, options: MapViewerOptions = {}
         status.textContent='3D ready · OSM footprints unverified · Heights estimated · 1.6× vertical scale';
         controls.querySelectorAll('button').forEach(b=>b.disabled=false);toolbar.querySelectorAll('button').forEach(b=>b.disabled=false);
       } catch {graphicsFailure('WebGL 3D could not start. Try a browser with WebGL2 enabled. The source directory remains available; no substitute geometry is shown.');}
+      if(options.localSimulation===false)return;
       const simulation=createDemoSimulation(data.features.filter(f=>f.kind==='building').map(f=>f.id));
       let incidentFilter='all';let selectedIncident:string|null=null;
       const updateIncidents=()=>{

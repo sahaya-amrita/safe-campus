@@ -27,7 +27,7 @@ describe('schema upgrade v1 → v2', () => {
           resolve();
         };
       };
-      open.onerror = () => reject(open.error);
+      open.onerror = () => reject(open.error ?? new Error('IndexedDB open failed'));
     });
 
     const queued = await new IndexedDbQueueStore().loadAll();

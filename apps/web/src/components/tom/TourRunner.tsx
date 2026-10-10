@@ -61,6 +61,7 @@ export function TourRunner({ tour, navigation, messages: m, onEnd }: TourRunnerP
       active = false;
     };
     // Runs once per step; navigation and messages are stable for a tour.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id]);
 
   // Optional steps whose target is absent are skipped (in the direction of

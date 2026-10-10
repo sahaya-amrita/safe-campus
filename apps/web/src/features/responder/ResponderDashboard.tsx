@@ -88,7 +88,7 @@ export function ResponderDashboard({
   useEffect(() => {
     let active = true;
     // Previous counts stay visible (with their "Updated" time) until new ones arrive.
-    Promise.allSettled([
+    void Promise.allSettled([
       api.listHelpRequests({ status: 'OPEN' }),
       api.listHazardReports({ status: 'PENDING_REVIEW' }),
     ]).then(([open, pending]) => {
@@ -98,6 +98,7 @@ export function ResponderDashboard({
       active = false;
     };
     // `now` is a clock, not an input: re-running on its identity would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, summaryKey, view]);
 
   const isDemoData = api.kind === 'MOCK';

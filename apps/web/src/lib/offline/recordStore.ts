@@ -24,15 +24,17 @@ export class IndexedDbAttachmentStore<T extends { id: string }> implements Recor
 export class MemoryRecordStore<T extends { id: string }> implements RecordStore<T> {
   readonly rows = new Map<string, T>();
   failWrites = false;
-  async getAll(): Promise<T[]> {
-    return [...this.rows.values()];
+  getAll(): Promise<T[]> {
+    return Promise.resolve([...this.rows.values()]);
   }
-  async put(record: T): Promise<void> {
-    if (this.failWrites) throw new OfflineStorageError('Simulated write failure');
+  put(record: T): Promise<void> {
+    if (this.failWrites) return Promise.reject(new OfflineStorageError('Simulated write failure'));
     this.rows.set(record.id, record);
+    return Promise.resolve();
   }
-  async delete(id: string): Promise<void> {
+  delete(id: string): Promise<void> {
     this.rows.delete(id);
+    return Promise.resolve();
   }
 }
 

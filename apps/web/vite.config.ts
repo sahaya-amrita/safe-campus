@@ -17,18 +17,24 @@ export default defineConfig({
       manifest: {
         name: 'Amrita Sahaya (prototype)',
         short_name: 'Amrita Sahaya',
-        description: 'Student safety check-in and preparedness. Prototype — not monitored by campus security.',
+        description:
+          'Campus safety preparedness and response coordination. DEMO prototype — not monitored by campus security.',
         start_url: '/',
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#F7F5F1',
-        theme_color: '#15273B',
+        theme_color: '#A4123F',
         lang: 'en',
         icons: [
           { src: 'brand/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'brand/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: 'brand/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          {
+            src: 'brand/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
@@ -43,9 +49,10 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      // Shared contracts (Codex 1) consumed from source; root uses pnpm, this app uses npm.
-      '@sahaya/contracts': fileURLToPath(new URL('../../packages/contracts/src/index.ts', import.meta.url)),
-      zod: fileURLToPath(new URL('./node_modules/zod', import.meta.url)),
+      // Shared contracts consumed from source so dev and tests need no prior package build.
+      '@sahaya/contracts': fileURLToPath(
+        new URL('../../packages/contracts/src/index.ts', import.meta.url),
+      ),
     },
   },
   server: { port: 5173 },
@@ -53,5 +60,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // *.test.mjs files are node:test suites run by `pnpm test:node`, not Vitest.
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });

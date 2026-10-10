@@ -144,4 +144,4 @@ export function createDemoMap(): MapDocument {
   };
 }
 
-export const demoMapAdapter: MapAdapter = { async load() { return createDemoMap(); } };
+export const demoMapAdapter: MapAdapter = { load() { return Promise.resolve(createDemoMap()); } };

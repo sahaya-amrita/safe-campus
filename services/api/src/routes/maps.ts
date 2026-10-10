@@ -5,6 +5,14 @@ import { validateUuidParam } from '../middleware.js';
 
 export function mapsRouter(pool: DatabasePool) {
   const router = Router();
+  router.get('/buildings', async (_request, response) => {
+    const result = await pool.query(
+      `SELECT id, name, mode, geometry_version AS "geometryVersion",
+              geometry_approved AS "geometryApproved", metadata
+       FROM buildings ORDER BY name LIMIT 200`,
+    );
+    response.json({ items: result.rows });
+  });
   router.get(
     '/:buildingId/approved',
     validateUuidParam('buildingId'),

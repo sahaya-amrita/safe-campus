@@ -1,6 +1,7 @@
-# Render Blueprint for the SAFE CAMPUS DEMO deployment with Tom's AI assistant.
-# Integration-owned file: proposed by the Tom owner; review with Codex 1 and the
-# integration owner before relying on it. See services/api/src/assistant/README.md.
+# Render Blueprint for the Amrita Sahaya DEMO deployment: API (+ Tom assistant,
+# simulated outbox worker) and the unified web app (student PWA, responder
+# workspace, digital twin). Everything runs in DEMO mode with fictional data.
+# See README.md and services/api/src/assistant/README.md.
 #
 # Secrets (GROQ_API_KEY) are entered in Render's dashboard when the Blueprint is
 # created (sync: false) and are never committed. The static site receives only
@@ -10,8 +11,7 @@ services:
     name: safe-campus-api
     runtime: node
     plan: free
-    branch: feat/tom-assistant-api
-    buildCommand: npx -y pnpm@11.25.0 install --frozen-lockfile --prod=false && npx -y pnpm@11.25.0 build
+    buildCommand: npx -y pnpm@11.25.0 install --frozen-lockfile --prod=false && npx -y pnpm@11.25.0 --filter @sahaya/contracts --filter @sahaya/api build
     # Migrations and the fictional DEMO seed are idempotent, so they run on every start.
     startCommand: node services/api/dist/scripts/migrate.js && node services/api/dist/scripts/seed.js && node services/api/dist/server.js
     healthCheckPath: /api/v1/assistant/health
@@ -41,8 +41,11 @@ services:
         sync: false
       - key: GROQ_MODEL
         sync: false
+      # Hosted Tom never serves unreviewed DRAFT guidance.
       - key: ASSISTANT_ALLOW_DRAFT_CONTENT
-        value: 'true'
+        value: 'false'
+      - key: OUTBOX_POLL_MS
+        value: '5000'
       - key: ASSISTANT_TIMEOUT_MS
         value: '12000'
       - key: ASSISTANT_PROVIDER_MAX_PER_MINUTE
@@ -53,9 +56,8 @@ services:
   - type: web
     name: safe-campus-web
     runtime: static
-    branch: feat/responder-dashboard
-    buildCommand: cd apps/responder-dashboard && npm ci && npm run build
-    staticPublishPath: apps/responder-dashboard/dist
+    buildCommand: npx -y pnpm@11.25.0 install --frozen-lockfile --prod=false && npx -y pnpm@11.25.0 --filter @sahaya/web build
+    staticPublishPath: apps/web/dist
     envVars:
       - key: VITE_API_BASE_URL
         fromService:

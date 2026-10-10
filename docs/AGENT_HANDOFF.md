@@ -48,3 +48,7 @@ Additive fields and endpoints are non-breaking. Removing fields, changing enum m
 - Student PWA: no real institutional SSO; identity remains a demonstration dependency.
 - Responder dashboard: no WebSocket stream, evidence-byte retrieval, correction/all-clear workflow, or export endpoint. Poll the documented REST queues for v1.
 - Maps/drills: no approved route graph, routing engine, predictive-output persistence, or detailed after-action export. Current APIs provide building/floor/zone metadata, drill configuration, check-ins, training results, and aggregate metrics.
+
+## Integration handoff (11 October 2026)
+
+The integrated app shell lives in `apps/web/src/app` and is the only mounted UI (`src/main.tsx`). Feature modules stay where their owners put them and are reused: student check-in engine and components (`features/student`), Tom (`components/tom`), maps/drills (`features/maps`, `features/drills`), contacts directory (`features/responder/campusDirectory.ts`). The earlier provisional `ResponderDashboard`/`HttpResponderApi`/`HazardReviewQueue` (proposed `/api/v1/responder/*` paths) are retained with their tests but are not mounted; the responder workspace in `app/responder` uses the real API routes. Run `node scripts/e2e-acceptance.mjs` against a seeded DEMO API before demos.

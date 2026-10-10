@@ -100,7 +100,8 @@ export function summarize(state: DrillState) {
 export function createMemoryDrillStore(): DrillStore {
   const events = new Map<string, DrillEvent>();
   return {
-    async append(event) {
+    append(event) {
+      return Promise.resolve().then(() => {
       if (!isDrillEvent(event)) throw new Error('Only valid DEMO events can be stored');
       const existing = events.get(event.id);
       if (existing && (Object.keys(existing) as (keyof DrillEvent)[]).some((key) => existing[key] !== event[key])) {
@@ -111,7 +112,8 @@ export function createMemoryDrillStore(): DrillStore {
         applyEvent({ sessionId: event.sessionId, events: sessionEvents }, event);
         events.set(event.id, { ...event });
       }
-      return { eventId: event.id, storage: 'LOCAL_ONLY' };
+      return { eventId: event.id, storage: 'LOCAL_ONLY' as const };
+      });
     },
   };
 }

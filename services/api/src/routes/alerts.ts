@@ -137,12 +137,45 @@ export function alertsRouter(pool: DatabasePool) {
     },
   );
 
+  router.get(
+    '/',
+    requireRoles('RESPONDER', 'INCIDENT_VERIFIER', 'ADMIN'),
+    async (_request, response) => {
+      const alerts = await pool.query<{ id: string; [key: string]: unknown }>(
+        `SELECT id, incident_id AS "incidentId", title, message, precautionary, mode, status,
+                created_at AS "createdAt", authorized_at AS "authorizedAt"
+         FROM emergency_alerts ORDER BY created_at DESC LIMIT 100`,
+      );
+      const zones = await pool.query<{ alert_id: string; count: number }>(
+        'SELECT alert_id, count(*)::int AS count FROM alert_zones GROUP BY alert_id',
+      );
+      const deliveries = await pool.query<{ alert_id: string; status: string; count: number }>(
+        `SELECT alert_id, status, count(*)::int AS count
+         FROM alert_delivery_records GROUP BY alert_id, status`,
+      );
+      const zoneCount = new Map(zones.rows.map((row) => [row.alert_id, row.count]));
+      const items = alerts.rows.map((alert) => {
+        const rows = deliveries.rows.filter((row) => row.alert_id === alert.id);
+        return {
+          ...alert,
+          zoneCount: zoneCount.get(alert.id) ?? 0,
+          recipientCount: rows.reduce((sum, row) => sum + row.count, 0),
+          acknowledgedCount: rows.find((row) => row.status === 'ACKNOWLEDGED')?.count ?? 0,
+        };
+      });
+      response.json({ items });
+    },
+  );
+
   router.get('/inbox', async (request, response) => {
     const result = await pool.query(
-      `SELECT a.id, a.title, a.message, a.precautionary, a.mode,
+      `SELECT a.id, a.title, a.message, a.precautionary, a.mode, a.status AS "alertStatus",
+              a.incident_id AS "incidentId", i.verification_status AS "incidentVerificationStatus",
+              a.created_at AS "createdAt",
               d.status AS "deliveryStatus", d.server_received_at AS "serverReceivedAt",
               d.acknowledged_at AS "acknowledgedAt"
        FROM alert_delivery_records d JOIN emergency_alerts a ON a.id = d.alert_id
+       LEFT JOIN incidents i ON i.id = a.incident_id
        WHERE d.recipient_id = $1 ORDER BY d.created_at DESC`,
       [request.auth!.id],
     );

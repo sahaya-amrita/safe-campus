@@ -2,8 +2,8 @@ import type { DrillScenarioSource } from './timeline.ts';
 
 /** Temporary fixture adapter. No institution-approved data or real-world instructions. */
 export const mockDrillScenarioSource: DrillScenarioSource = {
-  async load() {
-    return {
+  load() {
+    return Promise.resolve({
       id: 'synthetic-playback-example',
       dataSource: 'SYNTHETIC',
       durationMs: 60_000,
@@ -12,6 +12,6 @@ export const mockDrillScenarioSource: DrillScenarioSource = {
         { id: 'midpoint', atMs: 30_000, label: 'Synthetic playback midpoint' },
         { id: 'end', atMs: 60_000, label: 'Synthetic playback ends' },
       ],
-    };
+    });
   },
 };
