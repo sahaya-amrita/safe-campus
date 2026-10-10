@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>SAFE CAMPUS · Amrita 3D campus explorer</title>
+  <link rel="stylesheet" href="./generated/maps/maps-drills.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/controls/OrbitControls.js":"./vendor/three/OrbitControls.js"}}</script>
+  <style>
+    body { margin: 0; background: #f0f3ec; color: #28473c; font: 14px/1.5 system-ui,sans-serif; }
+    .brand-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px max(24px,calc((100vw - 1520px)/2)); border-bottom: 1px solid #d8e0d3; background: #fcfdf9; }
+    .brand { font-weight: 800; letter-spacing: .14em; font-size: 12px; }
+    .brand-mark { display: inline-grid; place-items: center; width: 27px; height: 30px; margin-right: 10px; border: 2px solid #51785b; border-radius: 6px 6px 12px 12px; color: #51785b; }
+    nav { display: flex; gap: 22px; font-size: 12px; }
+    nav a { color: #4f695a; text-decoration: none; padding: 5px 0; }
+    nav a:first-child { border-bottom: 2px solid #5e7f55; color: #243f2c; }
+    main { max-width: 1520px; padding: 22px 24px 40px; margin: auto; }
+    #drill { max-width: 1100px; margin: 30px auto; }
+    .preview-notes { color: #66735f; font-size: 11px; margin: 18px 4px; }
+    .preview-tools { font-size: 12px; margin: 24px 0; padding: 16px; border: 1px solid #d8e0d3; border-radius: 10px; }
+    .preview-tools summary { cursor: pointer; }
+    .preview-tools select,.preview-tools button { font: inherit; padding: 10px; margin: 12px 6px 0 0; min-height: 44px; }
+    :focus-visible { outline: 3px solid #b48335; outline-offset: 3px; }
+    @media(max-width:760px) { main { padding: 12px 10px 24px; } .brand-bar { padding: 14px; } nav { gap: 12px; font-size: 10px; } .brand { font-size: 10px; } .brand-mark { margin-right: 6px; } }
+  </style>
+</head>
+<body>
+  <header class="brand-bar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">S</span>SAFE CAMPUS</div>
+    <nav aria-label="Preview sections"><a href="#map">Campus explorer</a><a href="#drill">Digital drill</a></nav>
+  </header>
+  <main>
+    <div id="map"></div>
+    <p class="preview-notes">A geographically informed visual demonstration, not a surveyed reconstruction or an institution-approved map. No approved emergency contacts or procedures have been supplied.</p>
+    <details class="preview-tools">
+      <summary>Developer preview · test data failure states</summary>
+      <label for="fixture">Campus adapter: </label>
+      <select id="fixture"><option value="campus">OSM campus snapshot</option><option value="empty">No data</option><option value="invalid">Invalid data</option><option value="permission">Permission denied</option><option value="offline">Offline / load failure</option></select>
+      <button id="apply-fixture" type="button">Load fixture</button>
+    </details>
+    <div id="drill"></div>
+    <noscript>JavaScript and WebGL2 are required for the 3D campus. No operational map is available.</noscript>
+    <p id="boot-error" role="alert"></p>
+  </main>
+  <script type="module" src="./preview.mjs"></script>
+</body>
+</html>
