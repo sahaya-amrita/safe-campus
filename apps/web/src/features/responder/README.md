@@ -66,6 +66,8 @@ from the shared package. Nothing below is an established contract.
 | 10 | `Role = STUDENT \| VOLUNTEER \| RESPONDER \| ADMIN`, taken from `docs/safety-rules.md` rule 5. | `responder/contracts.ts` |
 | 11 | Instruction-pack links passed to Tom carry `approvalState`, `version`, `sourceLabel`, `language`, `expiresAt?`. Tom shows only `APPROVED`/`PUBLISHED`, unexpired packs with a source and version. | `components/tom/types.ts` |
 
+Migration into the shared `apps/web` scaffold: see [MIGRATION.md](./MIGRATION.md).
+
 ## Tests (temporary harness)
 
 Until `apps/web` has its own test setup, run the tests from the dev-only harness:

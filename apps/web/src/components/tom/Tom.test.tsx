@@ -1,10 +1,12 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { disabledTomAi, mockTomAi, type TomAiAdapter } from "./aiAdapter";
 import { DEFAULT_TOM_KNOWLEDGE } from "./knowledgeBase";
 import { Tom } from "./Tom";
 import type { ApprovedInstructionLink, TomEntry } from "./types";
+
+afterEach(() => { try { window.sessionStorage.clear(); } catch { /* storage unavailable */ } });
 
 const launcher = () => screen.getByRole("button", { name: /Help \(Tom\)|Close Tom$/ });
 const panel = () => screen.getByRole("complementary", { name: "Tom — app help" });
