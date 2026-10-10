@@ -8,6 +8,17 @@ This repository is demonstration software. It does not contact real emergency re
 
 This repository coordinates four feature workstreams. Durable briefs live under `docs/tasks/`; `AGENTS.md`, `docs/architecture.md`, `docs/api-contracts.md`, and `docs/safety-rules.md` contain the shared rules. API Core owns `services/api`, `packages/contracts`, backend migrations/tests, and API documentation. Student, responder, and maps/drills contributors should consume the published contracts rather than inventing parallel shapes.
 
+The task pack also includes optional native agent definitions. `CLAUDE.md` and `.claude/agents/*.md` apply to Claude Code; `.codex/agents/*.toml` apply to Codex. These files supplement rather than replace normal feature branches, task briefs, review, and integration testing.
+
+| Contributor   | Branch                     | Workstream                                  |
+| ------------- | -------------------------- | ------------------------------------------- |
+| Codex 1       | `feat/api-core`            | API, contracts, migrations, and API tests   |
+| Claude Code 1 | `feat/student-pwa`         | Student PWA and offline experience          |
+| Claude Code 2 | `feat/responder-dashboard` | Responder dashboard and incident review     |
+| Codex 2       | `feat/maps-drills`         | Maps, verified routes, and simulated drills |
+
+Contributors must read the shared rules and their `docs/tasks/` brief before editing, work only in their owned module, and report actual verification results. Do not work directly on `main` or replace review with agent configuration.
+
 ## Prerequisites
 
 - Node.js 24 or a current supported Node.js release
