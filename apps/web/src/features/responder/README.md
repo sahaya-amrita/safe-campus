@@ -97,27 +97,29 @@ function ResponderRoute() {
   anywhere. It restores focus and the starting view when it ends, docks at the
   bottom on phones, and doesn't animate when reduced motion is requested.
 
-### Assistant (`components/tom/assistant.ts`)
+### Assistant (`components/tom/assistant.ts`, `assistantClient.ts`)
 
-- **Functional prototype, not an AI model.** `interpret()` is a deterministic
-  intent registry. It returns: grounded app-help explanations, explanations of
-  the current screen, navigation (performed only for an explicit "take me
-  to…"-style request; otherwise offered as a button), go back, a tour offer,
-  approved instruction links, the emergency fallback, a refusal for
-  consequential actions (acknowledge, hazard decisions, alerts, calls/messages,
-  submissions, assign/resolve/cancel), "which one did you mean?", or "I don't
-  know".
-- **Optional backend model (`TomAssistantBackend`), not configured.** It is
-  consulted only for questions the registry can't answer, never in LIVE mode,
-  and only through a same-origin server endpoint that holds the credentials.
-  **No API keys in browser code.** It receives only `{ question, role, context,
-  destinations: {id,label}[], helpTopics: {id,title}[], tours: {id,title}[] }`,
-  never incident, student, location or contact data. It may return only
-  `{ intent, destinationId?, entryIds?, tourId? }`. `acceptProposal()` drops
-  anything not in the registry, and model navigation becomes a suggestion the
-  user must click. Tom always renders its own approved text, never model text.
-- **Proposed endpoint for Codex 1 (not implemented, not a contract):**
-  `POST /api/v1/assistant/interpret` with the input and output above.
+- **Built-in, deterministic intent registry (always on).** It provides grounded
+  app-help explanations, explains the current screen, navigates (only on an
+  explicit "take me to…"; otherwise it offers a button), goes back, offers the
+  tour, links approved instructions, gives the emergency fallback, refuses
+  consequential actions, asks "which one did you mean?", and says "I don't know".
+  It is labelled in the UI as a functional prototype.
+- **Optional AI assistant server: PROPOSED, not built.** The proposal is in
+  [`components/tom/assistant-api/ASSISTANT_API_PROPOSAL.md`](../../components/tom/assistant-api/ASSISTANT_API_PROPOSAL.md),
+  with tested reference server code in `REFERENCE_IMPLEMENTATION.md`, for Codex 1
+  to adopt.
+  - Tom's client (`HttpTomAssistantBackend`) is implemented and disabled until
+    the shell passes `assistant={...}`.
+  - It sends only `{ question, context: { screen, locale } }` with the
+    session's Bearer token, and contains no model keys.
+  - It validates the response strictly and keeps a suggested action only if the
+    host registered that target.
+  - Emergencies, refusals, explicit navigation, back, tours and instruction
+    requests are always answered locally and never sent.
+  - AI answers are labelled by provider (LLM / MOCK / RULES), show their approved
+    references, and are never official instructions.
+  - AI is never used in LIVE mode.
 
 ### Onboarding and shortcut
 

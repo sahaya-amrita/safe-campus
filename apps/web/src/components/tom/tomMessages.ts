@@ -65,6 +65,7 @@ export interface TomMessages {
   // assistant
   threadLabel: string;
   prototypeNotice: string;
+  prototypeNoticeAi: string;
   you: string;
   suggestionsLabel: string;
   navTaking: (label: string, description: string) => string;
@@ -86,8 +87,16 @@ export interface TomMessages {
   unknownSuggest: string;
   refuse: (action: string) => string;
   refuseWhere: (label: string) => string;
-  backendNotice: string;
   sourceLink: string;
+  thinking: string;
+  aiAnswerLabel: string;
+  mockAnswerLabel: string;
+  rulesAnswerLabel: string;
+  degradedNote: string;
+  basedOn: string;
+  refMeta: (source: string, version: string) => string;
+  draftRef: string;
+  openInstructions: (title: string) => string;
 }
 
 export const TOM_MESSAGES_EN: TomMessages = {
@@ -151,6 +160,8 @@ export const TOM_MESSAGES_EN: TomMessages = {
   threadLabel: "Conversation with Tom",
   prototypeNotice:
     "Functional prototype: Tom matches your words to a fixed list of app help, sections and tours. It is not an AI model.",
+  prototypeNoticeAi:
+    "Tom answers some questions with an AI assistant that uses only approved SAFE CAMPUS help. AI answers are labelled and are never official instructions. Emergencies and actions are always handled by fixed rules.",
   you: "You",
   suggestionsLabel: "Try asking",
   navTaking: (label, description) => `Taking you to ${label}. ${description}`,
@@ -174,8 +185,16 @@ export const TOM_MESSAGES_EN: TomMessages = {
     "I don't know how to help with that. I can explain this screen, take you to a section, or start a tour.",
   refuse: (action) => `I can't ${action} for you. Tom never takes actions on your behalf.`,
   refuseWhere: (label) => `You can do it yourself in ${label}.`,
-  backendNotice: "Suggested by the assistant service from Tom's approved help. Check it before acting.",
   sourceLink: "source",
+  thinking: "Looking that up…",
+  aiAnswerLabel: "AI-generated answer based on approved SAFE CAMPUS help. Not an official instruction.",
+  mockAnswerLabel: "Simulated (mock) assistant answer for development. Not an AI model and not an official instruction.",
+  rulesAnswerLabel: "Answer from approved SAFE CAMPUS help.",
+  degradedNote: "The AI service didn't answer, so this comes straight from approved help.",
+  basedOn: "Based on:",
+  refMeta: (source, version) => `${source}, version ${version}`,
+  draftRef: "draft, not yet reviewed",
+  openInstructions: (title) => `Open ${title}`,
 };
 
 /** Human wording for refused actions (keys match ConsequentialAction). */

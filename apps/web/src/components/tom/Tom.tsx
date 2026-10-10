@@ -3,8 +3,10 @@ import type { CampusContact } from "../../features/responder/campusDirectory";
 import { contactsForMode, VERIFICATION_PRESENTATION } from "../../features/responder/campusDirectory";
 import type { TomAiAdapter } from "./aiAdapter";
 import { disabledTomAi, isAiAvailable, MAX_AI_TEXT } from "./aiAdapter";
-import type { AssistantContext, AssistantReply, TomAssistantBackend } from "./assistant";
-import { acceptProposal, buildBackendInput, disabledAssistantBackend, interpret } from "./assistant";
+import type { AssistantContext, AssistantReply } from "./assistant";
+import { interpret, LOCAL_ONLY_REPLIES } from "./assistant";
+import type { TomAssistantBackend } from "./assistantClient";
+import { checkSuggestedAction, disabledAssistantBackend } from "./assistantClient";
 import { DEFAULT_TOM_KNOWLEDGE } from "./knowledgeBase";
 import type { TomDestination, TomNavigationAdapter, TomNavigationResult } from "./navigation";
 import { goBackSafely, navigateSafely } from "./navigation";
@@ -44,8 +46,13 @@ export interface TomProps {
   navigation?: TomNavigationAdapter;
   /** Optional rephrasing of help entries (disabled by default, never in LIVE). */
   ai?: TomAiAdapter;
-  /** Optional backend that routes unmatched questions (disabled by default, never in LIVE). */
+  /**
+   * Optional assistant server for open questions (disabled by default, never
+   * in LIVE). Emergencies, refusals, explicit navigation and tours stay local.
+   */
   assistant?: TomAssistantBackend;
+  /** Language for assistant answers. Default "en". */
+  locale?: "en" | "ta";
   /** Show the first-visit welcome. Default true. */
   onboarding?: boolean;
   /** Allow the "?" shortcut (users can still turn it off). Default true. */
@@ -62,7 +69,7 @@ export interface TomProps {
 type NavState = "PENDING" | "DONE" | "NOT_REGISTERED" | "NOT_PERMITTED" | "UNAVAILABLE" | "FAILED";
 type ThreadItem =
   | { id: number; from: "user"; text: string }
-  | { id: number; from: "tom"; reply: AssistantReply; nav?: NavState; viaBackend?: boolean };
+  | { id: number; from: "tom"; reply: AssistantReply; nav?: NavState; pending?: boolean };
 
 const MAX_THREAD = 12;
 
@@ -90,6 +97,7 @@ export function Tom({
   navigation,
   ai = disabledTomAi,
   assistant = disabledAssistantBackend,
+  locale = "en",
   onboarding = true,
   keyboardShortcut = true,
   store,
@@ -124,6 +132,7 @@ export function Tom({
   const shownContacts = contactsForMode(contacts, mode).shown;
   const visibleHints = hints.filter((h) => !dismissed.has(h.id));
   const aiOn = isAiAvailable(ai, mode);
+  // `tours` / `instructions` are what this client can actually start or open.
   const backendOn = isAiAvailable(assistant, mode);
   const destinations = navigation?.destinations() ?? [];
   const currentDestination = navigation?.current() ?? context;
@@ -238,15 +247,39 @@ export function Tom({
     setNav(id, toNavState(await navigateSafely(navigation, destination.id)));
   }
 
-  async function act(reply: AssistantReply, viaBackend = false) {
+  async function act(reply: AssistantReply) {
     if (reply.kind === "NAVIGATE") {
-      const id = pushTom(reply, { nav: "PENDING", viaBackend });
+      const id = pushTom(reply, { nav: "PENDING" });
       setNav(id, toNavState(await navigateSafely(navigation, reply.destination.id)));
     } else if (reply.kind === "BACK") {
-      const id = pushTom(reply, { nav: "PENDING", viaBackend });
+      const id = pushTom(reply, { nav: "PENDING" });
       setNav(id, toNavState(await goBackSafely(navigation)));
     } else {
-      pushTom(reply, { viaBackend });
+      pushTom(reply);
+    }
+  }
+
+  /**
+   * Asks the assistant server. Returns an AI_ANSWER only for ANSWERED /
+   * NEEDS_CLARIFICATION; anything else (unsupported, unavailable, invalid,
+   * error) returns null so the local deterministic reply is used.
+   */
+  async function askServer(q: string): Promise<AssistantReply | null> {
+    try {
+      const res = await assistant.interpret({ question: q, context: { screen: context, locale } });
+      if (res.status === "SAFETY_REDIRECT") return { kind: "EMERGENCY_FALLBACK" };
+      if (res.status !== "ANSWERED" && res.status !== "NEEDS_CLARIFICATION") return null;
+      return {
+        kind: "AI_ANSWER",
+        status: res.status,
+        answer: res.answer,
+        references: res.references,
+        action: checkSuggestedAction(res.suggestedAction, { destinations, tours, instructions }),
+        provider: res.provider,
+        degraded: res.degraded,
+      };
+    } catch {
+      return null;
     }
   }
 
@@ -256,21 +289,15 @@ export function Tom({
     markOnboarded();
     setThread((t) => [...t, { id: nextId.current++, from: "user" as const, text: q }].slice(-MAX_THREAD));
     setQuestion("");
-    let reply = interpret(q, assistantCtx);
-    let viaBackend = false;
-    if (reply.kind === "UNKNOWN" && backendOn) {
-      try {
-        const proposal = await assistant.interpret(buildBackendInput(q, role, context, assistantCtx));
-        const accepted = acceptProposal(proposal, assistantCtx);
-        if (accepted.kind !== "UNKNOWN") {
-          reply = accepted;
-          viaBackend = true;
-        }
-      } catch {
-        /* keep the deterministic UNKNOWN reply */
-      }
+    const local = interpret(q, assistantCtx);
+    if (!backendOn || LOCAL_ONLY_REPLIES.has(local.kind)) {
+      await act(local);
+      return;
     }
-    await act(reply, viaBackend);
+    const waitId = pushTom({ kind: "EMPTY" }, { pending: true });
+    const remote = await askServer(q);
+    setThread((t) => t.filter((i) => i.id !== waitId));
+    await act(remote ?? local);
   }
 
   // ---- render ------------------------------------------------------------
@@ -384,6 +411,7 @@ export function Tom({
                     </p>
                   ) : (
                     <div key={item.id} className="sc-tom__msg sc-tom__msg--tom" data-reply={item.reply.kind}>
+                      {item.pending && <p className="sc-tom__muted">{m.thinking}</p>}
                       <ReplyView
                         item={item}
                         m={m}
@@ -431,7 +459,7 @@ export function Tom({
                   </button>
                 </div>
               </form>
-              <p className="sc-tom__muted sc-tom__proto">{m.prototypeNotice}</p>
+              <p className="sc-tom__muted sc-tom__proto">{backendOn ? m.prototypeNoticeAi : m.prototypeNotice}</p>
             </section>
 
             <section aria-label={m.tipsHeading} className="sc-tom__section">
@@ -541,6 +569,46 @@ function ReplyView({
     switch (r.kind) {
       case "EMPTY":
         return null;
+      case "AI_ANSWER": {
+        const label =
+          r.provider.kind === "LLM" ? m.aiAnswerLabel : r.provider.kind === "MOCK" ? m.mockAnswerLabel : m.rulesAnswerLabel;
+        const a = r.action;
+        return (
+          <>
+            <p className="sc-tom__ai-label">{label}</p>
+            {r.degraded && <p className="sc-tom__muted">{m.degradedNote}</p>}
+            <p>{r.answer}</p>
+            {r.references.length > 0 && (
+              <div className="sc-tom__refs">
+                <p className="sc-tom__muted">{m.basedOn}</p>
+                <ul className="sc-tom__list">
+                  {r.references.map((ref) => (
+                    <li key={ref.id} data-review={ref.reviewState}>
+                      {ref.title} <span className="sc-tom__muted">({m.refMeta(ref.source, ref.version)})</span>
+                      {ref.reviewState === "DRAFT" && <span className="sc-tom__muted"> — {m.draftRef}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {a && (
+              <div className="sc-tom__chips">
+                {a.type === "NAVIGATE" && goButton(a.destination)}
+                {a.type === "START_GUIDED_TOUR" && (
+                  <button type="button" className="sc-tom__chip sc-tom__chip--primary" onClick={() => onTour(a.tour)}>
+                    {m.tourStartButton}
+                  </button>
+                )}
+                {a.type === "OPEN_APPROVED_INSTRUCTIONS" && (
+                  <a className="sc-tom__chip" href={a.instruction.href}>
+                    {m.openInstructions(a.instruction.title)}
+                  </a>
+                )}
+              </div>
+            )}
+          </>
+        );
+      }
       case "NAVIGATE": {
         const label = r.destination.label;
         const status =
@@ -658,12 +726,7 @@ function ReplyView({
         );
     }
   })();
-  return (
-    <>
-      {body}
-      {item.viaBackend && <p className="sc-tom__muted">{m.backendNotice}</p>}
-    </>
-  );
+  return <>{body}</>;
 }
 
 function InstructionLinks({ instructions, m }: { instructions: ApprovedInstructionLink[]; m: TomMessages }) {

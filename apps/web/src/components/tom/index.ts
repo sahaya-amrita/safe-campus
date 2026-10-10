@@ -2,16 +2,20 @@ export { Tom, type TomProps } from "./Tom";
 export { DEFAULT_TOM_KNOWLEDGE, TOUR_TITLES } from "./knowledgeBase";
 export { TOM_MESSAGES_EN, type TomMessages } from "./tomMessages";
 export { disabledTomAi, mockTomAi, isAiAvailable, type TomAiAdapter } from "./aiAdapter";
+export { interpret, LOCAL_ONLY_REPLIES, type AssistantReply } from "./assistant";
 export {
-  interpret,
-  acceptProposal,
-  buildBackendInput,
+  HttpTomAssistantBackend,
+  AssistantHttpError,
+  checkSuggestedAction,
   disabledAssistantBackend,
-  type AssistantReply,
-  type AssistantProposal,
-  type AssistantBackendInput,
+  validateInterpretResponse,
+  type AssistantAction,
+  type AssistantInterpretRequest,
+  type AssistantInterpretResponse,
+  type AssistantReference,
+  type AssistantStatus,
   type TomAssistantBackend,
-} from "./assistant";
+} from "./assistantClient";
 export {
   navigateSafely,
   goBackSafely,

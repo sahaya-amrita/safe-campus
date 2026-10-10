@@ -73,7 +73,7 @@ I put the three folders into a throwaway, detached copy of `origin/feat/student-
 - [ ] 10. A **session/role provider** is needed for items 7 and 8. Neither the scaffold nor my module includes one.
 - [ ] 10a. **Tom navigation adapter over the router** (see README "Tom navigation contract"): map destination ids to paths, use the shell's route guard for `canNavigate`, and make the dashboard's `view` come from the URL (`view` + `onViewChange` props). Student destinations can be added to `destinations()` once Claude Code 1 defines them.
 - [ ] 10b. **One `<TourTargetProvider>`** around routed content and `<Tom>`, so tours can highlight targets.
-- [ ] 10c. **Assistant backend (optional, later):** only if Codex 1 adds a same-origin endpoint (proposed `POST /api/v1/assistant/interpret`). Never put model keys in the client. Keep it disabled in LIVE.
+- [ ] 10c. **Assistant backend (optional):** only after Codex 1 adopts the proposal in `components/tom/assistant-api/` (`POST /api/v1/assistant/interpret`). Then construct `HttpTomAssistantBackend({ getAccessToken })` in the shell and pass it to `<Tom assistant>` only in modes the integration owner allows. Never put model keys in the client.
 
 ### E. Shared contracts and overlaps
 - [ ] 11. **Instruction pack → Tom link mapping.** The student `InstructionPack` type has no `title` or `href`. Tom's `ApprovedInstructionLink` needs both. The shell needs a small adapter, or Codex 1 adds those fields. Tom already filters to `APPROVED`/`PUBLISHED` and unexpired packs, which matches student assumption B4.

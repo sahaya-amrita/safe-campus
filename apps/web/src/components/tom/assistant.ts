@@ -1,15 +1,13 @@
 /**
  * Tom's natural-language assistant: a DETERMINISTIC intent/action registry.
  *
- * This is a functional prototype, not a language model. It maps ordinary
- * questions onto a fixed set of intents. Every reply is built from registered
- * data (approved app help, registered destinations, tours, approved instruction
- * packs). No free text from a model is ever shown as an answer.
- *
- * A backend-hosted model may later be plugged in (see TomAssistantBackend).
- * It can only PROPOSE one of these intents with ids from the registry;
- * acceptProposal() rejects anything else.
+ * It maps ordinary questions onto a fixed set of intents, built only from
+ * registered data (approved app help, registered destinations, tours, approved
+ * instruction packs). When an assistant server is configured, open questions
+ * may instead get an AI_ANSWER from it; emergencies, refusals, explicit
+ * navigation and tours are always answered here (LOCAL_ONLY_REPLIES).
  */
+import type { AssistantReference, CheckedAction } from "./assistantClient";
 import { answerQuestion, isEmergencyQuestion } from "./tomLogic";
 import type { TomDestination } from "./navigation";
 import type { TomEntry, TomTour } from "./types";
@@ -18,6 +16,15 @@ export type ConsequentialAction = "ACKNOWLEDGE" | "HAZARD_DECISION" | "SEND_ALER
 
 export type AssistantReply =
   | { kind: "EMPTY" }
+  | {
+      kind: "AI_ANSWER";
+      status: "ANSWERED" | "NEEDS_CLARIFICATION";
+      answer: string;
+      references: AssistantReference[];
+      action: CheckedAction;
+      provider: { kind: "LLM" | "MOCK" | "RULES"; model: string | null };
+      degraded: boolean;
+    }
   | { kind: "EXPLAIN_SCREEN"; destination: TomDestination | null; entries: TomEntry[] }
   | { kind: "EXPLAIN_TOPIC"; entries: TomEntry[] }
   | { kind: "NAVIGATE"; destination: TomDestination }
@@ -31,8 +38,6 @@ export type AssistantReply =
   | { kind: "REFUSE_ACTION"; action: ConsequentialAction; destination: TomDestination | null }
   | { kind: "AMBIGUOUS"; destinations: TomDestination[] }
   | { kind: "UNKNOWN" };
-
-export type AssistantIntent = Exclude<AssistantReply["kind"], "EMPTY">;
 
 export interface AssistantContext {
   destinations: readonly TomDestination[];
@@ -135,86 +140,20 @@ export function interpret(question: string, ctx: AssistantContext): AssistantRep
 }
 
 // ---------------------------------------------------------------------------
-// Optional backend-hosted model (not configured in this prototype)
+// Optional server-side assistant (see assistantClient.ts and
+// assistant-api/ASSISTANT_API_PROPOSAL.md). Safety-critical intents stay
+// deterministic and never reach the server.
 // ---------------------------------------------------------------------------
 
-/**
- * What a backend model may return: an intent from this registry plus ids.
- * It never returns user-facing text.
- */
-export interface AssistantProposal {
-  intent: AssistantIntent;
-  destinationId?: string;
-  entryIds?: string[];
-  tourId?: string;
-}
-
-/**
- * The minimal, non-sensitive input a backend receives: the question, the
- * user's role and screen, and the ids/labels of registered items. No incident,
- * student, location or contact data is ever included.
- */
-export interface AssistantBackendInput {
-  question: string;
-  role: string;
-  context: string;
-  destinations: Array<{ id: string; label: string }>;
-  helpTopics: Array<{ id: string; title: string }>;
-  tours: Array<{ id: string; title: string }>;
-}
-
-/**
- * A backend adapter. Implementations must call a same-origin server endpoint
- * that holds any model credentials; API keys must never be in browser code.
- */
-export interface TomAssistantBackend {
-  readonly status: "DISABLED" | "MOCK" | "CONFIGURED";
-  interpret(input: AssistantBackendInput): Promise<AssistantProposal>;
-}
-
-export const disabledAssistantBackend: TomAssistantBackend = {
-  status: "DISABLED",
-  interpret: () => Promise.reject(new Error("Assistant backend disabled")),
-};
-
-export function buildBackendInput(question: string, role: string, context: string, ctx: AssistantContext): AssistantBackendInput {
-  return {
-    question: question.slice(0, 300),
-    role,
-    context,
-    destinations: ctx.destinations.map((d) => ({ id: d.id, label: d.label })),
-    helpTopics: ctx.faqs.map((f) => ({ id: f.id, title: f.title })),
-    tours: ctx.tours.map((t) => ({ id: t.id, title: t.title })),
-  };
-}
-
-/**
- * Turns a backend proposal into a reply ONLY if every id refers to registered,
- * visible content. Unknown intents or ids, and any attempt at a consequential
- * action, fall back to UNKNOWN or a refusal.
- */
-export function acceptProposal(p: AssistantProposal, ctx: AssistantContext): AssistantReply {
-  const dest = p.destinationId ? ctx.destinations.find((d) => d.id === p.destinationId) : undefined;
-  switch (p.intent) {
-    case "NAVIGATE":
-    case "SUGGEST_NAVIGATE":
-      // A model may only suggest; the user confirms with a click.
-      return dest ? { kind: "SUGGEST_NAVIGATE", destination: dest } : { kind: "UNKNOWN" };
-    case "EXPLAIN_TOPIC": {
-      const entries = ctx.faqs.filter((f) => p.entryIds?.includes(f.id));
-      return entries.length > 0 ? { kind: "EXPLAIN_TOPIC", entries } : { kind: "UNKNOWN" };
-    }
-    case "TOUR": {
-      const tour = ctx.tours.find((t) => t.id === p.tourId);
-      return tour ? { kind: "TOUR", tour } : { kind: "UNKNOWN" };
-    }
-    case "EMERGENCY_FALLBACK":
-      return { kind: "EMERGENCY_FALLBACK" };
-    case "INSTRUCTIONS":
-      return { kind: "INSTRUCTIONS" };
-    case "BACK":
-      return { kind: "BACK" };
-    default:
-      return { kind: "UNKNOWN" };
-  }
-}
+/** Replies Tom always produces locally, without asking the server. */
+export const LOCAL_ONLY_REPLIES: ReadonlySet<AssistantReply["kind"]> = new Set([
+  "EMPTY",
+  "EMERGENCY_FALLBACK",
+  "REFUSE_ACTION",
+  "NAVIGATE",
+  "ALREADY_HERE",
+  "BACK",
+  "TOUR",
+  "NO_TOUR",
+  "INSTRUCTIONS",
+]);

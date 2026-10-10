@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RESPONDER_DESTINATIONS } from "../../features/responder/navigation";
-import { acceptProposal, interpret, type AssistantContext } from "./assistant";
+import { interpret, LOCAL_ONLY_REPLIES, type AssistantContext } from "./assistant";
 import { DEFAULT_TOM_KNOWLEDGE } from "./knowledgeBase";
 import { navigateSafely, type TomNavigationAdapter } from "./navigation";
 import { selectEntries } from "./tomLogic";
@@ -86,17 +86,16 @@ describe("deterministic intent registry", () => {
   });
 });
 
-describe("backend proposals are validated against the registry", () => {
-  it("downgrades NAVIGATE to a suggestion and rejects unknown ids", () => {
-    expect(acceptProposal({ intent: "NAVIGATE", destinationId: "responder.contacts" }, ctx).kind).toBe("SUGGEST_NAVIGATE");
-    expect(acceptProposal({ intent: "NAVIGATE", destinationId: "https://evil.example" }, ctx).kind).toBe("UNKNOWN");
-    expect(acceptProposal({ intent: "EXPLAIN_TOPIC", entryIds: ["made-up"] }, ctx).kind).toBe("UNKNOWN");
-    expect(acceptProposal({ intent: "TOUR", tourId: "nope" }, ctx).kind).toBe("UNKNOWN");
+describe("what may reach the assistant server", () => {
+  it("safety-critical and explicit intents always stay local", () => {
+    for (const q of ["there is a fire", "acknowledge DEMO-HR-001", "take me to hazard review", "go back", "give me a tour", "show me the official procedures"]) {
+      expect(LOCAL_ONLY_REPLIES.has(interpret(q, ctx).kind)).toBe(true);
+    }
   });
-
-  it("cannot be used to perform or fake an action", () => {
-    expect(acceptProposal({ intent: "REFUSE_ACTION" }, ctx).kind).toBe("UNKNOWN");
-    expect(acceptProposal({ intent: "ALREADY_HERE", destinationId: "responder.contacts" }, ctx).kind).toBe("UNKNOWN");
+  it("open questions may go to the server", () => {
+    for (const q of ["best pizza near campus", "what does acknowledge do", "roll call"]) {
+      expect(LOCAL_ONLY_REPLIES.has(interpret(q, ctx).kind)).toBe(false);
+    }
   });
 });
 
