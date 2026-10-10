@@ -2,6 +2,8 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
+import { loadAllowedOrigins } from './assistant/config.js';
+import { createAssistant, type AssistantOptions } from './assistant/index.js';
 import type { Config } from './config.js';
 import type { DatabasePool } from './db.js';
 import { createLogger } from './logger.js';
@@ -24,14 +26,31 @@ import { dispatchesRouter, respondersRouter } from './routes/responders.js';
 import { trustedContactsRouter } from './routes/trusted-contacts.js';
 import { usersRouter } from './routes/users.js';
 
-export function createApp(pool: DatabasePool, config: Config) {
+export function createApp(
+  pool: DatabasePool,
+  config: Config,
+  options: { assistant?: AssistantOptions } = {},
+) {
   const app = express();
   const logger = createLogger(config);
   app.disable('x-powered-by');
   app.use(requestContext);
   app.use(pinoHttp({ logger }));
   app.use(helmet());
-  app.use(cors({ origin: /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/ }));
+  // Local origins outside production, plus exact deployed origins from CORS_ALLOWED_ORIGINS.
+  const localOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+  const allowedOrigins = loadAllowedOrigins();
+  app.use(
+    cors({
+      origin: (origin, callback) =>
+        callback(
+          null,
+          !origin ||
+            allowedOrigins.includes(origin) ||
+            (config.NODE_ENV !== 'production' && localOrigin.test(origin)),
+        ),
+    }),
+  );
   app.use(express.json({ limit: '256kb' }));
 
   app.get('/api/v1/health', async (_request, response) => {
@@ -47,7 +66,12 @@ export function createApp(pool: DatabasePool, config: Config) {
     });
   });
   app.use('/api/v1/auth', authRouter(pool, config));
+  // Tom assistant (src/assistant): public health first, interpret after authenticate.
+  const assistant = createAssistant(pool, config, logger, options.assistant);
+  app.use('/api/v1/assistant', assistant.parseErrorHandler);
+  app.use('/api/v1/assistant', assistant.healthRouter);
   app.use('/api/v1', authenticate(config));
+  app.use('/api/v1/assistant', assistant.router);
   app.use('/api/v1/users', usersRouter(pool));
   app.use('/api/v1/incidents', incidentsRouter(pool, config));
   app.use(
