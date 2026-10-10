@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTourTarget } from "../../components/tom/tourTargets";
 import { HazardReviewQueue } from "../incidents/HazardReviewQueue";
 import type { ResponderApi } from "./api";
 import { classifyError } from "./apiError";
@@ -24,7 +25,9 @@ export interface ResponderDashboardProps {
   api: ResponderApi;
   now?: () => Date;
   initialView?: ResponderView;
-  /** Lets the app shell (and Tom) know which view is shown, for context-aware help. */
+  /** Controlled view. When set, the host owns navigation (e.g. a router or Tom's adapter). */
+  view?: ResponderView;
+  /** Called when the user picks a section; required to change a controlled view. */
   onViewChange?: (view: ResponderView) => void;
   /** Defaults to DEMO for the mock adapter and LIVE otherwise. */
   mode?: AppMode;
@@ -56,12 +59,17 @@ export function ResponderDashboard({
   api,
   now = () => new Date(),
   initialView = "help-requests",
+  view: controlledView,
   onViewChange,
   mode = api.kind === "MOCK" ? "DEMO" : "LIVE",
   contacts = CAMPUS_CONTACTS,
   resources = OFFICIAL_RESOURCES,
 }: ResponderDashboardProps) {
-  const [view, setView] = useState<ResponderView>(initialView);
+  const [ownView, setOwnView] = useState<ResponderView>(initialView);
+  const view = controlledView ?? ownView;
+  const navTarget = useTourTarget("responder.nav");
+  const summaryTarget = useTourTarget("responder.summary");
+  const bannerTarget = useTourTarget("responder.mode-banner");
   const [summary, setSummary] = useState<{ open: Count; pending: Count; at: Date | null }>({
     open: { kind: "loading" },
     pending: { kind: "loading" },
@@ -85,7 +93,7 @@ export function ResponderDashboard({
       active = false;
     };
     // `now` is a clock, not an input: re-running on its identity would loop.
-  }, [api, summaryKey]);
+  }, [api, summaryKey, view]);
 
   const isDemoData = api.kind === "MOCK";
   const current = VIEWS.find((v) => v.id === view) ?? VIEWS[0]!;
@@ -102,7 +110,7 @@ export function ResponderDashboard({
             <span>Responder</span>
           </span>
         </div>
-        <nav aria-label="Responder sections" className="sc-nav">
+        <nav aria-label="Responder sections" className="sc-nav" ref={navTarget}>
           {VIEWS.map((v) => (
             <button
               key={v.id}
@@ -111,9 +119,8 @@ export function ResponderDashboard({
               aria-current={view === v.id ? "page" : undefined}
               className={view === v.id ? "sc-nav__item sc-nav__item--active" : "sc-nav__item"}
               onClick={() => {
-                setView(v.id);
+                if (controlledView === undefined) setOwnView(v.id);
                 onViewChange?.(v.id);
-                refreshSummary();
               }}
             >
               <Icon name={v.icon} />
@@ -134,7 +141,7 @@ export function ResponderDashboard({
           </div>
           <div className="sc-topbar__status">
             <span className={`sc-mode sc-mode--${mode.toLowerCase()}`}>{mode} mode</span>
-            <dl className="sc-summary" role="group" aria-label="Queue summary">
+            <dl className="sc-summary" role="group" aria-label="Queue summary" ref={summaryTarget}>
               <div>
                 <dt>Open help requests</dt>
                 <dd>
@@ -160,13 +167,13 @@ export function ResponderDashboard({
         </header>
 
         {isDemoData && (
-          <p className="sc-demo-label" role="note">
+          <p className="sc-demo-label" role="note" ref={bannerTarget}>
             DEMO MODE — synthetic records only. These are not real people, incidents or locations, and no action
             here reaches anyone.
           </p>
         )}
         {!isDemoData && mode === "DRILL" && (
-          <p className="sc-demo-label" role="note">
+          <p className="sc-demo-label" role="note" ref={bannerTarget}>
             DRILL MODE — exercise data. No real emergency messages are sent.
           </p>
         )}

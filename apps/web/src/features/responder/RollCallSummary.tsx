@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTourTarget } from "../../components/tom/tourTargets";
 import type { ResponderApi } from "./api";
 import { classifyError } from "./apiError";
 import type { RollCallSnapshot } from "./contracts";
@@ -51,12 +52,13 @@ export function RollCallSummary({ api, now = () => new Date() }: RollCallSummary
 
 function RollCallBody({ data, now }: { data: RollCallSnapshot; now: Date }) {
   const c = rollCallCompleteness(data);
+  const scopeTarget = useTourTarget("responder.rollcall-scope");
   return (
     <>
       {data.isDemo && (
         <p className="sc-demo-label">DEMO DATA — synthetic participants, not real people.</p>
       )}
-      <p className="sc-scope">
+      <p className="sc-scope" ref={scopeTarget}>
         <strong>Scope:</strong> {data.scopeLabel}.{" "}
         {data.scopeKind === "PARTIAL"
           ? "This is a partial scope, not a campus-wide roll call."

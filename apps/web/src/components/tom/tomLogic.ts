@@ -1,4 +1,5 @@
-import type { AppMode, ApprovedInstructionLink, Role, TomContext, TomEntry } from "./types";
+import { TOUR_TITLES } from "./knowledgeBase";
+import type { AppMode, ApprovedInstructionLink, Role, TomContext, TomEntry, TomTour } from "./types";
 
 const PUBLISHED_STATES = new Set(["APPROVED", "PUBLISHED"]);
 
@@ -31,8 +32,31 @@ export function selectEntries(
   return {
     hints: visible.filter((e) => e.kind === "HINT"),
     faqs: visible.filter((e) => e.kind === "FAQ"),
-    tour: visible.filter((e) => e.kind === "TOUR_STEP").sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    tours: groupTours(visible.filter((e) => e.kind === "TOUR_STEP")),
   };
+}
+
+/** Builds tours from visible TOUR_STEP entries (so LIVE review rules apply to tours too). */
+export function groupTours(steps: readonly TomEntry[]): TomTour[] {
+  const byTour = new Map<string, TomEntry[]>();
+  for (const s of steps) {
+    const id = s.tourId ?? "default";
+    byTour.set(id, [...(byTour.get(id) ?? []), s]);
+  }
+  return [...byTour.entries()].map(([id, entries]) => ({
+    id,
+    title: TOUR_TITLES[id] ?? "Guided tour",
+    steps: entries
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        body: e.body,
+        targetId: e.targetId,
+        destination: e.destination,
+        optional: e.optional,
+      })),
+  }));
 }
 
 /** Only approved/published, unexpired packs with recorded source and version. */

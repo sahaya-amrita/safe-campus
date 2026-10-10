@@ -1,3 +1,4 @@
+import { useTourTarget } from "../../components/tom/tourTargets";
 import type { CampusContact, OfficialResource } from "./campusDirectory";
 import { contactsForMode, VERIFICATION_PRESENTATION } from "./campusDirectory";
 import type { AppMode } from "./contracts";
@@ -19,6 +20,7 @@ function formatChecked(date: string): string {
 
 export function ContactsView({ contacts, resources, mode }: ContactsViewProps) {
   const { shown, withheld } = contactsForMode(contacts, mode);
+  const listTarget = useTourTarget("responder.contacts-list");
   return (
     <section aria-labelledby="sc-ct-title" className="sc-view">
       <div className="sc-view__head">
@@ -37,13 +39,13 @@ export function ContactsView({ contacts, resources, mode }: ContactsViewProps) {
       )}
 
       {shown.length === 0 ? (
-        <div className="sc-empty">
+        <div className="sc-empty" ref={listTarget}>
           <Icon name="phone" size={28} />
           <p className="sc-empty__title">No confirmed campus contacts are configured</p>
           <p className="sc-muted">Follow your campus's official emergency procedures.</p>
         </div>
       ) : (
-        <ul className="sc-contacts" aria-label="Campus contacts">
+        <ul className="sc-contacts" aria-label="Campus contacts" ref={listTarget}>
           {shown.map((c) => {
             const v = VERIFICATION_PRESENTATION[c.verification];
             return (

@@ -3,7 +3,10 @@ import type { AppMode, Role, TomEntry } from "./types";
 /**
  * Optional adapter that may rephrase an existing app-help entry. It never
  * receives free-text user questions and never produces instructions on its
- * own. Disabled by default; never used in LIVE mode.
+ * own. Disabled by default; never used in LIVE mode. A real implementation
+ * must call a same-origin backend that holds the model credentials; API keys
+ * must never be shipped in browser code. For question routing, see
+ * TomAssistantBackend in assistant.ts.
  */
 export interface TomAiAdapter {
   readonly status: "DISABLED" | "MOCK" | "CONFIGURED";
@@ -21,7 +24,8 @@ export const mockTomAi: TomAiAdapter = {
   explain: async ({ entry }) => `Simulated explanation (mock — no AI model used): ${entry.body}`,
 };
 
-export function isAiAvailable(adapter: TomAiAdapter, mode: AppMode): boolean {
+/** AI features (explanations, backend routing) are off in LIVE and when disabled. */
+export function isAiAvailable(adapter: { status: string }, mode: AppMode): boolean {
   return adapter.status !== "DISABLED" && mode !== "LIVE";
 }
 

@@ -8,31 +8,131 @@ Owned paths:
 
 ## Mounting in the shared app (`apps/web`)
 
-The shell owns routing, session and layout. Suggested wiring:
+The shell owns routing, session and layout. Three pieces need wiring: the
+dashboard on a route, one `<Tom>` at shell level, and a **navigation adapter**
+so Tom can move users between registered screens.
 
 ```tsx
-import { HttpResponderApi, ResponderDashboard, type ResponderView } from "./features/responder";
-import { Tom } from "./components/tom";
+import {
+  CAMPUS_CONTACTS,
+  HttpResponderApi,
+  RESPONDER_DESTINATIONS,
+  ResponderDashboard,
+  canAccessResponderWorkspace,
+  destinationForView,
+  type ResponderView,
+} from "./features/responder";
+import { Tom, TourTargetProvider, type TomNavigationAdapter } from "./components/tom";
 
 const responderApi = new HttpResponderApi({ baseUrl: "" }); // cookie session; no tokens stored here
 
-function ResponderRoute() {
-  const [view, setView] = useState<ResponderView>("help-requests");
-  // mode: "DEMO" | "DRILL" | "LIVE" (defaults: DEMO for the mock, LIVE for HTTP)
-  return <ResponderDashboard api={responderApi} mode={appMode} onViewChange={setView} />;
-  // Tell the shell-level <Tom> the context: `responder.${view}`
+// Route paths are the shell's choice; Tom only ever sees destination ids.
+const PATHS: Record<string, string> = {
+  "responder.help-requests": "/responder/help-requests",
+  "responder.hazard-review": "/responder/hazard-review",
+  "responder.roll-call": "/responder/roll-call",
+  "responder.contacts": "/responder/contacts",
+};
+
+function useTomNavigation(router, session): TomNavigationAdapter {
+  return {
+    destinations: () => RESPONDER_DESTINATIONS,          // + student destinations, once defined
+    current: () => idForPath(router.location.pathname),  // shell helper
+    canNavigate: (id) => id in PATHS && canAccessResponderWorkspace(session.role), // the shell's route guard
+    navigate: (id) => (router.navigate(PATHS[id]), { ok: true }),
+    canGoBack: () => router.canGoBack(),
+    back: () => (router.back(), { ok: true }),
+  };
 }
 
-// Once, at shell level:
-<Tom
-  role={session.role}                 // from the authenticated session; used only to pick help content
-  context={currentTomContext}         // e.g. "responder.hazard-review", "student.check-in"
-  mode={appMode}                      // "DEMO" | "DRILL" | "LIVE"
-  approvedInstructions={publishedPacks} // APPROVED/PUBLISHED instruction packs only
-  contacts={CAMPUS_CONTACTS}          // LIVE shows institution-confirmed contacts only
-  messages={tomMessagesFor(language)} // optional; English by default (see TomMessages)
-/>
+// Shell layout: ONE provider around the page content and ONE Tom.
+<TourTargetProvider>
+  <Routes>
+    <Route path="/responder/:view" element={<ResponderRoute />} />   {/* view from the URL */}
+  </Routes>
+  <Tom
+    role={session.role}                 // from the authenticated session; picks help content only
+    context={currentDestinationId}      // e.g. "responder.hazard-review", "student.check-in"
+    mode={appMode}                      // "DEMO" | "DRILL" | "LIVE"
+    navigation={tomNavigation}          // typed adapter above; omit to disable navigation
+    approvedInstructions={publishedPacks} // APPROVED/PUBLISHED instruction packs only
+    contacts={CAMPUS_CONTACTS}          // LIVE shows institution-confirmed contacts only
+    messages={tomMessagesFor(language)} // optional; English by default (see TomMessages)
+  />
+</TourTargetProvider>
+
+function ResponderRoute() {
+  const view = useParams().view as ResponderView;      // controlled by the router
+  return <ResponderDashboard api={responderApi} mode={appMode} view={view}
+            onViewChange={(v) => router.navigate(PATHS[destinationForView(v)])} />;
+}
 ```
+
+### Tom navigation contract (`components/tom/navigation.ts`)
+
+- Tom can only reach ids returned by `destinations()`. `navigateSafely()` rejects
+  unregistered ids **before** calling the host, then asks `canNavigate()` (the
+  shell's own authorization, never a model), then calls `navigate()` and reports
+  exactly what happened (`NOT_REGISTERED`, `NOT_PERMITTED`, `UNAVAILABLE` or
+  `FAILED` is shown as "Nothing changed").
+- Tom never clicks DOM elements and never opens URLs. The server still
+  authorizes every data request (401/403 shows the access notice).
+- Back support is optional (`canGoBack` / `back`).
+- `createResponderNavigation()` is a ready adapter over plain view state (used by
+  the harness); the shell will normally write its own over the router, as above.
+
+### Guided tours (`components/tom/tourTargets.tsx`)
+
+- Highlightable elements opt in with `useTourTarget("stable.id")`. The tour looks
+  targets up by id only; there are no CSS selectors. Registered ids:
+  `responder.nav`, `responder.summary`, `responder.mode-banner`,
+  `responder.status-filter`, `responder.request-list`, `responder.hazard-filter`,
+  `responder.rollcall-scope`, `responder.contacts-list`, `tom.launcher`.
+- **Shell requirement:** one `<TourTargetProvider>` must wrap both the routed
+  content and `<Tom>`. Without it, tours still run but explain that the target
+  isn't showing.
+- Tour steps are `TOUR_STEP` knowledge-base entries (`tourId`, `targetId`,
+  `destination`, `optional`), so the LIVE review rules apply to tours too.
+- The tour is non-modal. It has Back, Next, Skip tour, Finish, and Escape from
+  anywhere. It restores focus and the starting view when it ends, docks at the
+  bottom on phones, and doesn't animate when reduced motion is requested.
+
+### Assistant (`components/tom/assistant.ts`)
+
+- **Functional prototype, not an AI model.** `interpret()` is a deterministic
+  intent registry. It returns: grounded app-help explanations, explanations of
+  the current screen, navigation (performed only for an explicit "take me
+  to…"-style request; otherwise offered as a button), go back, a tour offer,
+  approved instruction links, the emergency fallback, a refusal for
+  consequential actions (acknowledge, hazard decisions, alerts, calls/messages,
+  submissions, assign/resolve/cancel), "which one did you mean?", or "I don't
+  know".
+- **Optional backend model (`TomAssistantBackend`), not configured.** It is
+  consulted only for questions the registry can't answer, never in LIVE mode,
+  and only through a same-origin server endpoint that holds the credentials.
+  **No API keys in browser code.** It receives only `{ question, role, context,
+  destinations: {id,label}[], helpTopics: {id,title}[], tours: {id,title}[] }`,
+  never incident, student, location or contact data. It may return only
+  `{ intent, destinationId?, entryIds?, tourId? }`. `acceptProposal()` drops
+  anything not in the registry, and model navigation becomes a suggestion the
+  user must click. Tom always renders its own approved text, never model text.
+- **Proposed endpoint for Codex 1 (not implemented, not a contract):**
+  `POST /api/v1/assistant/interpret` with the input and output above.
+
+### Onboarding and shortcut
+
+- **First-visit welcome:** a small, non-blocking callout with "Take a tour" and
+  "Not now". It is shown once per browser: `localStorage`
+  `safe-campus.tom.onboarded` is set on either choice or when Tom is opened.
+- **`?` key:** opens Tom unless the user is typing in a field, a modifier is
+  held, or a tour is running. Users can turn it off in Tom's footer (stored as
+  `safe-campus.tom.shortcut-off`). The launcher advertises it with
+  `aria-keyshortcuts`. The shell can disable it with `keyboardShortcut={false}`
+  if it conflicts with app shortcuts.
+- **Minimise:** shrinks Tom to an icon for the session. Clicking the icon or
+  pressing `?` restores it.
+
+### Other notes
 
 - The dashboard does not grant access. It renders a "Responder access required"
   notice for any 401/403. The shell should still route to it only for
@@ -41,11 +141,12 @@ function ResponderRoute() {
   status bar (`min-height: 100dvh`). Give it the full content area of the
   responder route. If the shell adds its own global navigation, raise it with the
   integrator so the two don't stack awkwardly.
-- `<Tom>` is a fixed, non-modal launcher (`z-index: 40`). Shell dialogs and alert
-  banners should sit above it. If the shell has a bottom bar, set
-  `--sc-tom-offset-bottom` (for example `64px`) to lift the launcher above it.
-  "Minimise" shrinks Tom to an icon for the session; Tom never disappears
-  without a way back.
+- `<Tom>` is fixed bottom-right at `z-index: 40` (tour layers use 41 and 42).
+  Shell dialogs and alert banners should sit above it. If the shell has a bottom
+  bar, set `--sc-tom-offset-bottom` (for example `64px`).
+- Styles read shared tokens when defined (`--color-text`, `--color-surface`,
+  `--color-border`, `--color-danger`, `--color-warning`, `--color-info`,
+  `--color-success`, `--color-text-muted`) and fall back to local values.
 - **Campus contacts** are data in `features/responder/campusDirectory.ts`, apart from
   the UI. Each record has a source, a last-checked date and a verification state
   (`INSTITUTION_CONFIRMED`, `PUBLISHED_ONLINE` or `UNVERIFIED`). None is confirmed
@@ -57,14 +158,10 @@ function ResponderRoute() {
 - **Tom strings** live in `components/tom/tomMessages.ts` (`TomMessages`, same flat
   typed shape as the student i18n `Messages`). Wiring them into the shared i18n,
   including Tamil, waits for Claude Code 1 to confirm that integration contract.
-- Styles read shared tokens when defined (`--color-text`, `--color-surface`,
-  `--color-border`, `--color-danger`, `--color-warning`, `--color-info`,
-  `--color-success`, `--color-text-muted`) and fall back to local values.
-- In LIVE mode Tom shows only knowledge-base entries with `review.reviewed === true`
-  and an unexpired `review.validUntil` (if set).
-  All seeded entries in `components/tom/knowledgeBase.ts` are unreviewed drafts, so
-  a named reviewer must approve them before LIVE use. The AI adapter defaults to
-  disabled and is never used in LIVE mode.
+- In LIVE mode Tom shows only knowledge-base entries (including tour steps) with
+  `review.reviewed === true` and an unexpired `review.validUntil` (if set). All
+  seeded entries are unreviewed drafts, so a named reviewer must approve them
+  before LIVE use. AI adapters default to disabled and are never used in LIVE.
 - `MockResponderApi` is for demos/tests only. The dashboard labels it as DEMO MODE.
 
 ## PROVISIONAL contract assumptions (need confirmation from Codex 1)
@@ -97,7 +194,7 @@ Until `apps/web` has its own test setup, run the tests from the dev-only harness
 ```bash
 cd apps/responder-dashboard
 npm ci
-npm test            # vitest run over the three owned paths + harness tests
+npm test            # 159 module tests + 10 harness tests
 npm run typecheck   # tsc strict
 npm run build       # vite build of the DEMO harness page
 ```

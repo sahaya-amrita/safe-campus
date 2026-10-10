@@ -63,3 +63,41 @@ export function clearTomSessionPreferences(store: TomStore | null = defaultStore
   writeMinimised(store, false);
   writeDismissed(store, new Set());
 }
+
+// ---------------------------------------------------------------------------
+// Long-lived per-viewer preferences (localStorage). Only two flags: whether
+// the first-visit welcome was seen, and whether the ? shortcut is off.
+// ---------------------------------------------------------------------------
+
+const ONBOARDED_KEY = "safe-campus.tom.onboarded";
+const SHORTCUT_OFF_KEY = "safe-campus.tom.shortcut-off";
+
+export function defaultPersistentStore(): TomStore | null {
+  try {
+    return typeof window !== "undefined" ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+function readFlag(store: TomStore | null, key: string): boolean {
+  try {
+    return store?.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(store: TomStore | null, key: string, on: boolean): void {
+  try {
+    if (on) store?.setItem(key, "1");
+    else store?.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+export const readOnboarded = (s: TomStore | null) => readFlag(s, ONBOARDED_KEY);
+export const writeOnboarded = (s: TomStore | null) => writeFlag(s, ONBOARDED_KEY, true);
+export const readShortcutOff = (s: TomStore | null) => readFlag(s, SHORTCUT_OFF_KEY);
+export const writeShortcutOff = (s: TomStore | null, off: boolean) => writeFlag(s, SHORTCUT_OFF_KEY, off);

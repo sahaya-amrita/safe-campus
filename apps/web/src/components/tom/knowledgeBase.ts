@@ -7,7 +7,54 @@ import type { TomEntry } from "./types";
  */
 const draft = { reviewed: false } as const;
 
+const RESPONDER_CONTEXTS = [
+  "responder.help-requests",
+  "responder.hazard-review",
+  "responder.roll-call",
+  "responder.contacts",
+] as const;
+
+const RESPONDERS = ["RESPONDER", "ADMIN"] as const;
+
+/** Display names for tours, keyed by tourId. */
+export const TOUR_TITLES: Readonly<Record<string, string>> = {
+  "responder.workspace": "Responder workspace tour",
+};
+
+function tourStep(
+  order: number,
+  id: string,
+  title: string,
+  body: string,
+  extra: { targetId?: string; destination?: string; optional?: boolean },
+): TomEntry {
+  return {
+    id: `tour-ws-${id}`,
+    kind: "TOUR_STEP",
+    tourId: "responder.workspace",
+    order,
+    roles: RESPONDERS,
+    contexts: RESPONDER_CONTEXTS,
+    title,
+    body,
+    contentType: "APP_HELP",
+    review: draft,
+    ...extra,
+  };
+}
+
 export const DEFAULT_TOM_KNOWLEDGE: readonly TomEntry[] = [
+  // ---- Responder workspace tour (app navigation only)
+  tourStep(1, "sections", "Sections", "Use these to switch between Help requests, Hazard review, Roll-call summary and Contacts & resources. You can also ask Tom to take you to any of them.", { targetId: "responder.nav" }),
+  tourStep(2, "summary", "Queue summary", "Counts of open help requests and hazards waiting for review, as returned by the server. “N+” means more pages exist.", { targetId: "responder.summary" }),
+  tourStep(3, "demo", "Demo label", "This banner appears whenever the records are synthetic. Nothing you do in DEMO mode reaches anyone.", { targetId: "responder.mode-banner", optional: true }),
+  tourStep(4, "filter", "Filter by status", "Choose which help requests to list: Open, Acknowledged, Assigned, Resolved or Cancelled.", { targetId: "responder.status-filter", destination: "responder.help-requests" }),
+  tourStep(5, "requests", "Open a request", "Select “Open” on a row to see its timestamps. You acknowledge a request yourself, and the status changes only when the server confirms. Tom never does it for you.", { targetId: "responder.request-list", destination: "responder.help-requests" }),
+  tourStep(6, "hazards", "Human review", "Every hazard report stays “Pending review” until a reviewer records a decision. Report counts never raise an alert.", { targetId: "responder.hazard-filter", destination: "responder.hazard-review" }),
+  tourStep(7, "rollcall", "Roll-call scope", "The summary covers only the group named in “Scope”. It never declares a campus-wide roll call complete.", { targetId: "responder.rollcall-scope", destination: "responder.roll-call", optional: true }),
+  tourStep(8, "contacts", "Campus contacts", "Each number shows its source, when it was last checked and whether the institution has confirmed it. LIVE mode hides unconfirmed numbers.", { targetId: "responder.contacts-list", destination: "responder.contacts" }),
+  tourStep(9, "tom", "Ask Tom", "Open Tom any time to ask a question, jump to a section, or restart this tour.", { targetId: "tom.launcher" }),
+
   // ---- Responder: help requests
   {
     id: "resp-hr-hint-oldest-first",
@@ -38,39 +85,6 @@ export const DEFAULT_TOM_KNOWLEDGE: readonly TomEntry[] = [
     title: "My acknowledgement failed. What now?",
     body: "The request stays in its previous status. Use “Retry acknowledgement”; the retry reuses the same request key so it cannot be recorded twice.",
     keywords: ["failed", "error", "retry", "acknowledge"],
-    contentType: "APP_HELP",
-    review: draft,
-  },
-  {
-    id: "resp-hr-tour-1",
-    kind: "TOUR_STEP",
-    order: 1,
-    roles: ["RESPONDER", "ADMIN"],
-    contexts: ["responder.help-requests"],
-    title: "Choose a status",
-    body: "Use the “Show status” filter to pick which help requests to list.",
-    contentType: "APP_HELP",
-    review: draft,
-  },
-  {
-    id: "resp-hr-tour-2",
-    kind: "TOUR_STEP",
-    order: 2,
-    roles: ["RESPONDER", "ADMIN"],
-    contexts: ["responder.help-requests"],
-    title: "Open a request",
-    body: "Select “Open” on a row to see its timestamps and available actions.",
-    contentType: "APP_HELP",
-    review: draft,
-  },
-  {
-    id: "resp-hr-tour-3",
-    kind: "TOUR_STEP",
-    order: 3,
-    roles: ["RESPONDER", "ADMIN"],
-    contexts: ["responder.help-requests"],
-    title: "Acknowledge",
-    body: "For an Open request, select “Acknowledge request” and wait for the server confirmation message.",
     contentType: "APP_HELP",
     review: draft,
   },

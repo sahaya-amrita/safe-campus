@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useTourTarget } from "../../components/tom/tourTargets";
 import { formatTimestamp } from "../responder/formatTime";
 import { Icon } from "../responder/Icon";
 import { RequestErrorNotice } from "../responder/RequestErrorNotice";
@@ -23,6 +24,7 @@ export function HazardReviewQueue({ api, now = () => new Date(), initialStatus =
   const fetchPage = useCallback((cursor: string | null) => api.listHazardReports({ status, cursor }), [api, status]);
   const { state, reload, loadMore, replaceItem } = usePagedList<HazardReport>(fetchPage, `hz:${status}`);
   const n = now();
+  const filterTarget = useTourTarget("responder.hazard-filter");
   const categoryCounts = state.phase === "ready" ? countPendingByCategory(state.items) : [];
 
   function onReviewed(updated: HazardReport) {
@@ -40,7 +42,7 @@ export function HazardReviewQueue({ api, now = () => new Date(), initialStatus =
           they never raise an official alert. Campus notices are issued separately by authorized staff.
         </p>
       </div>
-      <fieldset className="sc-seg">
+      <fieldset className="sc-seg" ref={filterTarget}>
         <legend>Show status</legend>
         <div className="sc-seg__options">
           {HAZARD_STATUSES.map((s) => {

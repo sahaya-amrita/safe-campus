@@ -19,6 +19,14 @@ export interface TomEntry {
   keywords?: readonly string[];
   /** Order within a guided tour (TOUR_STEP only). */
   order?: number;
+  /** TOUR_STEP only: which tour this step belongs to. */
+  tourId?: string;
+  /** TOUR_STEP only: stable id from the tour target registry to highlight. */
+  targetId?: string;
+  /** TOUR_STEP only: registered destination to open before showing the step. */
+  destination?: string;
+  /** TOUR_STEP only: skip silently when the target is not on screen. */
+  optional?: boolean;
   /**
    * Tom's own knowledge base holds app-usage help only. It never contains
    * emergency procedures; those come from approved instruction packs.
@@ -42,4 +50,19 @@ export interface ApprovedInstructionLink {
   approvalState: string;
   language: string;
   expiresAt?: string | null;
+}
+
+export interface TomTourStep {
+  id: string;
+  title: string;
+  body: string;
+  targetId?: string;
+  destination?: string;
+  optional?: boolean;
+}
+
+export interface TomTour {
+  id: string;
+  title: string;
+  steps: TomTourStep[];
 }

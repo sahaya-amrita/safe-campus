@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useTourTarget } from "../../components/tom/tourTargets";
 import type { ResponderApi } from "./api";
 import type { HelpRequest, HelpRequestStatus } from "./contracts";
 import { HELP_REQUEST_STATUSES } from "./contracts";
@@ -29,6 +30,8 @@ export function HelpRequestQueue({ api, now = () => new Date(), initialStatus = 
   const selected = state.items.find((i) => i.id === selectedId) ?? null;
   const n = now();
   const statusLabel = HELP_REQUEST_STATUS_PRESENTATION[status].label.toLowerCase();
+  const filterTarget = useTourTarget("responder.status-filter");
+  const listTarget = useTourTarget("responder.request-list");
 
   if (selected) {
     return (
@@ -51,7 +54,7 @@ export function HelpRequestQueue({ api, now = () => new Date(), initialStatus = 
         <h2 id="sc-hr-title">Help requests</h2>
         <p className="sc-muted">Longest-waiting first. Status changes only when the server confirms them.</p>
       </div>
-      <fieldset className="sc-seg">
+      <fieldset className="sc-seg" ref={filterTarget}>
         <legend>Show status</legend>
         <div className="sc-seg__options">
           {HELP_REQUEST_STATUSES.map((s) => {
@@ -91,13 +94,13 @@ export function HelpRequestQueue({ api, now = () => new Date(), initialStatus = 
               : `Showing ${state.items.length} ${statusLabel} request(s)${state.nextCursor ? " (more available)" : ""}, oldest first.`}
           </p>
           {state.items.length === 0 ? (
-            <div className="sc-empty">
+            <div className="sc-empty" ref={listTarget}>
               <Icon name="check" size={28} />
               <p className="sc-empty__title">Nothing {statusLabel} right now</p>
               <p className="sc-muted">New requests appear here after the server accepts them. Use Refresh in the header to check again.</p>
             </div>
           ) : (
-            <ul className="sc-list" aria-label={`${HELP_REQUEST_STATUS_PRESENTATION[status].label} help requests`}>
+            <ul className="sc-list" aria-label={`${HELP_REQUEST_STATUS_PRESENTATION[status].label} help requests`} ref={listTarget}>
               {state.items.map((r) => {
                 const p = HELP_REQUEST_STATUS_PRESENTATION[r.status];
                 const created = Date.parse(r.createdAt);
