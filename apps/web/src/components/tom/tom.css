@@ -1,0 +1,76 @@
+.sc-tom {
+  --tom-fg: var(--color-text, #1a1a1a);
+  --tom-bg: var(--color-surface, #fff);
+  --tom-border: var(--color-border, #b5b5b5);
+  --tom-accent: var(--color-info, #0b5cad);
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40; /* below shell-level dialogs/alerts; tune with integrator tokens */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  font: 0.95rem/1.45 system-ui, sans-serif;
+  color: var(--tom-fg);
+  pointer-events: none;
+}
+.sc-tom > * { pointer-events: auto; }
+.sc-tom__launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem 0.4rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--tom-border);
+  background: var(--tom-bg);
+  color: inherit;
+  cursor: pointer;
+}
+.sc-tom__avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--tom-accent);
+  color: #fff;
+  font-weight: 700;
+}
+.sc-tom__panel {
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: min(70vh, 36rem);
+  overflow: auto;
+  background: var(--tom-bg);
+  border: 1px solid var(--tom-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+}
+.sc-tom__head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.sc-tom__head h2 { font-size: 1.1rem; margin: 0; }
+.sc-tom__panel h3 { font-size: 1rem; margin: 0.75rem 0 0.25rem; }
+.sc-tom__scope, .sc-tom__muted { font-size: 0.875rem; opacity: 0.85; }
+.sc-tom__draft { font-size: 0.85rem; border: 1px dashed currentColor; padding: 0.25rem 0.5rem; }
+.sc-tom__list { padding-left: 1.1rem; margin: 0.25rem 0; }
+.sc-tom__row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.sc-tom__fallback { border-left: 4px solid var(--tom-accent); padding-left: 0.5rem; }
+.sc-tom__foot { margin-top: 0.75rem; border-top: 1px solid var(--tom-border); padding-top: 0.5rem; }
+.sc-tom button:focus-visible, .sc-tom input:focus-visible, .sc-tom summary:focus-visible, .sc-tom h2:focus-visible, .sc-tom a:focus-visible {
+  outline: 3px solid var(--tom-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sc-tom__panel { animation: sc-tom-in 120ms ease-out; }
+}
+@keyframes sc-tom-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-color-scheme: dark) {
+  .sc-tom {
+    --tom-fg: var(--color-text, #eee);
+    --tom-bg: var(--color-surface, #1c1c1c);
+    --tom-border: var(--color-border, #555);
+    --tom-accent: var(--color-info, #6aa9ff);
+  }
+  .sc-tom__avatar { color: #000; }
+}
+@media print { .sc-tom { display: none; } }

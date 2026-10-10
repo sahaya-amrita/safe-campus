@@ -1,0 +1,77 @@
+/* Module-scoped styles. Uses shared design tokens when the shell provides them,
+   with local fallbacks until then (tokens are integration-owned). */
+.sc-responder {
+  --sc-fg: var(--color-text, #1a1a1a);
+  --sc-muted: var(--color-text-muted, #555);
+  --sc-bg: var(--color-surface, #fff);
+  --sc-border: var(--color-border, #c8c8c8);
+  --sc-urgent: var(--color-danger, #b00020);
+  --sc-progress: var(--color-warning, #8a5a00);
+  --sc-assigned: var(--color-info, #0b5cad);
+  --sc-done: var(--color-success, #1e6b2f);
+  --sc-neutral: #5a5a5a;
+  color: var(--sc-fg);
+  background: var(--sc-bg);
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1rem;
+  font: 1rem/1.5 system-ui, sans-serif;
+}
+.sc-muted { color: var(--sc-muted); }
+.sc-demo-label {
+  border: 2px dashed currentColor;
+  padding: 0.5rem 0.75rem;
+  font-weight: 700;
+}
+.sc-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.sc-tab { padding: 0.5rem 1rem; border: 1px solid var(--sc-border); background: transparent; color: inherit; border-radius: 0.375rem; cursor: pointer; }
+.sc-tab--active { border-width: 2px; border-color: currentColor; font-weight: 700; }
+.sc-filter { border: 1px solid var(--sc-border); display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
+.sc-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
+.sc-row, .sc-card { border: 1px solid var(--sc-border); border-left-width: 6px; border-radius: 0.375rem; padding: 0.5rem 0.75rem; }
+.sc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.sc-row__id { font-family: ui-monospace, monospace; }
+.sc-row__meta { color: var(--sc-muted); font-size: 0.9rem; }
+.sc-row--urgent { border-left-color: var(--sc-urgent); }
+.sc-row--progress { border-left-color: var(--sc-progress); }
+.sc-row--assigned { border-left-color: var(--sc-assigned); }
+.sc-row--done { border-left-color: var(--sc-done); }
+.sc-row--neutral { border-left-color: var(--sc-neutral); border-left-style: dashed; }
+.sc-card--pending { border-left-color: var(--sc-progress); border-left-style: dotted; }
+.sc-card--verified { border-left-color: var(--sc-assigned); }
+.sc-card--neutral { border-left-color: var(--sc-neutral); border-left-style: dashed; }
+.sc-card--done { border-left-color: var(--sc-done); }
+.sc-card__head { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+.sc-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid currentColor; font-weight: 600; font-size: 0.875rem; }
+.sc-badge--urgent { color: var(--sc-urgent); }
+.sc-badge--progress, .sc-badge--pending { color: var(--sc-progress); }
+.sc-badge--assigned, .sc-badge--verified { color: var(--sc-assigned); }
+.sc-badge--done { color: var(--sc-done); }
+.sc-badge--neutral { color: var(--sc-neutral); }
+.sc-fields { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+.sc-fields dt { font-weight: 600; }
+.sc-fields dd { margin: 0; }
+.sc-notice { border: 1px solid var(--sc-border); padding: 0.75rem; border-radius: 0.375rem; }
+.sc-notice--error, .sc-notice--denied { border-color: var(--sc-urgent); }
+.sc-detail__header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.sc-review { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.sc-review__option, .sc-review__field { display: block; }
+.sc-review__field input, .sc-review__field textarea { display: block; width: 100%; max-width: 32rem; }
+.sc-button--primary { font-weight: 700; padding: 0.5rem 1rem; }
+.sc-responder button:focus-visible, .sc-responder input:focus-visible, .sc-responder textarea:focus-visible, .sc-responder h3:focus-visible {
+  outline: 3px solid var(--sc-assigned);
+  outline-offset: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  .sc-responder {
+    --sc-fg: var(--color-text, #eee);
+    --sc-muted: var(--color-text-muted, #b5b5b5);
+    --sc-bg: var(--color-surface, #121212);
+    --sc-border: var(--color-border, #444);
+    --sc-urgent: var(--color-danger, #ff6b7a);
+    --sc-progress: var(--color-warning, #e3a33b);
+    --sc-assigned: var(--color-info, #6aa9ff);
+    --sc-done: var(--color-success, #6ccf83);
+    --sc-neutral: #9a9a9a;
+  }
+}

@@ -1,0 +1,145 @@
+import type { TomEntry } from "./types";
+
+/**
+ * Static app-usage help. This is NOT emergency guidance: it only explains how
+ * to use screens in this prototype. Entries are drafts (review.reviewed=false)
+ * until a named team member reviews them, so LIVE mode hides them.
+ */
+const draft = { reviewed: false } as const;
+
+export const DEFAULT_TOM_KNOWLEDGE: readonly TomEntry[] = [
+  // ---- Responder: help requests
+  {
+    id: "resp-hr-hint-oldest-first",
+    kind: "HINT",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.help-requests"],
+    title: "Oldest requests are listed first",
+    body: "Within each status, the request that has waited longest appears at the top. Use the status filter to switch between Open, Acknowledged, Assigned, Resolved and Cancelled.",
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  {
+    id: "resp-hr-faq-acknowledge",
+    kind: "FAQ",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.help-requests"],
+    title: "What does “Acknowledge” do?",
+    body: "It asks the server to record that you have seen the request. The status changes only after the server confirms. In this prototype it does not notify the student or dispatch anyone.",
+    keywords: ["acknowledge", "ack", "seen", "confirm", "request"],
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  {
+    id: "resp-hr-faq-ack-failed",
+    kind: "FAQ",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.help-requests"],
+    title: "My acknowledgement failed. What now?",
+    body: "The request stays in its previous status. Use “Retry acknowledgement”; the retry reuses the same request key so it cannot be recorded twice.",
+    keywords: ["failed", "error", "retry", "acknowledge"],
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  {
+    id: "resp-hr-tour-1",
+    kind: "TOUR_STEP",
+    order: 1,
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.help-requests"],
+    title: "Choose a status",
+    body: "Use the “Show status” filter to pick which help requests to list.",
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  {
+    id: "resp-hr-tour-2",
+    kind: "TOUR_STEP",
+    order: 2,
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.help-requests"],
+    title: "Open a request",
+    body: "Select “Open” on a row to see its timestamps and available actions.",
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  {
+    id: "resp-hr-tour-3",
+    kind: "TOUR_STEP",
+    order: 3,
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.help-requests"],
+    title: "Acknowledge",
+    body: "For an Open request, select “Acknowledge request” and wait for the server confirmation message.",
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  // ---- Responder: hazard review
+  {
+    id: "resp-hz-hint-counts",
+    kind: "HINT",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.hazard-review"],
+    title: "Counts are not alerts",
+    body: "Several reports about the same thing do not confirm a hazard. Each report stays “Pending review” until a reviewer records a decision.",
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  {
+    id: "resp-hz-faq-verify",
+    kind: "FAQ",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.hazard-review"],
+    title: "Does verifying a report alert the campus?",
+    body: "No. Verifying records your review on the server. Official campus notices are a separate action by authorized staff and are not sent from this screen.",
+    keywords: ["verify", "verified", "alert", "notify", "broadcast", "hazard"],
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  {
+    id: "resp-hz-faq-duplicate",
+    kind: "FAQ",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.hazard-review"],
+    title: "How do I mark a duplicate?",
+    body: "Choose “Duplicate of another report” and enter the other report's ID, then submit the review.",
+    keywords: ["duplicate", "same", "merge", "hazard"],
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  // ---- Responder: roll call
+  {
+    id: "resp-rc-hint-scope",
+    kind: "HINT",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.roll-call"],
+    title: "Check the scope",
+    body: "The summary only covers the group named in “Scope”. It is never a campus-wide roll call.",
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  // ---- Student (navigation only)
+  {
+    id: "student-faq-status",
+    kind: "FAQ",
+    roles: ["STUDENT", "VOLUNTEER"],
+    contexts: ["*"],
+    title: "How do I know my check-in was received?",
+    body: "Your check-in screen shows its status. “Queued” or “Not sent” means it has not reached the server yet. Only “Accepted” means the server stored it — that is not the same as a responder seeing it.",
+    keywords: ["check-in", "checkin", "sent", "received", "queued", "status"],
+    contentType: "APP_HELP",
+    review: draft,
+  },
+  // ---- Everyone
+  {
+    id: "all-faq-what-is-tom",
+    kind: "FAQ",
+    roles: ["STUDENT", "VOLUNTEER", "RESPONDER", "ADMIN"],
+    contexts: ["*"],
+    title: "What can Tom do?",
+    body: "Tom explains how to use this app's screens. Tom cannot send alerts, contact anyone, take actions for you, or give emergency instructions.",
+    keywords: ["tom", "what", "help", "can", "do"],
+    contentType: "APP_HELP",
+    review: draft,
+  },
+];
