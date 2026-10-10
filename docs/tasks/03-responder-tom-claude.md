@@ -1,12 +1,15 @@
 # Task 03 — Responder Dashboard, Hazard Review and Tom (Claude Code 2)
 
 ## Mission
+
 Build a responder workspace for authorized people to triage help requests, review hazards and acknowledge actions, plus an unobtrusive in-app guide named Tom.
 
 ## Read first
+
 `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md`, `docs/api-contracts.md`, `docs/safety-rules.md`.
 
 ## Owned paths
+
 - `apps/web/src/features/responder/`
 - `apps/web/src/features/incidents/`
 - `apps/web/src/components/tom/`
@@ -14,6 +17,7 @@ Build a responder workspace for authorized people to triage help requests, revie
 Do not implement the API, student pages, maps/drills, global router or app shell. Document integration points and request changes from the integrator rather than editing others' files.
 
 ## Deliverables in order
+
 1. Inspect existing app patterns and reuse shared components and contracts.
 2. Implement a responder dashboard with distinct queue states (open, acknowledged, assigned, resolved/cancelled as supported). Show useful timestamps and prevent ambiguous state transitions.
 3. Implement a help-request detail/acknowledgement flow. Use role-protected API operations; the client alone must not grant responder access.
@@ -26,6 +30,7 @@ Do not implement the API, student pages, maps/drills, global router or app shell
 10. Add tests for queue state rendering, authorization failure UI, human-review flow, Tom open/close/dismiss, keyboard access, missing knowledge and AI-disabled behavior.
 
 ## Acceptance criteria
+
 - Responder states are visually and semantically distinct.
 - Review/acknowledgement is attributable to an authorized action and never faked locally.
 - Tom is helpful but never blocks the emergency flow or presents model-generated text as official instruction.
@@ -33,4 +38,5 @@ Do not implement the API, student pages, maps/drills, global router or app shell
 - Components integrate through shared contracts and app patterns.
 
 ## Report back
+
 List dashboard views, status transitions, Tom behaviors and safety boundaries, tests run/results, and any app-shell integration instructions.
