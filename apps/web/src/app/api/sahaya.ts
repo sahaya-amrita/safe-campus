@@ -145,6 +145,9 @@ export interface InboxAlert {
   alertStatus: string;
   incidentId: string | null;
   incidentVerificationStatus: HazardVerificationStatus | null;
+  /** Map placement only: the incident's building and the alert's targeted buildings. */
+  incidentBuildingId: string | null;
+  areaBuildingIds: string[];
   createdAt: string;
   deliveryStatus: MessageDeliveryStatus;
   serverReceivedAt: string | null;
@@ -159,6 +162,8 @@ export interface StaffAlert {
   precautionary: boolean;
   mode: OperatingMode;
   status: 'DRAFT' | 'AUTHORIZED' | 'QUEUED' | 'CANCELLED' | 'ALL_CLEAR';
+  incidentBuildingId: string | null;
+  areaBuildingIds: string[];
   createdAt: string;
   authorizedAt: string | null;
   zoneCount: number;

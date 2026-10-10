@@ -10,6 +10,13 @@ export interface CampusScene {
   setLayer(layer: 'buildings' | 'paths' | 'facilities' | 'incidents', visible: boolean): void;
   setIncidents(items: {id: string; buildingId: string; category: string; status: string}[], selected: string | null): void;
   focusIncident(id: string): void;
+  setOverlays(overlays: {
+    risks?: { centre: readonly [number, number]; radius: number; colour: string }[];
+    route?: readonly (readonly [number, number])[] | null;
+    start?: readonly [number, number] | null;
+    destination?: readonly [number, number] | null;
+  }): void;
+  frame(points: readonly (readonly [number, number])[] | null): void;
   snapshot(): { buildings: number; visibleBuildings: number; roads: number; trees: number; selected: string | null; camera: number[]; target: number[]; triangles: number; heightScale: number; incidents: number; drawCalls: number; pixelRatio: number; shadowSize: number; layers: Record<string,boolean> };
   screenPoint(id: string): { x: number; y: number } | null;
   dispose(): void;

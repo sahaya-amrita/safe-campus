@@ -12,6 +12,18 @@ import {
   saveIdempotentResponse,
 } from '../idempotency.js';
 
+/** Buildings targeted by each alert's zones (map placement only). */
+async function alertBuildings(pool: DatabasePool): Promise<Map<string, string[]>> {
+  const result = await pool.query<{ alert_id: string; building_id: string }>(
+    `SELECT DISTINCT az.alert_id, f.building_id
+     FROM alert_zones az JOIN zones z ON z.id = az.zone_id JOIN floors f ON f.id = z.floor_id`,
+  );
+  const byAlert = new Map<string, string[]>();
+  for (const row of result.rows)
+    byAlert.set(row.alert_id, [...(byAlert.get(row.alert_id) ?? []), row.building_id]);
+  return byAlert;
+}
+
 export function alertsRouter(pool: DatabasePool) {
   const router = Router();
 
@@ -142,9 +154,11 @@ export function alertsRouter(pool: DatabasePool) {
     requireRoles('RESPONDER', 'INCIDENT_VERIFIER', 'ADMIN'),
     async (_request, response) => {
       const alerts = await pool.query<{ id: string; [key: string]: unknown }>(
-        `SELECT id, incident_id AS "incidentId", title, message, precautionary, mode, status,
-                created_at AS "createdAt", authorized_at AS "authorizedAt"
-         FROM emergency_alerts ORDER BY created_at DESC LIMIT 100`,
+        `SELECT a.id, a.incident_id AS "incidentId", a.title, a.message, a.precautionary, a.mode,
+                a.status, a.created_at AS "createdAt", a.authorized_at AS "authorizedAt",
+                i.building_id AS "incidentBuildingId"
+         FROM emergency_alerts a LEFT JOIN incidents i ON i.id = a.incident_id
+         ORDER BY a.created_at DESC LIMIT 100`,
       );
       const zones = await pool.query<{ alert_id: string; count: number }>(
         'SELECT alert_id, count(*)::int AS count FROM alert_zones GROUP BY alert_id',
@@ -154,11 +168,13 @@ export function alertsRouter(pool: DatabasePool) {
          FROM alert_delivery_records GROUP BY alert_id, status`,
       );
       const zoneCount = new Map(zones.rows.map((row) => [row.alert_id, row.count]));
+      const areas = await alertBuildings(pool);
       const items = alerts.rows.map((alert) => {
         const rows = deliveries.rows.filter((row) => row.alert_id === alert.id);
         return {
           ...alert,
           zoneCount: zoneCount.get(alert.id) ?? 0,
+          areaBuildingIds: areas.get(alert.id) ?? [],
           recipientCount: rows.reduce((sum, row) => sum + row.count, 0),
           acknowledgedCount: rows.find((row) => row.status === 'ACKNOWLEDGED')?.count ?? 0,
         };
@@ -171,6 +187,7 @@ export function alertsRouter(pool: DatabasePool) {
     const result = await pool.query(
       `SELECT a.id, a.title, a.message, a.precautionary, a.mode, a.status AS "alertStatus",
               a.incident_id AS "incidentId", i.verification_status AS "incidentVerificationStatus",
+              i.building_id AS "incidentBuildingId",
               a.created_at AS "createdAt",
               d.status AS "deliveryStatus", d.server_received_at AS "serverReceivedAt",
               d.acknowledged_at AS "acknowledgedAt"
@@ -179,7 +196,13 @@ export function alertsRouter(pool: DatabasePool) {
        WHERE d.recipient_id = $1 ORDER BY d.created_at DESC`,
       [request.auth!.id],
     );
-    response.json({ items: result.rows });
+    const areas = await alertBuildings(pool);
+    response.json({
+      items: result.rows.map((row: { id: string }) => ({
+        ...row,
+        areaBuildingIds: areas.get(row.id) ?? [],
+      })),
+    });
   });
 
   router.post('/:alertId/acknowledge', validateUuidParam('alertId'), async (request, response) => {

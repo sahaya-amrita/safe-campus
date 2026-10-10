@@ -801,6 +801,13 @@ describe('safety-critical API behavior', () => {
       .set('authorization', `Bearer ${adminToken}`)
       .set('idempotency-key', 'linked-alert-authorize');
 
+    // Map placement: the alert's zone resolves to its building.
+    const zoneBuilding = (
+      await pool.query<{ building_id: string }>(
+        'SELECT f.building_id FROM zones z JOIN floors f ON f.id = z.floor_id WHERE z.id = $1',
+        [zoneId],
+      )
+    ).rows[0]!.building_id;
     const studentToken = await token(studentId, 'student@test.invalid', ['STUDENT']);
     const inbox = await request(app)
       .get('/api/v1/alerts/inbox')
@@ -811,7 +818,9 @@ describe('safety-critical API behavior', () => {
       incidentVerificationStatus: 'REPORTED',
       alertStatus: 'QUEUED',
       acknowledgedAt: null,
+      areaBuildingIds: [zoneBuilding],
     });
+    expect(inbox.body.items[0]).toHaveProperty('incidentBuildingId');
 
     const staffList = await request(app)
       .get('/api/v1/alerts')
@@ -821,6 +830,7 @@ describe('safety-critical API behavior', () => {
       status: 'QUEUED',
       recipientCount: 2,
       acknowledgedCount: 0,
+      areaBuildingIds: [zoneBuilding],
     });
     const studentList = await request(app)
       .get('/api/v1/alerts')

@@ -23,6 +23,14 @@ const demoBuildingMetadata = {
   mapPlacement: 'ILLUSTRATIVE',
 };
 
+// [name, OSM footprint, zone code]. Names say DEMO; placement is illustrative.
+const extraDemoBuildings = [
+  ['DEMO Building Beta (on Academic Block 1 footprint)', 'way/380925364', 'DEMO-B'],
+  ['DEMO Building Gamma (on Central Library footprint)', 'way/380702790', 'DEMO-C'],
+  ['DEMO Hostel Delta (on Gargi Bhavanam footprint)', 'way/380702791', 'DEMO-D'],
+  ['DEMO Building Epsilon (on Main Canteen footprint)', 'way/546394562', 'DEMO-E'],
+] as const;
+
 // Synthetic preparedness copy for exercising the review workflow. It is created
 // as a DRAFT: a demo verifier/admin must review and publish it in the app.
 const demoPackContent = {
@@ -65,6 +73,28 @@ try {
       [floor.rows[0]!.id],
     );
     const zoneId = zone.rows[0]!.id;
+
+    // More fictional buildings, each drawn on a mapped footprint so simulated
+    // incidents and alerts can appear in different places on the DEMO map.
+    for (const [name, mapFeatureId, code] of extraDemoBuildings) {
+      const extra = await client.query<{ id: string }>(
+        `INSERT INTO buildings (name, mode, geometry_version, geometry_approved, metadata)
+         VALUES ($1, 'DEMO', 'demo-v1', false, $2::jsonb)
+         ON CONFLICT (name, mode) DO UPDATE SET metadata = EXCLUDED.metadata RETURNING id`,
+        [name, JSON.stringify({ ...demoBuildingMetadata, mapFeatureId })],
+      );
+      const extraFloor = await client.query<{ id: string }>(
+        `INSERT INTO floors (building_id, name, level_number) VALUES ($1, 'DEMO Ground Floor', 0)
+         ON CONFLICT (building_id, level_number) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+        [extra.rows[0]!.id],
+      );
+      await client.query(
+        `INSERT INTO zones (floor_id, name, zone_code, geometry_approved)
+         VALUES ($1, 'DEMO Zone', $2, false)
+         ON CONFLICT (floor_id, zone_code) DO NOTHING`,
+        [extraFloor.rows[0]!.id, code],
+      );
+    }
 
     const ids = new Map<string, string>();
     for (const [email, displayName, password, roles] of users) {

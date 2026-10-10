@@ -18,15 +18,15 @@ The working digital drill preserves its existing state machine: Prepare → Resp
 
 See `apps/web/public/demo-map/SOURCES.md` for acquisition URLs, licensing, reproducibility and source limitations. The checked-in derived snapshot contains:
 
-| Kind | Count |
-| --- | ---: |
-| Building footprints | 99 |
-| Named buildings | 31 |
-| Road/path segments | 61 |
-| Green-space polygons | 7 |
-| Sport/playground polygons | 10 |
-| Water features | 3 |
-| Campus boundary | 1 |
+| Kind                      | Count |
+| ------------------------- | ----: |
+| Building footprints       |    99 |
+| Named buildings           |    31 |
+| Road/path segments        |    61 |
+| Green-space polygons      |     7 |
+| Sport/playground polygons |    10 |
+| Water features            |     3 |
+| Campus boundary           |     1 |
 
 All geometry is community-mapped and **institutionally unverified**. Each feature retains its OSM way ID, version and last-edit timestamp. Coordinates are source coordinates; road segments are retained only between original in-campus vertices and are never joined with invented connections. Closed way polygons are supported; general multipolygon relations are not reconstructed.
 
@@ -109,3 +109,20 @@ All exercise data is page memory only and clears on campus reload, fixture chang
 The additional `workflow-browser.mjs` runs five complete workflows: desktop 1440×1050 plus 360×800, 390×844, 430×932 and 768×1024. Each covers actual emulated touch gestures and raycast selection, layer/search/category controls, failed/retried delivery, recipient isolation, acknowledgment, all four drill stages, restart, resolution, resize, overflow and absence of external/network write requests. Results are browser emulation, not physical-device validation. DPR is capped at 1.25 for narrow scenes (1.75 otherwise); shadows use 1024 or 2048 pixels. Observed final-scene draw calls vary with camera/viewport; these are diagnostics, not an FPS or real-device performance guarantee.
 
 Final validation: 38 model tests, 16 regression browser checks and 5 complete viewport workflows passed. The final 16-check run targeted the live preview at http://127.0.0.1:4176/. Final strict typecheck, preview build and renderer syntax check passed. Mobile and desktop map/incident screenshots were inspected; in-scene simulation/illustrative-boundary labeling and camera-mode synchronization were refined and retested. At the final focused scene, measured draw calls were 334 (desktop), 142 (360px), 152 (390px), 156 (430px), 142 (768px); camera culling and scene width affect these counts. No FPS guarantee is implied. No repository lint configuration was found.
+
+## Safe route (DEMO)
+
+`safe-route.ts` turns the OSM paths into a walking network and finds the fastest
+route to the nearest open ground (or a chosen building) that keeps out of every
+known risk area. The app's map (`apps/web/src/app/twin/`) shows it in 2D (SVG,
+default, works without WebGL) or 3D (this module's Three.js scene with overlays).
+
+- **Risk areas** come from open incidents (verified and unverified) and active
+  alerts, drawn around the mapped footprint linked to each synthetic server
+  building. Students can add local "practice hazards" that never leave the device.
+- **Paths inside a risk area are excluded**, and a 35 m buffer around it is
+  penalised. If the start is inside a risk area, the route leads out of it first.
+  If nothing avoids the risk, the app says so and points to staff, security and 112.
+- **Open grounds are not designated assembly points**, and every route is labelled
+  "DEMO route · not approved". Approved routes need institution-verified geometry
+  and route variants (blueprint §11.4); this engine must not be presented as one.

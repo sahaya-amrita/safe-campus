@@ -9,7 +9,8 @@ import type { HelpAction, HelpRequest, Me, ReviewDecision, SahayaApi } from '../
 import { hasRole } from '../auth/session';
 import { IncidentForm } from '../IncidentForm';
 import { useRoute } from '../router';
-import { CampusMapPanel } from '../twin/CampusMapPanel';
+import { CampusMapPanel, type MapAlert } from '../twin/CampusMapPanel';
+import { isActiveAlert } from '../twin/safeMapModel';
 import {
   AppIcon,
   Card,
@@ -942,12 +943,27 @@ export function MapView({ api }: { api: SahayaApi }) {
       })),
     [incidents.data],
   );
+  const alerts = useAsync(() => api.listAlerts(), [api], 20_000);
+  const activeAlerts = useMemo<MapAlert[]>(
+    () =>
+      (alerts.data?.items ?? [])
+        .filter((a) => isActiveAlert(a.status))
+        .map((a) => ({
+          id: a.id,
+          title: a.title,
+          buildingIds: [
+            ...a.areaBuildingIds,
+            ...(a.incidentBuildingId ? [a.incidentBuildingId] : []),
+          ],
+        })),
+    [alerts.data],
+  );
   return (
     <>
       {Boolean(incidents.error) && (
         <ErrorNotice error={incidents.error} onRetry={incidents.reload} />
       )}
-      <CampusMapPanel api={api} incidents={items} />
+      <CampusMapPanel api={api} incidents={items} alerts={activeAlerts} />
     </>
   );
 }

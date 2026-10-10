@@ -176,6 +176,45 @@ export function createCampusScene(container, data, onSelect, onFailure, onIncide
       incidentLayer.add(group);incidentMarkers.set(item.id,{group,marker,buildingId:item.buildingId});
     }
   }
+  // Safety overlays (risk areas, route, start, destination) drawn above the ground.
+  const overlayLayer=new THREE.Group();scene.add(overlayLayer);
+  const disposeGroup=(group)=>{group.traverse(o=>{o.geometry?.dispose();if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose());});group.clear();};
+  function setOverlays({risks=[],route=null,start=null,destination=null}={}){
+    disposeGroup(overlayLayer);
+    for(const r of risks){
+      const color=new THREE.Color(r.colour);
+      const wall=new THREE.Mesh(new THREE.CylinderGeometry(r.radius,r.radius,46,64,1,true),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false}));
+      wall.position.set(r.centre[0],23,r.centre[1]);
+      const floor=new THREE.Mesh(new THREE.CircleGeometry(r.radius,64),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.24,depthWrite:false,side:THREE.DoubleSide}));
+      floor.rotation.x=-Math.PI/2;floor.position.set(r.centre[0],1.4,r.centre[1]);
+      const rim=new THREE.Mesh(new THREE.RingGeometry(Math.max(0,r.radius-2),r.radius,64),new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide}));
+      rim.rotation.x=-Math.PI/2;rim.position.set(r.centre[0],1.6,r.centre[1]);
+      overlayLayer.add(wall,floor,rim);
+    }
+    if(route&&route.length>1){
+      const path=new THREE.CurvePath();
+      for(let i=1;i<route.length;i++)path.add(new THREE.LineCurve3(new THREE.Vector3(route[i-1][0],3,route[i-1][1]),new THREE.Vector3(route[i][0],3,route[i][1])));
+      const segments=Math.min(1200,route.length*6);
+      overlayLayer.add(new THREE.Mesh(new THREE.TubeGeometry(path,segments,4.2,8,false),new THREE.MeshBasicMaterial({color:0xffffff})));
+      const line=new THREE.Mesh(new THREE.TubeGeometry(path,segments,2.6,8,false),new THREE.MeshBasicMaterial({color:0x1d63d8}));line.position.y=.6;overlayLayer.add(line);
+    }
+    const pin=(at,color,height)=>{const g=new THREE.Group();g.position.set(at[0],0,at[1]);
+      const pole=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,height,8),new THREE.MeshBasicMaterial({color}));pole.position.y=height/2;
+      const head=new THREE.Mesh(new THREE.SphereGeometry(7,20,14),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.35}));head.position.y=height;
+      const base=new THREE.Mesh(new THREE.RingGeometry(6,9,32),new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide}));base.rotation.x=-Math.PI/2;base.position.y=1.8;
+      g.add(pole,head,base);overlayLayer.add(g);};
+    if(start)pin(start,0x1d63d8,42);
+    if(destination)pin(destination,0x1f7a3d,52);
+  }
+  /** Points the camera at a set of local-metre points (e.g. a route) from above. */
+  function frame(points){
+    if(!points?.length)return reset(false);
+    const xs=points.map(p=>p[0]),zs=points.map(p=>p[1]);
+    const target=new THREE.Vector3((Math.min(...xs)+Math.max(...xs))/2,0,(Math.min(...zs)+Math.max(...zs))/2);
+    const size=Math.max(140,Math.max(...xs)-Math.min(...xs),Math.max(...zs)-Math.min(...zs));
+    const radius=size*(container.clientWidth<650?1.5:1.05);
+    controls.target.copy(target);camera.position.copy(target).add(new THREE.Vector3(radius*.25,radius*.95,radius*.55));controls.update();
+  }
   function reset(top=false){
     // Perspective makes foreground footprints occupy more pixels: aim slightly forward
     // so the projected campus, rather than its world bounding-box midpoint, is centred.
@@ -205,7 +244,7 @@ export function createCampusScene(container, data, onSelect, onFailure, onIncide
   const observer=new ResizeObserver(resize);observer.observe(container);resize();reset();
   renderer.setAnimationLoop(()=>{if(disposed||document.hidden)return;controls.update();renderer.render(scene,camera);});
   return {
-    reset,zoom,pan,rotate,setSelected,
+    reset,zoom,pan,rotate,setSelected,setOverlays,frame,
     setDecorations(visible){decorations.visible=visible;},
     filter(ids){visibleIds=new Set(ids);applyBuildingVisibility();},
     setLayer(layer,visible){if(!(layer in layers))return;layers[layer]=visible;roads.visible=layers.paths;incidentLayer.visible=layers.incidents;applyBuildingVisibility();},
