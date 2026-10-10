@@ -1,0 +1,33 @@
+{
+  "name": "safe-campus",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @sahaya/api dev",
+    "lint": "eslint .",
+    "typecheck": "pnpm --filter @sahaya/contracts build && pnpm --filter @sahaya/api typecheck",
+    "test": "pnpm --filter @sahaya/contracts build && pnpm --filter @sahaya/api test",
+    "db:migrate": "pnpm --filter @sahaya/api db:migrate",
+    "db:seed": "pnpm --filter @sahaya/api db:seed",
+    "outbox:once": "pnpm --filter @sahaya/api outbox:once",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "openapi": "pnpm openapi:validate",
+    "openapi:validate": "node scripts/validate-openapi.mjs"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
+    "@eslint/js": "latest",
+    "eslint": "latest",
+    "eslint-config-prettier": "latest",
+    "globals": "latest",
+    "prettier": "latest",
+    "typescript": "5.9.3",
+    "typescript-eslint": "latest"
+  }
+}
