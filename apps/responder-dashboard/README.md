@@ -28,3 +28,15 @@ Harness-only files:
 
 To see the first-visit welcome again, clear the site's local storage, or run
 `localStorage.removeItem("safe-campus.tom.onboarded")` in the browser console.
+
+## Tom's AI assistant (needs the API)
+
+`npm run dev` talks to the SAFE CAMPUS API at `http://localhost:3000` by default.
+For a build, set `VITE_API_BASE_URL` (the API's public URL or bare host). It is
+bundled into the page, so **never put a key or secret in any `VITE_*` variable**.
+
+Use the "Tom AI" chip (bottom right) to sign in with a seeded **fictional**
+demo account (listed in `services/api/.env.example` on the API branch). The
+access token is kept in memory only. Without signing in, Tom uses built-in help
+and never calls the API. Server setup, the Groq key and deployment are covered in
+`services/api/src/assistant/README.md` on `feat/tom-assistant-api`.
