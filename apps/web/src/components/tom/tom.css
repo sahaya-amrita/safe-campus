@@ -246,6 +246,10 @@
 .sc-tom__link {
   border: 0;
   background: none;
+  /* Text-style button, but with a full-size touch target (blueprint NFR7). */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   padding: 0.15rem 0;
   color: var(--tom-accent);
   font: inherit;

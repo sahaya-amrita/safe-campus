@@ -140,6 +140,11 @@
   text-transform: uppercase;
   color: var(--ops-muted);
 }
+.sc-ops dd a {
+  /* Inline source links still get a usable touch target. */
+  display: inline-block;
+  padding: 12px 0;
+}
 .sc-ops a {
   color: var(--ops-accent);
   text-underline-offset: 2px;

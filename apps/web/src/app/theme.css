@@ -824,15 +824,276 @@ body {
   color: #d9a9b8;
 }
 
-/* ---------- Digital twin host ---------- */
-.as-twin {
+/* ---------- Safe-route map ---------- */
+.as-notice--danger {
+  background: var(--as-danger-50);
+  color: var(--as-maroon-900);
+  border-color: #f2c4d1;
+}
+.as-seg--sm button {
+  min-height: 44px;
+  padding: 6px 12px;
+  font-size: 0.88rem;
+}
+.as-saferoute {
+  display: grid;
+  gap: 12px;
+}
+.as-saferoute__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 10px;
+  align-items: end;
+}
+.as-saferoute__fields .as-field:nth-of-type(2) {
+  grid-column: 1 / -1;
+}
+.as-saferoute__fields .as-btn {
+  min-height: 44px;
+}
+.as-saferoute__bar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.as-safemap {
+  position: relative;
+  height: clamp(320px, 62vh, 600px);
   border-radius: var(--as-radius);
   overflow: hidden;
   border: 1px solid var(--as-line);
-  background: #fff;
+  background: #eef1ea;
 }
-.as-twin .sc-map {
-  padding: 12px;
+.as-safemap__svg,
+.as-safemap__gl {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.as-safemap__svg:active {
+  cursor: grabbing;
+}
+.as-safemap__campus {
+  fill: #f5f3ec;
+  stroke: #b9b39f;
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
+}
+.as-safemap__green,
+.as-safemap__sport {
+  fill: #cfe0bf;
+}
+.as-safemap__water {
+  fill: #b9d9dc;
+}
+.as-safemap__path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.as-safemap__path--foot {
+  stroke: #e4dccb;
+}
+.as-safemap__building {
+  fill: #d8cfc4;
+  stroke: #a99a8a;
+  stroke-width: 1;
+  cursor: pointer;
+}
+.as-safemap__building:hover {
+  fill: #cbbfb1;
+}
+.as-safemap__building.is-marked {
+  fill: #f2bf64;
+  stroke: #8a5a00;
+  stroke-width: 2;
+}
+.as-safemap__ground {
+  fill: #2f7d4a;
+  stroke: #fff;
+  stroke-width: 2;
+}
+.as-safemap__ground.is-destination {
+  fill: #1f7a3d;
+}
+.as-safemap__route-casing {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.as-safemap__route {
+  fill: none;
+  stroke: #1d63d8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.as-safemap__you circle {
+  fill: rgba(29, 99, 216, 0.22);
+  stroke: #1d63d8;
+  stroke-width: 2;
+}
+.as-safemap__you .as-safemap__you-dot {
+  fill: #1d63d8;
+  stroke: #fff;
+}
+.as-safemap__flag circle {
+  fill: #1f7a3d;
+  stroke: #fff;
+  stroke-width: 2;
+}
+.as-safemap__flag path {
+  fill: #fff;
+}
+.as-safemap__label {
+  fill: #2c2528;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.as-safemap__controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  gap: 6px;
+}
+.as-safemap__controls button {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--as-line);
+  background: #fff;
+  box-shadow: var(--as-shadow);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.as-safemap__hint {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  right: 64px;
+  margin: 0;
+  padding: 6px 10px;
+  width: fit-content;
+  max-width: calc(100% - 74px);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 0.82rem;
+  color: var(--as-ink-2);
+  pointer-events: none;
+}
+.as-safemap--3d .as-notice {
+  margin: 12px;
+}
+.as-saferoute__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--as-ink-2);
+}
+.as-saferoute__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.as-key {
+  display: inline-block;
+  width: 18px;
+  height: 12px;
+  border-radius: 4px;
+}
+.as-key--route {
+  height: 6px;
+  background: #1d63d8;
+}
+.as-key--ground {
+  width: 12px;
+  border-radius: 50%;
+  background: #2f7d4a;
+}
+.as-key--risk {
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+  border: 2px solid currentColor;
+}
+.as-key--dashed {
+  border-style: dashed;
+}
+.as-routecard {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--as-radius);
+  border: 1px solid #c6d6f4;
+  background: var(--as-info-50);
+}
+.as-routecard__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.as-routecard__kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--as-info);
+}
+.as-routecard__title {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+}
+.as-routecard__eta {
+  display: grid;
+  text-align: right;
+  white-space: nowrap;
+}
+.as-routecard__eta strong {
+  font-size: 1.3rem;
+}
+.as-routecard__eta span {
+  font-size: 0.85rem;
+  color: var(--as-ink-2);
+}
+.as-routecard__steps {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+}
+.as-routecard__steps li span:first-child {
+  font-weight: 700;
+  margin-right: 8px;
+}
+.as-details {
+  padding: 12px 16px;
+}
+.as-details > summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.as-details[open] {
+  display: grid;
+  gap: 10px;
 }
 .as-floorbar {
   display: flex;
@@ -972,9 +1233,10 @@ body {
 }
 @media (max-width: 900px) {
   .as-staff {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .as-side {
+    min-width: 0;
     position: static;
     height: auto;
     flex-direction: row;
@@ -1067,4 +1329,14 @@ body {
 .as-student-root .sc-tom {
   bottom: calc(var(--as-tabbar-h) + 14px + env(safe-area-inset-bottom));
   right: max(16px, calc(50% - 264px));
+}
+
+/* Emergency number links inside text are tap targets too. */
+a[href^='tel:']:not([class]) {
+  display: inline-block;
+  min-width: 44px;
+  padding: 10px 4px;
+  margin: -10px 0;
+  text-align: center;
+  font-weight: 700;
 }
