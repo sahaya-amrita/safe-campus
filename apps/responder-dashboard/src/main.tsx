@@ -1,24 +1,14 @@
-// DEMO harness only: mounts the responder module against the isolated mock
-// adapter so it can be viewed without the (not yet created) app shell.
-import { StrictMode, useState } from "react";
+// TEMPORARY dev-only harness entry. See README.md.
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { MockResponderApi, ResponderDashboard, type ResponderView } from "@web/features/responder";
-import { Tom } from "@web/components/tom";
+import { createDemoApi, HarnessApp } from "./HarnessApp";
+import "./harness.css";
 
-const api = new MockResponderApi({ latencyMs: 400 });
+const root = document.getElementById("root");
+if (!root) throw new Error("Missing #root element");
 
-function Harness() {
-  const [view, setView] = useState<ResponderView>("help-requests");
-  return (
-    <>
-      <ResponderDashboard api={api} onViewChange={setView} />
-      <Tom role="RESPONDER" context={`responder.${view}`} mode="DEMO" />
-    </>
-  );
-}
-
-createRoot(document.getElementById("root")!).render(
+createRoot(root).render(
   <StrictMode>
-    <Harness />
+    <HarnessApp api={createDemoApi()} />
   </StrictMode>,
 );

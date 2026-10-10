@@ -1,0 +1,6 @@
+/* TEMPORARY harness page reset: lets the responder workspace fill the viewport.
+   The real shell owns global styles. */
+html, body, #root { margin: 0; min-height: 100%; }
+html { color-scheme: light dark; }
+body { background: #f2f4f7; }
+@media (prefers-color-scheme: dark) { body { background: #0b1118; } }

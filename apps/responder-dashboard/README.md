@@ -9,11 +9,15 @@ Feature code, integration notes and the provisional contract assumptions are doc
 
 ```bash
 npm ci
-npm test            # vitest run (75 tests across the owned paths)
+npm test            # vitest run (90 module tests + 5 harness tests)
 npm run typecheck   # tsc strict
 npm run build       # builds a DEMO page backed by MockResponderApi (synthetic data)
-npm run dev         # same DEMO page, local dev server
+npm run dev         # same DEMO page, local dev server (http://localhost:5173)
 ```
 
 Remove this entire directory once `apps/web` runs these tests itself (steps in
 the README linked above).
+
+Harness-only files: `src/HarnessApp.tsx` (mounts the workspace and exactly one
+Tom), `src/HarnessApp.test.tsx` (launcher visible and opens; regressions for the
+missing-launcher defect), `src/harness.css` (page reset), `src/main.tsx`.
