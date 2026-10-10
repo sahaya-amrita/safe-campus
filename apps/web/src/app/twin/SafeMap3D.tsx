@@ -24,7 +24,7 @@ export default function SafeMap3D({
   start: Point | null;
   destination: SafeDestination | null;
   highlight: string | null;
-  onPick: (featureId: string) => void;
+  onPick: (featureId: string | null) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<CampusScene | null>(null);

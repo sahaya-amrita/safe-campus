@@ -2,8 +2,10 @@ import { BRAND } from '../../brand';
 import type { Role } from '@sahaya/contracts';
 import type { Me } from '../api/sahaya';
 import { hasRole, useApi, useSession } from '../auth/session';
+import { DrillBanner } from '../DrillBanner';
 import { useRoute } from '../router';
 import { TomHost, type AppDestination } from '../TomHost';
+import { DrillsView } from './drillControl';
 import { AppIcon, ModeBanner, Pill, type AppIconName } from '../ui';
 import {
   AlertsView,
@@ -86,12 +88,21 @@ export const RESPONDER_NAV: NavItem[] = [
     roles: ['INCIDENT_VERIFIER', 'ADMIN'],
   },
   {
+    id: 'responder.drills',
+    path: '/r/drills',
+    label: 'Drills',
+    icon: 'clock',
+    description: 'Drill console: preflight, start, stop and the STOP DRILL kill switch.',
+    keywords: ['drill', 'exercise', 'stop', 'kill switch', 'practice'],
+    roles: ALL_STAFF,
+  },
+  {
     id: 'responder.map',
     path: '/r/map',
     label: 'Campus map',
     icon: 'map',
-    description: 'Demo digital twin with incident overlay. Not for navigation.',
-    keywords: ['map', 'twin', 'campus', 'building'],
+    description: 'Risk areas, blocked paths and DEMO safe routes. Not approved navigation.',
+    keywords: ['map', 'route', 'blocked', 'risk', 'campus', 'building'],
     roles: ALL_STAFF,
   },
   {
@@ -142,10 +153,13 @@ export function ResponderShell({ user }: { user: Me }) {
       view = <PacksView api={api} user={user} />;
       break;
     case 'responder.map':
-      view = <MapView api={api} />;
+      view = <MapView api={api} user={user} />;
       break;
     case 'responder.contacts':
       view = <ContactsPage />;
+      break;
+    case 'responder.drills':
+      view = <DrillsView api={api} user={user} />;
       break;
     default:
       view = <OverviewView api={api} user={user} />;
@@ -198,6 +212,7 @@ export function ResponderShell({ user }: { user: Me }) {
       <div className="as-staff__main">
         <div>
           <ModeBanner mode={user.mode} />
+          <DrillBanner api={api} />
           <header className="as-staff__head">
             <h1 className="as-screen-title">{active.label}</h1>
             <div className="as-row">

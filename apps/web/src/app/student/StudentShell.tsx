@@ -39,6 +39,7 @@ import '../../features/student/student.css';
 import type { Me } from '../api/sahaya';
 import { useSession } from '../auth/session';
 import { appConfig } from '../config';
+import { DrillBanner } from '../DrillBanner';
 import { useRoute } from '../router';
 import { TomHost, type AppDestination } from '../TomHost';
 import { AppIcon, ModeBanner, useAsync, type AppIconName } from '../ui';
@@ -348,6 +349,7 @@ export function StudentShell({ user }: { user: Me }) {
                 </span>
               </header>
               <ModeBanner mode={mock ? 'MOCK' : user.mode} />
+              <DrillBanner api={api} />
               <main className="as-main" id="as-main">
                 {screen}
               </main>

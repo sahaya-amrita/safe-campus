@@ -1,14 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { verificationTransitions, type HelpRequestStatus } from '@sahaya/contracts';
 import { ContactsView } from '../../features/responder/ContactsView';
 import { CAMPUS_CONTACTS, OFFICIAL_RESOURCES } from '../../features/responder/campusDirectory';
 import '../../features/responder/responder.css';
-import { newIdempotencyKey } from '../api/client';
 import type { HelpAction, HelpRequest, Me, ReviewDecision, SahayaApi } from '../api/sahaya';
 import { hasRole } from '../auth/session';
-import { IncidentForm } from '../IncidentForm';
 import { useRoute } from '../router';
+import { ControlRoom } from './ControlRoom';
+import { Stat, useActions } from './shared';
 import { CampusMapPanel, type MapAlert } from '../twin/CampusMapPanel';
 import { isActiveAlert } from '../twin/safeMapModel';
 import {
@@ -25,158 +25,9 @@ import {
   useAsync,
 } from '../ui';
 
-/** Runs mutations with one idempotency key per (record, action), reused on retry. */
-function useActions() {
-  const keys = useRef(new Map<string, string>());
-  const [busy, setBusy] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, unknown>>({});
-  const run = useCallback(
-    async (id: string, action: (key: string) => Promise<unknown>, onDone?: () => void) => {
-      let key = keys.current.get(id);
-      if (!key) {
-        key = newIdempotencyKey();
-        keys.current.set(id, key);
-      }
-      setBusy(id);
-      setErrors((e) => ({ ...e, [id]: null }));
-      try {
-        await action(key);
-        keys.current.delete(id);
-        onDone?.();
-      } catch (error) {
-        setErrors((e) => ({ ...e, [id]: error }));
-      } finally {
-        setBusy(null);
-      }
-    },
-    [],
-  );
-  return { run, busy, errors };
-}
-
-function Stat({
-  value,
-  label,
-  onClick,
-}: {
-  value: string | number;
-  label: string;
-  onClick?: () => void;
-}) {
-  const body = (
-    <>
-      <span className="as-stat__value">{value}</span>
-      <span className="as-stat__label">{label}</span>
-    </>
-  );
-  return onClick ? (
-    <button type="button" className="as-stat as-item--button" onClick={onClick}>
-      {body}
-    </button>
-  ) : (
-    <div className="as-stat">{body}</div>
-  );
-}
-
-const count = (n: number | undefined) => (n === undefined ? '…' : n);
-
 // ---------------------------------------------------------------------------
 export function OverviewView({ api, user }: { api: SahayaApi; user: Me }) {
-  const { navigate } = useRoute();
-  const incidents = useAsync(() => api.listIncidents(100), [api], 15_000);
-  const help = useAsync(() => api.listHelpRequests(), [api], 10_000);
-  const dispatches = useAsync(
-    hasRole(user, 'RESPONDER', 'ADMIN') ? () => api.listDispatches() : null,
-    [api],
-    15_000,
-  );
-  const open = help.data?.items.filter(
-    (h) => h.status === 'OPEN' || h.status === 'ACKNOWLEDGED' || h.status === 'ASSIGNED',
-  );
-  const unverified = incidents.data?.items.filter(
-    (i) => i.verificationStatus === 'REPORTED' || i.verificationStatus === 'CORROBORATED',
-  );
-  const verified = incidents.data?.items.filter((i) => i.verificationStatus === 'VERIFIED');
-  const activeDispatch = dispatches.data?.items.filter(
-    (d) => !['COMPLETED', 'CANCELLED', 'FAILED'].includes(d.status),
-  );
-
-  return (
-    <>
-      <div
-        className="as-grid2"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}
-      >
-        <Stat
-          value={count(open?.length)}
-          label="Active help requests"
-          onClick={() => navigate('/r/help')}
-        />
-        <Stat
-          value={count(unverified?.length)}
-          label="Unverified incident reports"
-          onClick={() => navigate('/r/incidents')}
-        />
-        <Stat
-          value={count(verified?.length)}
-          label="Verified incidents (open)"
-          onClick={() => navigate('/r/incidents')}
-        />
-        {dispatches.data && (
-          <Stat
-            value={count(activeDispatch?.length)}
-            label="Simulated dispatches active"
-            onClick={() => navigate('/r/dispatches')}
-          />
-        )}
-      </div>
-      {Boolean(help.error) && <ErrorNotice error={help.error} onRetry={help.reload} />}
-      {Boolean(incidents.error) && (
-        <ErrorNotice error={incidents.error} onRetry={incidents.reload} />
-      )}
-
-      <div className="as-split">
-        <Card title="Start a simulated incident" icon="plus" labelledBy="as-ov-sim">
-          <p className="as-muted">
-            For drills when nobody can report: staff open an incident directly. Students can then be
-            alerted and check in without having reported anything themselves.
-          </p>
-          <IncidentForm
-            api={api}
-            online={navigator.onLine}
-            variant="simulated"
-            onDone={() => {
-              incidents.reload();
-              dispatches.reload();
-            }}
-          />
-        </Card>
-        <Card title="Latest incidents" icon="alert" labelledBy="as-ov-latest">
-          {incidents.loading && !incidents.data && <Loading />}
-          {incidents.data?.items.length === 0 && <EmptyState title="No incidents recorded." />}
-          <ul className="as-list">
-            {incidents.data?.items.slice(0, 6).map((i) => (
-              <li key={i.id}>
-                <button
-                  type="button"
-                  className="as-item as-item--button"
-                  onClick={() => navigate(`/r/incidents/${i.id}`)}
-                >
-                  <span className="as-row as-row--between">
-                    <span className="as-item__title">{i.type}</span>
-                    <VerificationPill status={i.verificationStatus} />
-                  </span>
-                  <span className="as-muted as-small">
-                    {i.priority} · {formatWhen(i.createdAt)} · {i.mode}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-    </>
-  );
+  return <ControlRoom api={api} user={user} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -930,7 +781,7 @@ export function PacksView({ api, user }: { api: SahayaApi; user: Me }) {
 }
 
 // ---------------------------------------------------------------------------
-export function MapView({ api }: { api: SahayaApi }) {
+export function MapView({ api, user }: { api: SahayaApi; user: Me }) {
   const incidents = useAsync(() => api.listIncidents(100), [api], 20_000);
   const items = useMemo(
     () =>
@@ -963,7 +814,12 @@ export function MapView({ api }: { api: SahayaApi }) {
       {Boolean(incidents.error) && (
         <ErrorNotice error={incidents.error} onRetry={incidents.reload} />
       )}
-      <CampusMapPanel api={api} incidents={items} alerts={activeAlerts} />
+      <CampusMapPanel
+        api={api}
+        incidents={items}
+        alerts={activeAlerts}
+        canMarkBlocked={hasRole(user, 'RESPONDER', 'ADMIN')}
+      />
     </>
   );
 }

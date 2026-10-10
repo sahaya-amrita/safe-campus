@@ -143,7 +143,8 @@ body {
   background: #105235;
 }
 .as-btn--sm {
-  min-height: 36px;
+  /* Compact look, but still a full touch target (blueprint NFR7). */
+  min-height: 44px;
   padding: 6px 12px;
   font-size: 0.9rem;
 }
@@ -1339,4 +1340,181 @@ a[href^='tel:']:not([class]) {
   margin: -10px 0;
   text-align: center;
   font-weight: 700;
+}
+
+/* ---------- Control room ---------- */
+.as-btn--danger {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
+}
+.as-btn--danger:hover {
+  background: #8f1c13;
+}
+.as-control__stats {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.as-control {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: start;
+}
+.as-timer-item {
+  border-left: 4px solid var(--as-line);
+}
+.as-timer-item--info {
+  border-left-color: var(--as-info);
+}
+.as-timer-item--warn {
+  border-left-color: #d9730d;
+}
+.as-timer-item--danger {
+  border-left-color: #b42318;
+  background: var(--as-danger-50);
+}
+.as-timer-item--ok {
+  border-left-color: var(--as-ok);
+}
+.as-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 4px 0;
+}
+.as-level {
+  display: inline-grid;
+  place-items: center;
+  min-width: 40px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: #8a8287;
+}
+.as-level--2 {
+  background: #d9730d;
+}
+.as-level--3 {
+  background: #b42318;
+}
+.as-hazard--l3 {
+  border-left: 4px solid #b42318;
+}
+.as-hazard--l2 {
+  border-left: 4px solid #d9730d;
+}
+.as-hazard--l1 {
+  border-left: 4px solid #8a8287;
+}
+.as-inline-review {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: var(--as-radius-sm);
+  background: var(--as-bg);
+}
+.as-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.as-count {
+  display: grid;
+  justify-items: center;
+  padding: 12px 6px;
+  border-radius: var(--as-radius-sm);
+  border: 1px solid var(--as-line);
+  background: #fff;
+}
+.as-count strong {
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+.as-count span {
+  font-size: 0.85rem;
+  color: var(--as-ink-2);
+}
+.as-count--ok {
+  border-color: #b9dcc6;
+  background: var(--as-ok-50);
+}
+.as-count--danger {
+  border-color: #f2c4d1;
+  background: var(--as-danger-50);
+}
+
+/* ---------- Drills ---------- */
+.as-drill-banner,
+.as-drillbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  color: #fff;
+  /* Striped purple: never mistaken for a real alert (blueprint §7.4). */
+  background: repeating-linear-gradient(-45deg, #5b2a86, #5b2a86 14px, #6d36a0 14px, #6d36a0 28px);
+}
+.as-drillbar {
+  border-radius: var(--as-radius);
+}
+.as-drill-banner strong,
+.as-drillbar strong {
+  letter-spacing: 0.04em;
+}
+.as-killswitch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.as-killswitch .as-btn--danger {
+  min-height: 48px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 0 3px #fff;
+}
+.as-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.as-checklist li {
+  padding-left: 28px;
+  position: relative;
+}
+.as-checklist li::before {
+  position: absolute;
+  left: 0;
+  font-weight: 800;
+}
+.as-checklist .is-ok::before {
+  content: '✓';
+  color: var(--as-ok);
+}
+.as-checklist .is-fail::before {
+  content: '✕';
+  color: #b42318;
+}
+.as-checklist .is-note::before {
+  content: 'i';
+  color: var(--as-info);
+}
+.as-drill-summary {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--as-radius-sm);
+  background: var(--as-bg);
+}
+.as-blockform {
+  padding: 12px;
+  border-radius: var(--as-radius);
+  border: 2px solid #3b3b3b;
+  background: #fff;
 }

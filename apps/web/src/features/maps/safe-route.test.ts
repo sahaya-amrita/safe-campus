@@ -10,6 +10,7 @@ import {
   openGrounds,
   projectOnSegment,
   RISK_BUFFER_M,
+  unprojectPoint,
   type Point,
   type RiskArea,
 } from './safe-route.ts';
@@ -156,6 +157,16 @@ group('findSafeRoute', () => {
     expect(outside.length).toBeGreaterThan(0);
     const r = findSafeRoute(graph, start, ring, outside);
     expect(r).toEqual({ status: 'NO_ROUTE', reason: 'BLOCKED' });
+  });
+});
+
+group('unprojectPoint', () => {
+  it('round-trips with projectCoordinate within centimetres', async () => {
+    const { projectCoordinate } = await import('./campus-model.ts');
+    const lonLat: [number, number] = [76.9, 10.9036];
+    const back = unprojectPoint(projectCoordinate(lonLat, data.bounds) as Point, data.bounds);
+    expect(back[0]).toBeCloseTo(lonLat[0], 7);
+    expect(back[1]).toBeCloseTo(lonLat[1], 7);
   });
 });
 

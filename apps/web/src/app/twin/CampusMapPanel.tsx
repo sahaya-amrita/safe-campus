@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   featureName,
   parseCampusData,
@@ -11,9 +11,11 @@ import {
   findSafeRoute,
   formatWalk,
   openGrounds,
+  unprojectPoint,
   type Point,
   type SafeDestination,
 } from '../../features/maps/safe-route.ts';
+import { useKeyForBody } from '../responder/shared';
 import type { SahayaApi } from '../api/sahaya';
 import { Card, EmptyState, ErrorNotice, Loading, Pill, useAsync, VerificationPill } from '../ui';
 import { SafeMap2D } from './SafeMap2D';
@@ -40,7 +42,7 @@ function loadCampus(): Promise<CampusData> {
 }
 
 type Goal = 'SAFETY' | 'DIRECTIONS';
-type TapAction = 'START' | 'DESTINATION' | 'PRACTICE';
+type TapAction = 'START' | 'DESTINATION' | 'PRACTICE' | 'BLOCK';
 type Start =
   { kind: 'BUILDING'; featureId: string } | { kind: 'GPS'; point: Point; accuracy: number };
 
@@ -55,13 +57,18 @@ export function CampusMapPanel({
   api,
   incidents,
   alerts,
+  canMarkBlocked = false,
 }: {
   api: SahayaApi;
   incidents: readonly MapIncident[];
   alerts: readonly MapAlert[];
+  /** Responders/admins can mark areas impassable; everyone's routes avoid them. */
+  canMarkBlocked?: boolean;
 }) {
   const campus = useAsync(() => loadCampus(), []);
   const buildings = useAsync(() => api.buildings(), [api]);
+  const blocks = useAsync(() => api.routeBlocks(), [api], 20_000);
+  const [pendingBlock, setPendingBlock] = useState<Point | null>(null);
   const [goal, setGoal] = useState<Goal>('SAFETY');
   const [start, setStart] = useState<Start | null>(null);
   const [target, setTarget] = useState<string | null>(null);
@@ -86,9 +93,16 @@ export function CampusMapPanel({
   const { risks, unplaced } = useMemo(
     () =>
       data
-        ? buildRiskAreas(data, buildings.data?.items ?? [], incidents, alerts, practice)
+        ? buildRiskAreas(
+            data,
+            buildings.data?.items ?? [],
+            incidents,
+            alerts,
+            practice,
+            blocks.data?.items ?? [],
+          )
         : { risks: [], unplaced: 0 },
-    [data, buildings.data, incidents, alerts, practice],
+    [data, buildings.data, incidents, alerts, practice, blocks.data],
   );
 
   const startPoint = useMemo<Point | null>(() => {
@@ -120,9 +134,15 @@ export function CampusMapPanel({
     if (goal === 'SAFETY' && tap === 'DESTINATION') setTap('START');
   }, [goal, tap]);
 
-  const onPick = (featureId: string) => {
-    const f = data?.features.find((x) => x.id === featureId);
-    if (!f || f.kind !== 'building') return;
+  const onPick = (featureId: string | null, point?: Point) => {
+    if (tap === 'BLOCK') {
+      const f = featureId ? data?.features.find((x) => x.id === featureId) : null;
+      const at = point ?? (f && data ? featureCentre(f, data) : null);
+      if (at) setPendingBlock(at);
+      return;
+    }
+    const f = featureId ? data?.features.find((x) => x.id === featureId) : null;
+    if (!featureId || !f || f.kind !== 'building') return;
     if (tap === 'PRACTICE')
       setPractice((p) =>
         p.includes(featureId) ? p.filter((x) => x !== featureId) : [...p, featureId],
@@ -165,11 +185,13 @@ export function CampusMapPanel({
     ...(goal === 'DIRECTIONS' && target ? [target] : []),
   ];
   const pickHint =
-    tap === 'PRACTICE'
-      ? 'Tap a building to add or remove a practice hazard.'
-      : tap === 'DESTINATION'
-        ? 'Tap a building to go there.'
-        : 'Tap a building to start from it.';
+    tap === 'BLOCK'
+      ? 'Tap the blocked spot: a path, gate or building.'
+      : tap === 'PRACTICE'
+        ? 'Tap a building to add or remove a practice hazard.'
+        : tap === 'DESTINATION'
+          ? 'Tap a building to go there.'
+          : 'Tap a building to start from it.';
 
   return (
     <div className="as-stack">
@@ -292,6 +314,15 @@ export function CampusMapPanel({
                 >
                   Tap: practice hazard
                 </button>
+                {canMarkBlocked && (
+                  <button
+                    type="button"
+                    aria-pressed={tap === 'BLOCK'}
+                    onClick={() => setTap('BLOCK')}
+                  >
+                    Tap: mark blocked
+                  </button>
+                )}
               </div>
               <div className="as-seg as-seg--sm" role="group" aria-label="Map view">
                 <button type="button" aria-pressed={view === '2D'} onClick={() => setView('2D')}>
@@ -327,6 +358,19 @@ export function CampusMapPanel({
                   onPick={onPick}
                 />
               </Suspense>
+            )}
+
+            {pendingBlock && data && (
+              <BlockForm
+                api={api}
+                point={pendingBlock}
+                bounds={data.bounds}
+                onCancel={() => setPendingBlock(null)}
+                onSaved={() => {
+                  setPendingBlock(null);
+                  blocks.reload();
+                }}
+              />
             )}
 
             <ul className="as-saferoute__legend" aria-label="Map legend">
@@ -377,7 +421,7 @@ export function CampusMapPanel({
                   <span className="as-item__title">{r.label}</span>
                   <Pill
                     tone={
-                      r.kind === 'VERIFIED_INCIDENT'
+                      r.kind === 'VERIFIED_INCIDENT' || r.kind === 'BLOCKED'
                         ? 'danger'
                         : r.kind === 'WHAT_IF'
                           ? 'neutral'
@@ -387,6 +431,13 @@ export function CampusMapPanel({
                     {RISK_STYLE[r.kind].label}
                   </Pill>
                 </span>
+                {r.kind === 'BLOCKED' && canMarkBlocked && (
+                  <ClearBlock
+                    api={api}
+                    id={r.id.replace(/^block:/, '')}
+                    onCleared={blocks.reload}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -560,5 +611,98 @@ function ServerBuildings({
         </ul>
       )}
     </details>
+  );
+}
+
+/** Responder form: record a blocked area at the tapped point (audited on the server). */
+function BlockForm({
+  api,
+  point,
+  bounds,
+  onCancel,
+  onSaved,
+}: {
+  api: SahayaApi;
+  point: Point;
+  bounds: CampusData['bounds'];
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [radius, setRadius] = useState(20);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const keyFor = useKeyForBody();
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const [longitude, latitude] = unprojectPoint(point, bounds);
+    const input = { longitude, latitude, radiusM: radius, reason: reason.trim() };
+    setSaving(true);
+    setError(null);
+    api
+      .createRouteBlock(input, keyFor(input))
+      .then(onSaved, setError)
+      .finally(() => setSaving(false));
+  };
+  return (
+    <form className="as-form as-blockform" onSubmit={submit} aria-label="Mark blocked area">
+      <p className="as-small">
+        <strong>Mark this spot as blocked.</strong> Everyone's routes will avoid it until a
+        responder clears it. The action is recorded in the audit log.
+      </p>
+      <label className="as-field">
+        What is blocked?
+        <input
+          className="as-input"
+          required
+          minLength={3}
+          maxLength={200}
+          value={reason}
+          placeholder="e.g. Fallen tree across path"
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </label>
+      <div className="as-seg as-seg--sm" role="group" aria-label="Blocked area size">
+        {[10, 20, 40, 80].map((m) => (
+          <button key={m} type="button" aria-pressed={radius === m} onClick={() => setRadius(m)}>
+            {m} m
+          </button>
+        ))}
+      </div>
+      {Boolean(error) && <ErrorNotice error={error} />}
+      <div className="as-row">
+        <button type="submit" className="as-btn" disabled={saving || reason.trim().length < 3}>
+          {saving ? 'Saving…' : 'Mark blocked'}
+        </button>
+        <button type="button" className="as-btn as-btn--ghost" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ClearBlock({ api, id, onCleared }: { api: SahayaApi; id: string; onCleared: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="as-btn as-btn--ghost as-btn--sm"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          setError(null);
+          api
+            .clearRouteBlock(id)
+            .then(onCleared, setError)
+            .finally(() => setBusy(false));
+        }}
+      >
+        {busy ? 'Clearing…' : 'Clear block'}
+      </button>
+      {Boolean(error) && <ErrorNotice error={error} />}
+    </>
   );
 }

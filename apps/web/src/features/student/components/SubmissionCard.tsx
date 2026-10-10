@@ -17,7 +17,13 @@ export const STATE_ICON: Record<MessageDeliveryStatus, IconName> = {
 };
 
 /** Short label for a delivery status; "not sent" and "failed" carry the English source in draft locales. */
-export function StateLabel({ status, className }: { status: MessageDeliveryStatus; className?: string }) {
+export function StateLabel({
+  status,
+  className,
+}: {
+  status: MessageDeliveryStatus;
+  className?: string;
+}) {
   const { t } = useI18n();
   const leading = <Icon name={STATE_ICON[status]} size={18} />;
   switch (status) {
@@ -31,14 +37,24 @@ export function StateLabel({ status, className }: { status: MessageDeliveryStatu
       return (
         <p className={className}>
           {leading}
-          <span>{status === 'SENDING' ? t.stateSending : status === 'ACKNOWLEDGED' ? t.stateAcknowledged : t.stateReceived}</span>
+          <span>
+            {status === 'SENDING'
+              ? t.stateSending
+              : status === 'ACKNOWLEDGED'
+                ? t.stateAcknowledged
+                : t.stateReceived}
+          </span>
         </p>
       );
   }
 }
 
 /** Exactly what is known about one check-in's delivery — never more. */
-export function describeEntry(entry: CheckInEntry, t: Messages, formatTime: (iso: string) => string): ReactNode[] {
+export function describeEntry(
+  entry: CheckInEntry,
+  t: Messages,
+  formatTime: (iso: string) => string,
+): ReactNode[] {
   switch (entry.lifecycle) {
     case 'QUEUED':
       return [
@@ -118,7 +134,13 @@ export const SubmissionCard = forwardRef<HTMLElement, Props>(function Submission
       {entry.payload.note && <blockquote className="sc-note">{entry.payload.note}</blockquote>}
       {(entry.payload.landmark || entry.payload.location) && (
         <p className="sc-meta-line">
-          <Icon name="pin" size={14} /> {[entry.payload.landmark, entry.payload.location && t.locationAccuracy(entry.payload.location.accuracyMetres)].filter(Boolean).join(' · ')}
+          <Icon name="pin" size={14} />{' '}
+          {[
+            entry.payload.landmark,
+            entry.payload.location && t.locationAccuracy(entry.payload.location.accuracyMetres),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         </p>
       )}
       {photoCount > 0 && (
@@ -126,18 +148,35 @@ export const SubmissionCard = forwardRef<HTMLElement, Props>(function Submission
           <p className="sc-meta-line">
             <Icon name="image" size={14} /> {t.photosKeptOnPhone(photoCount)}
           </p>
-          <button type="button" className="sc-btn sc-btn--ghost sc-btn--small" onClick={() => onDeletePhotos(entry.key)}>
+          <button
+            type="button"
+            className="sc-btn sc-btn--ghost sc-btn--small"
+            onClick={() => onDeletePhotos(entry.key)}
+          >
             <Icon name="trash" size={16} />
             {t.photosDelete}
           </button>
         </div>
       )}
       {entry.attempts > 0 && <p className="sc-meta-line">{t.attempts(entry.attempts)}</p>}
-      {entry.lifecycle === 'FAILED' && (
-        <button type="button" className="sc-btn sc-btn--ghost" onClick={() => onRetry(entry.key)}>
-          <Icon name="retry" size={18} />
-          {t.retry}
-        </button>
+      {(entry.lifecycle === 'FAILED' || status === 'LOCAL_ONLY' || status === 'QUEUED') && (
+        // Not delivered: offer the fallbacks together (blueprint Appendix C delivery chip).
+        <div className="sc-fallbacks">
+          {entry.lifecycle === 'FAILED' && (
+            <button
+              type="button"
+              className="sc-btn sc-btn--ghost"
+              onClick={() => onRetry(entry.key)}
+            >
+              <Icon name="retry" size={18} />
+              {t.retry}
+            </button>
+          )}
+          <a className="sc-btn sc-btn--ghost" href="tel:112">
+            <Icon name="phone" size={18} />
+            {t.emergencyCall}
+          </a>
+        </div>
       )}
     </article>
   );

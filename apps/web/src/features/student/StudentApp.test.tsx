@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LOCALES, type Language } from '../../i18n';
 import { en } from '../../i18n/en';
-import { MemoryPackCacheStore, MemoryQueueStore, MemoryRecordStore, type SendOutcome } from '../../lib/offline';
+import {
+  MemoryPackCacheStore,
+  MemoryQueueStore,
+  MemoryRecordStore,
+  type SendOutcome,
+} from '../../lib/offline';
 import { MockStudentApi } from './api/mockStudentApi';
 import type { ImageProcessor } from './attachments/imageProcessor';
 import type { StoredPhoto } from './attachments/useAttachments';
@@ -22,7 +27,10 @@ const network = { online: true };
 
 beforeEach(() => {
   network.online = true;
-  Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => network.online });
+  Object.defineProperty(window.navigator, 'onLine', {
+    configurable: true,
+    get: () => network.online,
+  });
 });
 afterEach(() => localStorage.clear());
 
@@ -34,14 +42,23 @@ function goOnline() {
 }
 
 const processor: ImageProcessor = {
-  prepare: async () => ({ bytes: new Uint8Array([9, 9, 9]).buffer, mediaType: 'image/jpeg', width: 1600, height: 1200, sha256: null }),
+  prepare: async () => ({
+    bytes: new Uint8Array([9, 9, 9]).buffer,
+    mediaType: 'image/jpeg',
+    width: 1600,
+    height: 1200,
+    sha256: null,
+  }),
 };
 
 const geoAt = (accuracy: number): LocationEnvironment => ({
   isSecureContext: true,
   geolocation: {
     watchPosition: (ok: PositionCallback) => {
-      ok({ coords: { latitude: 10.90371, longitude: 76.89999, accuracy }, timestamp: Date.now() } as GeolocationPosition);
+      ok({
+        coords: { latitude: 10.90371, longitude: 76.89999, accuracy },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
       return 1;
     },
     clearWatch: () => undefined,
@@ -53,7 +70,13 @@ const geoDenied: LocationEnvironment = {
   isSecureContext: true,
   geolocation: {
     watchPosition: (_ok: PositionCallback, fail?: PositionErrorCallback | null) => {
-      fail?.({ code: 1, message: '', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError);
+      fail?.({
+        code: 1,
+        message: '',
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
       return 1;
     },
     clearWatch: () => undefined,
@@ -100,12 +123,18 @@ function setup(
 }
 
 const latest = () => screen.getByTestId('submission');
-const stepStatuses = () => within(latest()).getAllByRole('listitem').map((li) => li.getAttribute('data-step-status'));
+const stepStatuses = () =>
+  within(latest())
+    .getAllByRole('listitem')
+    .map((li) => li.getAttribute('data-step-status'));
 const safeButton = () => screen.findByRole('button', { name: /I'm Safe/ });
 const helpButton = () => screen.findByRole('button', { name: /I Need Help/ });
 const openTab = (user: ReturnType<typeof userEvent.setup>, name: string) =>
-  user.click(within(screen.getByRole('navigation', { name: 'Sections' })).getByRole('button', { name }));
-const jpeg = () => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0])], 'scene.jpg', { type: 'image/jpeg' });
+  user.click(
+    within(screen.getByRole('navigation', { name: 'Sections' })).getByRole('button', { name }),
+  );
+const jpeg = () =>
+  new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0])], 'scene.jpg', { type: 'image/jpeg' });
 
 describe('Check-in and delivery states', () => {
   it('online: SERVER_RECEIVED, contract body sent, responder step untracked', async () => {
@@ -115,7 +144,11 @@ describe('Check-in and delivery states', () => {
     expect(latest()).toHaveTextContent('Received by the server');
     expect(latest()).toHaveTextContent('This does not mean a responder has seen it.');
     expect(stepStatuses()).toEqual(['done', 'done', 'done', 'untracked']);
-    expect(api.sentBodies[0]).toMatchObject({ status: 'CONFIRMED_SAFE', drillId: expect.any(String), clientActionId: expect.any(String) });
+    expect(api.sentBodies[0]).toMatchObject({
+      status: 'CONFIRMED_SAFE',
+      drillId: expect.any(String),
+      clientActionId: expect.any(String),
+    });
   });
 
   it('offline: LOCAL_ONLY, "not sent", and no server call', async () => {
@@ -129,6 +162,11 @@ describe('Check-in and delivery states', () => {
     expect(stepStatuses()).toEqual(['done', 'paused', 'todo', 'untracked']);
     expect(screen.getByTestId('net-indicator')).toHaveAccessibleName(en.connectionOffline);
     expect(api.checkInCalls).toBe(0);
+    // Not delivered: a direct call is offered next to the status.
+    expect(within(latest()).getByRole('link', { name: 'Call 112' })).toHaveAttribute(
+      'href',
+      'tel:112',
+    );
   });
 
   it('reconnect: the queued check-in is sent once and shown received only after the server replies', async () => {
@@ -140,6 +178,8 @@ describe('Check-in and delivery states', () => {
     await waitFor(() => expect(latest()).toHaveAttribute('data-state', 'SERVER_RECEIVED'));
     expect(api.checkInCalls).toBe(1);
     expect(api.storedCount).toBe(1);
+    // Once the server has it, the undelivered fallback disappears.
+    expect(within(latest()).queryByRole('link', { name: 'Call 112' })).toBeNull();
   });
 
   it('app reload: a saved check-in is still "not sent", then sent once online', async () => {
@@ -169,7 +209,9 @@ describe('Check-in and delivery states', () => {
   });
 
   it('permission denied: FAILED with the 112 fallback; Retry resends with the same key', async () => {
-    const { user, api } = setup({ scripted: [{ kind: 'failed', problem: 'PERMISSION_DENIED', detail: 'FORBIDDEN' }] });
+    const { user, api } = setup({
+      scripted: [{ kind: 'failed', problem: 'PERMISSION_DENIED', detail: 'FORBIDDEN' }],
+    });
     await user.click(await safeButton());
     await waitFor(() => expect(latest()).toHaveAttribute('data-state', 'FAILED'));
     expect(latest()).toHaveTextContent('not allowed to send this. It was not delivered.');
@@ -185,12 +227,16 @@ describe('Check-in and delivery states', () => {
     expect(await screen.findByText(/No active drill or incident right now/)).toBeInTheDocument();
     await user.click(await safeButton());
     await waitFor(() => expect(latest()).toHaveAttribute('data-state', 'FAILED'));
-    expect(latest()).toHaveTextContent('No active drill or incident was known when you pressed this');
+    expect(latest()).toHaveTextContent(
+      'No active drill or incident was known when you pressed this',
+    );
   });
 
   it('shows which drill check-ins are attached to', async () => {
     setup();
-    expect(await screen.findByTestId('session-bar')).toHaveTextContent('Checking in for: Demonstration drill (not a real event)');
+    expect(await screen.findByTestId('session-bar')).toHaveTextContent(
+      'Checking in for: Demonstration drill (not a real event)',
+    );
   });
 
   it('ignores an accidental double tap of the same button', async () => {
@@ -220,12 +266,20 @@ describe('Help request', () => {
     await user.click(await helpButton());
     const dialog = screen.getByRole('dialog', { name: 'Request help' });
     expect(screen.getByRole('heading', { name: 'Request help' })).toHaveFocus();
-    expect(within(dialog).getByText(/cannot guarantee anyone will see your request/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('link', { name: /Call 112/ })).toHaveAttribute('href', 'tel:112');
+    expect(
+      within(dialog).getByText(/cannot guarantee anyone will see your request/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: /Call 112/ })).toHaveAttribute(
+      'href',
+      'tel:112',
+    );
 
     await user.click(within(dialog).getByRole('button', { name: 'Send help request' }));
     await waitFor(() => expect(latest()).toHaveAttribute('data-state', 'SERVER_RECEIVED'));
-    expect(api.sentBodies[0]).toMatchObject({ status: 'HELP_REQUESTED', helpDetails: NO_DETAILS_TEXT });
+    expect(api.sentBodies[0]).toMatchObject({
+      status: 'HELP_REQUESTED',
+      helpDetails: NO_DETAILS_TEXT,
+    });
     expect(latest()).toHaveTextContent('Your help request is open on the server');
     expect(latest()).toHaveTextContent('no responder has confirmed seeing it');
   });
@@ -263,11 +317,15 @@ describe('Help request', () => {
     expect(screen.getByRole('button', { name: 'Get location again' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Send help request' }));
     await waitFor(() => expect(api.sentBodies).toHaveLength(1));
-    expect((api.sentBodies[0] as { helpDetails: string }).helpDetails).not.toContain('Device location');
+    expect((api.sentBodies[0] as { helpDetails: string }).helpDetails).not.toContain(
+      'Device location',
+    );
   });
 
   it('insecure page: explains https instead of claiming permission was denied', async () => {
-    const { user } = setup({ locationEnv: { isSecureContext: false, geolocation: geoAt(5).geolocation } });
+    const { user } = setup({
+      locationEnv: { isSecureContext: false, geolocation: geoAt(5).geolocation },
+    });
     await user.click(await helpButton());
     await user.click(screen.getByRole('button', { name: 'Use my current location' }));
     expect(await screen.findByText(/This page is not secure \(https\)/)).toBeInTheDocument();
@@ -278,15 +336,22 @@ describe('Help request', () => {
     await user.click(await helpButton());
     expect(screen.getByText(/Photos stay on this phone/)).toBeInTheDocument();
     await user.upload(screen.getByTestId('photo-library-input'), jpeg());
-    expect(await screen.findByRole('img', { name: 'Photo 1' })).toHaveAttribute('src', expect.stringMatching(/^blob:/));
+    expect(await screen.findByRole('img', { name: 'Photo 1' })).toHaveAttribute(
+      'src',
+      expect.stringMatching(/^blob:/),
+    );
     expect(screen.getByText('1 of 3 photos')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Send help request' }));
-    await waitFor(() => expect(latest()).toHaveTextContent('1 photo kept on this phone only — not sent'));
+    await waitFor(() =>
+      expect(latest()).toHaveTextContent('1 photo kept on this phone only — not sent'),
+    );
     expect(JSON.stringify(api.sentBodies[0])).not.toMatch(/photo|attachment|image/i);
     expect([...photoStore.rows.values()][0]?.checkInKey).toEqual(expect.any(String));
 
-    await user.click(within(latest()).getByRole('button', { name: 'Delete photos from this phone' }));
+    await user.click(
+      within(latest()).getByRole('button', { name: 'Delete photos from this phone' }),
+    );
     await waitFor(() => expect(latest()).not.toHaveTextContent('photo kept on this phone'));
     expect(photoStore.rows.size).toBe(0);
   });
@@ -308,9 +373,13 @@ describe('Help request', () => {
   it('rejects a non-image file with a clear message', async () => {
     const { user } = setup();
     await user.click(await helpButton());
-    const fake = new File([new TextEncoder().encode('%PDF-1.7')], 'scan.jpg', { type: 'image/jpeg' });
+    const fake = new File([new TextEncoder().encode('%PDF-1.7')], 'scan.jpg', {
+      type: 'image/jpeg',
+    });
     await user.upload(screen.getByTestId('photo-library-input'), fake);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Only JPEG, PNG or WebP photos can be added.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Only JPEG, PNG or WebP photos can be added.',
+    );
   });
 });
 
@@ -318,9 +387,15 @@ describe('Navigation, sync status and accessibility', () => {
   it('tab bar switches screens and marks the current one', async () => {
     const { user } = setup();
     const nav = await screen.findByRole('navigation', { name: 'Sections' });
-    expect(within(nav).getByRole('button', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('button', { name: 'Home' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await openTab(user, 'Guides');
-    expect(within(nav).getByRole('button', { name: 'Guides' })).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('button', { name: 'Guides' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     expect(screen.getByTestId('instruction-packs')).toBeInTheDocument();
     await openTab(user, 'Activity');
     expect(screen.getByTestId('sync-status')).toBeInTheDocument();
@@ -330,7 +405,9 @@ describe('Navigation, sync status and accessibility', () => {
     const { user } = setup();
     await openTab(user, 'Activity');
     expect(screen.getByTestId('offline-ready')).toHaveTextContent('Not yet saved for offline use');
-    expect(screen.getByText('Nothing from this phone has reached the server yet.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Nothing from this phone has reached the server yet.'),
+    ).toBeInTheDocument();
   });
 
   it('keyboard: Enter on "I\'m Safe" sends and focus moves to the result', async () => {
@@ -354,22 +431,37 @@ describe('Navigation, sync status and accessibility', () => {
 });
 
 describe('Languages', () => {
-  it.each(LOCALES.map((l) => [l.code, l] as const))('%s: primary flow in its own script', async (code, locale) => {
-    const { container, user } = setup({ language: code });
-    expect(await screen.findByRole('button', { name: new RegExp(escape(locale.messages.checkInSafe)) })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: new RegExp(escape(locale.messages.checkInNeedHelp)) })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(locale.messages.checkInHeading);
-    const root = container.querySelector('.sc-student');
-    expect(root).toHaveAttribute('lang', code);
-    expect(root).toHaveAttribute('data-script', locale.script);
-    if (code === 'en') {
-      expect(screen.queryByTestId('english-source')).not.toBeInTheDocument();
-    } else {
-      expect(screen.getAllByTestId('english-source')[0]).toHaveTextContent(en.prototypeBody);
-      await user.click(within(screen.getByRole('navigation')).getByRole('button', { name: locale.messages.navActivity }));
-      expect(screen.getByTestId('draft-notice')).toHaveTextContent(locale.messages.draftNotice);
-    }
-  });
+  it.each(LOCALES.map((l) => [l.code, l] as const))(
+    '%s: primary flow in its own script',
+    async (code, locale) => {
+      const { container, user } = setup({ language: code });
+      expect(
+        await screen.findByRole('button', {
+          name: new RegExp(escape(locale.messages.checkInSafe)),
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: new RegExp(escape(locale.messages.checkInNeedHelp)) }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        locale.messages.checkInHeading,
+      );
+      const root = container.querySelector('.sc-student');
+      expect(root).toHaveAttribute('lang', code);
+      expect(root).toHaveAttribute('data-script', locale.script);
+      if (code === 'en') {
+        expect(screen.queryByTestId('english-source')).not.toBeInTheDocument();
+      } else {
+        expect(screen.getAllByTestId('english-source')[0]).toHaveTextContent(en.prototypeBody);
+        await user.click(
+          within(screen.getByRole('navigation')).getByRole('button', {
+            name: locale.messages.navActivity,
+          }),
+        );
+        expect(screen.getByTestId('draft-notice')).toHaveTextContent(locale.messages.draftNotice);
+      }
+    },
+  );
 
   it('language menu lists six languages with draft badges, switches and remembers', async () => {
     const { user } = setup();
@@ -379,7 +471,9 @@ describe('Languages', () => {
     expect(within(group).getAllByText('Draft translation')).toHaveLength(5);
     await user.click(within(group).getByRole('button', { name: /తెలుగు/ }));
     expect(localStorage.getItem('safe-campus.student.language')).toBe('te');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('మీరు ఇప్పుడు ఎలా ఉన్నారు?');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'మీరు ఇప్పుడు ఎలా ఉన్నారు?',
+    );
   });
 
   it('language menu closes on Escape and returns focus', async () => {
@@ -406,7 +500,9 @@ describe('Instructions (Guides)', () => {
 
   it('falls back explicitly to English for languages the API does not provide', async () => {
     const { user } = setup({ language: 'kn' });
-    await user.click(within(await screen.findByRole('navigation')).getByRole('button', { name: 'ಮಾರ್ಗದರ್ಶಿಗಳು' }));
+    await user.click(
+      within(await screen.findByRole('navigation')).getByRole('button', { name: 'ಮಾರ್ಗದರ್ಶಿಗಳು' }),
+    );
     expect(await screen.findByTestId('packs-fallback')).toHaveTextContent('ಕನ್ನಡ');
     expect(await screen.findByTestId('pack')).toHaveTextContent('About this sample');
   });
@@ -421,7 +517,9 @@ describe('Instructions (Guides)', () => {
     network.online = false;
     const second = setup({ packStore });
     await openTab(second.user, 'Guides');
-    expect(await screen.findByText('Offline. Showing the copy saved on this phone.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Offline. Showing the copy saved on this phone.'),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('pack')).toHaveTextContent('Sample');
   });
 

@@ -50,6 +50,11 @@ export interface Incident {
   reporterId: string;
   serverReceivedAt: string;
   createdAt: string;
+  /** Staff only: corroboration facts and the derived hazard level (1–3, null when closed). */
+  level?: 1 | 2 | 3 | null;
+  reportCount?: number;
+  independentReporters?: number;
+  relatedIncidentIds?: string[];
 }
 
 export interface VerificationRecord {
@@ -202,6 +207,33 @@ export interface Drill {
   mode: OperatingMode;
   status: string;
   createdAt: string;
+  startedAt?: string | null;
+  stoppedAt?: string | null;
+  stopReason?: 'STOPPED_BY_CONTROLLER' | 'KILL_SWITCH' | 'LIVE_INCIDENT_VERIFIED' | null;
+}
+
+export interface DrillPreflight {
+  verifiedIncidentsOpen: number;
+  activeDrills: number;
+  canStart: boolean;
+}
+
+export interface DrillMetrics {
+  drillId: string;
+  checkins: { participants: number; confirmed_safe: number; help_requested: number };
+  training: { completions: number; average_score: number };
+  assumptionsAreSynthetic: true;
+}
+
+export interface RouteBlock {
+  id: string;
+  longitude: number;
+  latitude: number;
+  radiusM: number;
+  reason: string;
+  mode: OperatingMode;
+  createdAt: string;
+  clearedAt: string | null;
 }
 
 export interface TrainingResult {
@@ -322,6 +354,30 @@ export function sahayaApi(client: ApiClient) {
     buildings: () => client.get<Page<Building>>('/api/v1/maps/buildings'),
     buildingMap: (id: string) => client.get<BuildingMap>(`/api/v1/maps/${enc(id)}/approved`),
     drills: () => client.get<Page<Drill>>('/api/v1/drills'),
+    createDrill: (
+      input: {
+        name: string;
+        buildingId: string;
+        scenarioRef: string;
+        scenarioVersion: string;
+        mode: 'DRILL' | 'TEST' | 'SIMULATION';
+      },
+      key: string,
+    ) => client.post<Drill>('/api/v1/drills', input, key),
+    drillPreflight: () => client.get<DrillPreflight>('/api/v1/drills/preflight'),
+    startDrill: (id: string, key: string) =>
+      client.post<Drill>(`/api/v1/drills/${enc(id)}/start`, {}, key),
+    stopDrill: (id: string) => client.post<Drill>(`/api/v1/drills/${enc(id)}/stop`, {}),
+    stopAllDrills: () =>
+      client.post<{ stopped: number; drillIds: string[] }>('/api/v1/drills/stop-all', {}),
+    drillMetrics: (id: string) => client.get<DrillMetrics>(`/api/v1/drills/${enc(id)}/metrics`),
+    routeBlocks: () => client.get<Page<RouteBlock>>('/api/v1/maps/blocks'),
+    createRouteBlock: (
+      input: { longitude: number; latitude: number; radiusM: number; reason: string },
+      key: string,
+    ) => client.post<RouteBlock>('/api/v1/maps/blocks', input, key),
+    clearRouteBlock: (id: string) =>
+      client.post<RouteBlock>(`/api/v1/maps/blocks/${enc(id)}/clear`, {}),
     myTraining: () => client.get<Page<TrainingResult>>('/api/v1/training/results/mine'),
     saveTraining: (
       input: {
