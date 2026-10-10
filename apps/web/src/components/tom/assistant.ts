@@ -57,7 +57,7 @@ export interface AssistantContext {
 const norm = (q: string) => q.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').trim();
 
 const QUESTION_START =
-  /^(what|how|why|when|who|which|is|are|does|do|did|can i|could i|should i|may i|explain|tell me (about|what))\b/;
+  /^((and|but|so|also|ok|okay|then)[,\s]+)?(what|how|why|when|who|which|is|are|does|do|did|can i|could i|should i|may i|explain|tell me (about|what))\b/;
 
 const POLITE =
   '(?:(?:hey |hi |ok |okay )?tom[,:]? |please |can you |could you |would you |will you |i want you to |go ahead and |just )*';
@@ -123,6 +123,29 @@ function withoutDestinationNames(q: string, destinations: readonly TomDestinatio
   return out;
 }
 
+const FILLER = new Set([
+  'the',
+  'a',
+  'an',
+  'to',
+  'please',
+  'pls',
+  'me',
+  'my',
+  'page',
+  'screen',
+  'section',
+  'tab',
+]);
+
+/** Meaningful words left once registered destination names are removed. */
+function wordsBeyondDestinations(q: string, destinations: readonly TomDestination[]): number {
+  return withoutDestinationNames(q, destinations)
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !FILLER.has(w)).length;
+}
+
 export function interpret(question: string, ctx: AssistantContext): AssistantReply {
   const q = norm(question);
   if (!q) return { kind: 'EMPTY' };
@@ -177,6 +200,9 @@ export function interpret(question: string, ctx: AssistantContext): AssistantRep
   if (faq.kind === 'MATCH') return { kind: 'EXPLAIN_TOPIC', entries: faq.entries };
 
   // 5. A destination named without a verb: offer it, don't go automatically.
+  // A real question that merely mentions a screen ("who can press the stop
+  // button?") is not a navigation request: leave it to the assistant.
+  if (dests.length && wordsBeyondDestinations(q, ctx.destinations) > 2) return { kind: 'UNKNOWN' };
   if (dests.length === 1) {
     const d = dests[0]!;
     return d.id === ctx.currentDestination
