@@ -3,11 +3,12 @@
  *
  * It maps ordinary questions onto a fixed set of intents, built only from
  * registered data (approved app help, registered destinations, tours, approved
- * instruction packs). When an assistant server is configured, open questions
- * may instead get an AI_ANSWER from it; emergencies, refusals, explicit
- * navigation and tours are always answered here (LOCAL_ONLY_REPLIES).
+ * instruction packs). When the assistant API is configured, open questions
+ * get a SERVER_ANSWER from it (a hosted model, validated server-side);
+ * emergencies, refusals, explicit navigation and tours are always answered
+ * here (LOCAL_ONLY_REPLIES) and never leave the browser.
  */
-import type { AssistantReference, CheckedAction } from "./assistantClient";
+import type { AssistantOrigin, AssistantReference, AssistantResponseType, CheckedAction } from "./assistantClient";
 import { answerQuestion, isEmergencyQuestion } from "./tomLogic";
 import type { TomDestination } from "./navigation";
 import type { TomEntry, TomTour } from "./types";
@@ -17,13 +18,13 @@ export type ConsequentialAction = "ACKNOWLEDGE" | "HAZARD_DECISION" | "SEND_ALER
 export type AssistantReply =
   | { kind: "EMPTY" }
   | {
-      kind: "AI_ANSWER";
-      status: "ANSWERED" | "NEEDS_CLARIFICATION";
+      /** A validated reply from the assistant API (AI, rules or fallback; see origin). */
+      kind: "SERVER_ANSWER";
+      responseType: AssistantResponseType;
       answer: string;
       references: AssistantReference[];
       action: CheckedAction;
-      provider: { kind: "LLM" | "MOCK" | "RULES"; model: string | null };
-      degraded: boolean;
+      origin: AssistantOrigin;
     }
   | { kind: "EXPLAIN_SCREEN"; destination: TomDestination | null; entries: TomEntry[] }
   | { kind: "EXPLAIN_TOPIC"; entries: TomEntry[] }

@@ -8,34 +8,74 @@
 import type { TomDestination } from "./navigation";
 import type { ApprovedInstructionLink, TomTour } from "./types";
 
-export type AssistantStatus = "ANSWERED" | "NEEDS_CLARIFICATION" | "UNSUPPORTED" | "SAFETY_REDIRECT" | "UNAVAILABLE";
+/** Mirrors packages/contracts/src/assistant.ts on the API (feat/tom-assistant-api). */
+export type AssistantResponseType =
+  | "answer"
+  | "clarification"
+  | "navigation_suggestion"
+  | "guided_tour"
+  | "safety_redirect"
+  | "unsupported"
+  | "unavailable";
 
 export type AssistantAction =
   | { type: "NAVIGATE"; destinationId: string }
   | { type: "START_GUIDED_TOUR"; tourId: string }
   | { type: "OPEN_APPROVED_INSTRUCTIONS"; instructionPackId: string };
 
+export type AssistantKnowledgeKind =
+  | "SCREEN_GUIDE"
+  | "STATUS_GLOSSARY"
+  | "WORKFLOW"
+  | "TOUR"
+  | "CAMPUS_CONTACT"
+  | "INSTRUCTION_PACK";
+
 export interface AssistantReference {
   id: string;
-  kind: "APP_HELP" | "STATUS_GLOSSARY" | "WORKFLOW" | "CAMPUS_CONTACT" | "INSTRUCTION_PACK";
+  kind: AssistantKnowledgeKind;
   title: string;
   version: string;
   source: string;
   reviewState: "APPROVED" | "DRAFT";
 }
 
+export type AssistantFallbackReason =
+  | "PROVIDER_DISABLED"
+  | "PROVIDER_UNCONFIGURED"
+  | "MODEL_UNAVAILABLE"
+  | "TIMEOUT"
+  | "RATE_LIMITED"
+  | "REFUSED"
+  | "TRUNCATED"
+  | "INVALID_OUTPUT"
+  | "UNAVAILABLE";
+
+export interface AssistantOrigin {
+  /** AI = hosted model answered; RULES = fixed rules on purpose; FALLBACK = model unavailable/rejected. */
+  source: "AI" | "RULES" | "FALLBACK";
+  provider: "groq" | "mock" | "rules";
+  model: string | null;
+  fallbackReason: AssistantFallbackReason | null;
+}
+
+export interface AssistantHistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface AssistantInterpretRequest {
   question: string;
   context: { screen: string; locale: "en" | "ta" };
+  history: AssistantHistoryTurn[];
 }
 
 export interface AssistantInterpretResponse {
-  status: AssistantStatus;
+  type: AssistantResponseType;
   answer: string;
-  suggestedAction: AssistantAction | null;
+  action: AssistantAction | null;
   references: AssistantReference[];
-  provider: { kind: "LLM" | "MOCK" | "RULES"; model: string | null };
-  degraded: boolean;
+  origin: AssistantOrigin;
   generatedAt: string;
 }
 
@@ -50,11 +90,15 @@ export const disabledAssistantBackend: TomAssistantBackend = {
 };
 
 export const QUESTION_MAX_CHARS = 500;
+export const HISTORY_MAX_TURNS = 6;
+export const HISTORY_TURN_MAX_CHARS = 600;
 
 export class AssistantHttpError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
+    /** Seconds, from Retry-After on 429. */
+    readonly retryAfter: number | null = null,
   ) {
     super(`Assistant request failed (${code})`);
     this.name = "AssistantHttpError";
@@ -64,8 +108,9 @@ export class AssistantHttpError extends Error {
 // ---------------------------------------------------------------------------
 // Strict response validation (the web app has no schema library; keep it explicit)
 // ---------------------------------------------------------------------------
-const STATUSES: readonly string[] = ["ANSWERED", "NEEDS_CLARIFICATION", "UNSUPPORTED", "SAFETY_REDIRECT", "UNAVAILABLE"];
-const KINDS: readonly string[] = ["APP_HELP", "STATUS_GLOSSARY", "WORKFLOW", "CAMPUS_CONTACT", "INSTRUCTION_PACK"];
+const TYPES: readonly string[] = ["answer", "clarification", "navigation_suggestion", "guided_tour", "safety_redirect", "unsupported", "unavailable"];
+const KINDS: readonly string[] = ["SCREEN_GUIDE", "STATUS_GLOSSARY", "WORKFLOW", "TOUR", "CAMPUS_CONTACT", "INSTRUCTION_PACK"];
+const REASONS: readonly string[] = ["PROVIDER_DISABLED", "PROVIDER_UNCONFIGURED", "MODEL_UNAVAILABLE", "TIMEOUT", "RATE_LIMITED", "REFUSED", "TRUNCATED", "INVALID_OUTPUT", "UNAVAILABLE"];
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isStr = (v: unknown, max = 2000): v is string => typeof v === "string" && v.length <= max;
 const onlyKeys = (o: Record<string, unknown>, keys: string[]) => Object.keys(o).every((k) => keys.includes(k));
@@ -80,32 +125,42 @@ function parseAction(v: unknown): AssistantAction | null | undefined {
   return undefined; // any other action type is invalid
 }
 
+function parseOrigin(v: unknown): AssistantOrigin | null {
+  if (!isObj(v) || !onlyKeys(v, ["source", "provider", "model", "fallbackReason"])) return null;
+  if (!["AI", "RULES", "FALLBACK"].includes(v.source as string)) return null;
+  if (!["groq", "mock", "rules"].includes(v.provider as string)) return null;
+  if (!(v.model === null || isStr(v.model, 120))) return null;
+  if (!(v.fallbackReason === null || REASONS.includes(v.fallbackReason as string))) return null;
+  // Consistency: only AI answers come from a model; fallbacks must say why.
+  if (v.source === "AI" && (v.provider === "rules" || v.fallbackReason !== null)) return null;
+  if (v.source === "FALLBACK" && v.fallbackReason === null) return null;
+  return {
+    source: v.source as AssistantOrigin["source"],
+    provider: v.provider as AssistantOrigin["provider"],
+    model: (v.model as string | null) ?? null,
+    fallbackReason: (v.fallbackReason as AssistantFallbackReason | null) ?? null,
+  };
+}
+
 /** Returns a typed response or null. Unknown fields, action types or oversized values invalidate it. */
 export function validateInterpretResponse(v: unknown): AssistantInterpretResponse | null {
-  if (!isObj(v) || !onlyKeys(v, ["status", "answer", "suggestedAction", "references", "provider", "degraded", "generatedAt"])) return null;
-  if (!isStr(v.status) || !STATUSES.includes(v.status)) return null;
+  if (!isObj(v) || !onlyKeys(v, ["type", "answer", "action", "references", "origin", "generatedAt"])) return null;
+  if (!isStr(v.type) || !TYPES.includes(v.type)) return null;
   if (!isStr(v.answer, 1200)) return null;
-  const action = parseAction(v.suggestedAction);
+  const action = parseAction(v.action);
   if (action === undefined) return null;
   if (!Array.isArray(v.references) || v.references.length > 5) return null;
   const references: AssistantReference[] = [];
   for (const r of v.references) {
-    if (!isObj(r) || !isStr(r.id, 120) || !isStr(r.title, 300) || !isStr(r.version, 80) || !isStr(r.source, 300)) return null;
+    if (!isObj(r) || !onlyKeys(r, ["id", "kind", "title", "version", "source", "reviewState"])) return null;
+    if (!isStr(r.id, 120) || !isStr(r.title, 300) || !isStr(r.version, 80) || !isStr(r.source, 300)) return null;
     if (!isStr(r.kind) || !KINDS.includes(r.kind) || (r.reviewState !== "APPROVED" && r.reviewState !== "DRAFT")) return null;
-    references.push({ id: r.id, kind: r.kind as AssistantReference["kind"], title: r.title, version: r.version, source: r.source, reviewState: r.reviewState });
+    references.push({ id: r.id, kind: r.kind as AssistantKnowledgeKind, title: r.title, version: r.version, source: r.source, reviewState: r.reviewState });
   }
-  const p = v.provider;
-  if (!isObj(p) || !["LLM", "MOCK", "RULES"].includes(p.kind as string) || !(p.model === null || isStr(p.model, 120))) return null;
-  if (typeof v.degraded !== "boolean" || !isStr(v.generatedAt, 40) || Number.isNaN(Date.parse(v.generatedAt))) return null;
-  return {
-    status: v.status as AssistantStatus,
-    answer: v.answer,
-    suggestedAction: action,
-    references,
-    provider: { kind: p.kind as "LLM" | "MOCK" | "RULES", model: (p.model as string | null) ?? null },
-    degraded: v.degraded,
-    generatedAt: v.generatedAt,
-  };
+  const origin = parseOrigin(v.origin);
+  if (!origin) return null;
+  if (!isStr(v.generatedAt, 40) || Number.isNaN(Date.parse(v.generatedAt))) return null;
+  return { type: v.type as AssistantResponseType, answer: v.answer, action, references, origin, generatedAt: v.generatedAt };
 }
 
 // ---------------------------------------------------------------------------
@@ -145,10 +200,14 @@ export class HttpTomAssistantBackend implements TomAssistantBackend {
             Accept: "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          // Only the question and screen context: no role, user id or records.
+          // Only the question, screen context and bounded history: no role, user id or records.
           body: JSON.stringify({
             question: request.question.slice(0, QUESTION_MAX_CHARS),
             context: { screen: request.context.screen, locale: request.context.locale },
+            history: request.history
+              .slice(-HISTORY_MAX_TURNS)
+              .map((t) => ({ role: t.role, content: t.content.slice(0, HISTORY_TURN_MAX_CHARS) }))
+              .filter((t) => t.content.trim().length > 0),
           }),
           signal: controller.signal,
         });
@@ -163,7 +222,8 @@ export class HttpTomAssistantBackend implements TomAssistantBackend {
       }
       if (!res.ok) {
         const code = isObj(body) && isObj(body.error) && isStr(body.error.code, 80) ? body.error.code : `HTTP_${res.status}`;
-        throw new AssistantHttpError(res.status, code);
+        const retry = Number(res.headers.get("Retry-After"));
+        throw new AssistantHttpError(res.status, code, Number.isFinite(retry) && retry > 0 ? retry : null);
       }
       const parsed = validateInterpretResponse(body);
       if (!parsed) throw new AssistantHttpError(502, "INVALID_RESPONSE");

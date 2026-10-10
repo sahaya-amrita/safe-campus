@@ -5,8 +5,8 @@ import type { TomAiAdapter } from "./aiAdapter";
 import { disabledTomAi, isAiAvailable, MAX_AI_TEXT } from "./aiAdapter";
 import type { AssistantContext, AssistantReply } from "./assistant";
 import { interpret, LOCAL_ONLY_REPLIES } from "./assistant";
-import type { TomAssistantBackend } from "./assistantClient";
-import { checkSuggestedAction, disabledAssistantBackend } from "./assistantClient";
+import type { AssistantFallbackReason, AssistantHistoryTurn, TomAssistantBackend } from "./assistantClient";
+import { AssistantHttpError, checkSuggestedAction, disabledAssistantBackend, HISTORY_MAX_TURNS } from "./assistantClient";
 import { DEFAULT_TOM_KNOWLEDGE } from "./knowledgeBase";
 import type { TomDestination, TomNavigationAdapter, TomNavigationResult } from "./navigation";
 import { goBackSafely, navigateSafely } from "./navigation";
@@ -69,7 +69,7 @@ export interface TomProps {
 type NavState = "PENDING" | "DONE" | "NOT_REGISTERED" | "NOT_PERMITTED" | "UNAVAILABLE" | "FAILED";
 type ThreadItem =
   | { id: number; from: "user"; text: string }
-  | { id: number; from: "tom"; reply: AssistantReply; nav?: NavState; pending?: boolean };
+  | { id: number; from: "tom"; reply: AssistantReply; nav?: NavState; pending?: boolean; notice?: string };
 
 const MAX_THREAD = 12;
 
@@ -259,34 +259,56 @@ export function Tom({
     }
   }
 
-  /**
-   * Asks the assistant server. Returns an AI_ANSWER only for ANSWERED /
-   * NEEDS_CLARIFICATION; anything else (unsupported, unavailable, invalid,
-   * error) returns null so the local deterministic reply is used.
-   */
-  async function askServer(q: string): Promise<AssistantReply | null> {
-    try {
-      const res = await assistant.interpret({ question: q, context: { screen: context, locale } });
-      if (res.status === "SAFETY_REDIRECT") return { kind: "EMERGENCY_FALLBACK" };
-      if (res.status !== "ANSWERED" && res.status !== "NEEDS_CLARIFICATION") return null;
-      return {
-        kind: "AI_ANSWER",
-        status: res.status,
-        answer: res.answer,
-        references: res.references,
-        action: checkSuggestedAction(res.suggestedAction, { destinations, tours, instructions }),
-        provider: res.provider,
-        degraded: res.degraded,
-      };
-    } catch {
-      return null;
+  /** Recent turns for follow-up questions: user questions and server answers only. */
+  function recentHistory(): AssistantHistoryTurn[] {
+    const turns: AssistantHistoryTurn[] = [];
+    for (const item of thread) {
+      if (item.from === "user") turns.push({ role: "user", content: item.text });
+      else if (item.reply.kind === "SERVER_ANSWER" && item.reply.origin.source === "AI") {
+        turns.push({ role: "assistant", content: item.reply.answer });
+      }
     }
+    return turns.slice(-HISTORY_MAX_TURNS);
+  }
+
+  /**
+   * Asks the assistant API. Returns a validated SERVER_ANSWER, or a notice
+   * explaining why Tom is answering from built-in help instead.
+   */
+  async function askServer(q: string, history: AssistantHistoryTurn[]): Promise<{ reply: AssistantReply } | { notice: string }> {
+    try {
+      const res = await assistant.interpret({ question: q, context: { screen: context, locale }, history });
+      if (res.type === "safety_redirect") return { reply: { kind: "EMERGENCY_FALLBACK" } };
+      if (res.type === "unavailable") return { notice: m.aiServiceUnavailable(reasonText(res.origin.fallbackReason)) };
+      return {
+        reply: {
+          kind: "SERVER_ANSWER",
+          responseType: res.type,
+          answer: res.answer,
+          references: res.references,
+          action: checkSuggestedAction(res.action, { destinations, tours, instructions }),
+          origin: res.origin,
+        },
+      };
+    } catch (error) {
+      if (error instanceof AssistantHttpError) {
+        if (error.status === 401 || error.status === 403) return { notice: m.aiSignedOut };
+        if (error.status === 429) return { notice: m.aiRateLimited(error.retryAfter) };
+        if (error.code === "INVALID_RESPONSE") return { notice: m.aiInvalid };
+      }
+      return { notice: m.aiUnreachable };
+    }
+  }
+
+  function reasonText(reason: AssistantFallbackReason | null): string {
+    return reason ? m.fallbackReasons[reason] : m.fallbackReasons.UNAVAILABLE;
   }
 
   async function ask(text: string) {
     const q = text.trim();
     if (!q) return;
     markOnboarded();
+    const history = recentHistory();
     setThread((t) => [...t, { id: nextId.current++, from: "user" as const, text: q }].slice(-MAX_THREAD));
     setQuestion("");
     const local = interpret(q, assistantCtx);
@@ -295,9 +317,15 @@ export function Tom({
       return;
     }
     const waitId = pushTom({ kind: "EMPTY" }, { pending: true });
-    const remote = await askServer(q);
+    const result = await askServer(q, history);
     setThread((t) => t.filter((i) => i.id !== waitId));
-    await act(remote ?? local);
+    if ("reply" in result) {
+      await act(result.reply);
+    } else if (local.kind === "NAVIGATE" || local.kind === "BACK") {
+      await act(local);
+    } else {
+      pushTom(local, { notice: result.notice });
+    }
   }
 
   // ---- render ------------------------------------------------------------
@@ -411,7 +439,16 @@ export function Tom({
                     </p>
                   ) : (
                     <div key={item.id} className="sc-tom__msg sc-tom__msg--tom" data-reply={item.reply.kind}>
-                      {item.pending && <p className="sc-tom__muted">{m.thinking}</p>}
+                      {item.pending && (
+                        <p className="sc-tom__muted sc-tom__thinking" aria-busy="true">
+                          {m.thinking}
+                        </p>
+                      )}
+                      {item.notice && (
+                        <p className="sc-tom__notice" data-notice>
+                          {item.notice}
+                        </p>
+                      )}
                       <ReplyView
                         item={item}
                         m={m}
@@ -569,14 +606,22 @@ function ReplyView({
     switch (r.kind) {
       case "EMPTY":
         return null;
-      case "AI_ANSWER": {
+      case "SERVER_ANSWER": {
+        const o = r.origin;
         const label =
-          r.provider.kind === "LLM" ? m.aiAnswerLabel : r.provider.kind === "MOCK" ? m.mockAnswerLabel : m.rulesAnswerLabel;
+          o.source === "AI"
+            ? o.provider === "mock"
+              ? m.mockAnswerLabel
+              : m.aiAnswerLabel(o.provider, o.model)
+            : o.source === "RULES"
+              ? m.rulesAnswerLabel
+              : m.fallbackLabel(m.fallbackReasons[o.fallbackReason ?? "UNAVAILABLE"]);
         const a = r.action;
         return (
           <>
-            <p className="sc-tom__ai-label">{label}</p>
-            {r.degraded && <p className="sc-tom__muted">{m.degradedNote}</p>}
+            <p className="sc-tom__ai-label" data-origin={o.source}>
+              {label}
+            </p>
             <p>{r.answer}</p>
             {r.references.length > 0 && (
               <div className="sc-tom__refs">

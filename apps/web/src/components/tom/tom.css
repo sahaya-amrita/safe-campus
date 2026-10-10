@@ -182,6 +182,13 @@
 }
 .sc-tom__panel button.sc-tom__chip--primary { background: var(--tom-accent); border-color: var(--tom-accent); color: var(--tom-accent-fg); }
 .sc-tom__proto { font-size: 0.78rem; }
+.sc-tom__ai-label { font-size: 0.75rem; font-weight: 650; color: var(--tom-muted); }
+.sc-tom__ai-label[data-origin="AI"] { color: var(--tom-accent); }
+.sc-tom__notice { font-size: 0.82rem; border-left: 3px solid var(--tom-hat); padding-left: 0.5rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .sc-tom__thinking { animation: sc-tom-pulse 1.2s ease-in-out infinite; }
+}
+@keyframes sc-tom-pulse { 50% { opacity: 0.45; } }
 .sc-tom__source { font-size: 0.8rem; }
 .sc-tom__toggle { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; color: var(--tom-muted); margin-bottom: 0.35rem; }
 .sc-tom__foot { display: grid; justify-items: start; }

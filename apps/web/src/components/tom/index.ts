@@ -10,10 +10,13 @@ export {
   disabledAssistantBackend,
   validateInterpretResponse,
   type AssistantAction,
+  type AssistantFallbackReason,
+  type AssistantHistoryTurn,
   type AssistantInterpretRequest,
   type AssistantInterpretResponse,
+  type AssistantOrigin,
   type AssistantReference,
-  type AssistantStatus,
+  type AssistantResponseType,
   type TomAssistantBackend,
 } from "./assistantClient";
 export {

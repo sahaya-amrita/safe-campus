@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CampusContact } from "../../features/responder/campusDirectory";
 import { CAMPUS_CONTACTS } from "../../features/responder/campusDirectory";
 import { disabledTomAi, mockTomAi, type TomAiAdapter } from "./aiAdapter";
-import type { AssistantInterpretResponse, TomAssistantBackend } from "./assistantClient";
+import { AssistantHttpError, type AssistantInterpretResponse, type TomAssistantBackend } from "./assistantClient";
 import { DEFAULT_TOM_KNOWLEDGE } from "./knowledgeBase";
 import type { TomDestination, TomNavigationAdapter } from "./navigation";
 import { Tom } from "./Tom";
@@ -644,87 +644,117 @@ describe("AI adapters", () => {
   });
 
   const serverReply = (over: Partial<AssistantInterpretResponse> = {}): AssistantInterpretResponse => ({
-    status: "ANSWERED",
+    type: "navigation_suggestion",
     answer: "Hazard reports are reviewed in Hazard review.",
-    suggestedAction: { type: "NAVIGATE", destinationId: "responder.hazard-review" },
-    references: [{ id: "help.hazard-review", kind: "APP_HELP", title: "Reviewing hazard reports", version: "1", source: "SAFE CAMPUS app help v1", reviewState: "APPROVED" }],
-    provider: { kind: "LLM", model: "claude-opus-5-5" },
-    degraded: false,
+    action: { type: "NAVIGATE", destinationId: "responder.hazard-review" },
+    references: [{ id: "screen.hazard-review", kind: "SCREEN_GUIDE", title: "Hazard review screen", version: "1", source: "SAFE CAMPUS app help (draft v1)", reviewState: "DRAFT" }],
+    origin: { source: "AI", provider: "groq", model: "test-model", fallbackReason: null },
     generatedAt: "2026-10-10T12:00:00Z",
     ...over,
   });
   const nav = { destinations: () => DESTS, current: () => "responder.help-requests", canNavigate: () => true, navigate: vi.fn(() => ({ ok: true as const })) };
+  const backend = (impl: TomAssistantBackend["interpret"]): TomAssistantBackend => ({ status: "CONFIGURED", interpret: vi.fn(impl) });
 
   it("shows a labelled, referenced AI answer; its suggestion is a button, never auto-executed", async () => {
     const user = userEvent.setup();
-    const interpretFn = vi.fn().mockResolvedValue(serverReply());
-    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={{ status: "CONFIGURED", interpret: interpretFn }} navigation={nav} {...quiet} />);
+    const b = backend(() => Promise.resolve(serverReply()));
+    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={b} navigation={nav} {...quiet} />);
     await openTom(user);
     const thread = await askTom(user, "where do the unverified things go");
-    await waitFor(() => expect(thread).toHaveTextContent("AI-generated answer based on approved SAFE CAMPUS help. Not an official instruction."));
-    expect(thread).toHaveTextContent("Reviewing hazard reports (SAFE CAMPUS app help v1, version 1)");
+    await waitFor(() => expect(thread).toHaveTextContent("AI answer (groq · test-model) based on SAFE CAMPUS help. Not an official instruction."));
+    expect(thread).toHaveTextContent("Hazard review screen (SAFE CAMPUS app help (draft v1), version 1) — draft, not yet reviewed");
     expect(nav.navigate).not.toHaveBeenCalled();
     await user.click(within(thread).getByRole("button", { name: "Go to Hazard review" }));
     await waitFor(() => expect(nav.navigate).toHaveBeenCalledWith("responder.hazard-review"));
-    // Minimal request: question + screen + locale only.
-    expect(interpretFn.mock.calls[0]![0]).toEqual({ question: "where do the unverified things go", context: { screen: "responder.help-requests", locale: "en" } });
+    expect(b.interpret).toHaveBeenCalledWith({ question: "where do the unverified things go", context: { screen: "responder.help-requests", locale: "en" }, history: [] });
+  });
+
+  it("sends bounded history of earlier AI exchanges for follow-ups", async () => {
+    const user = userEvent.setup();
+    const b = backend(() => Promise.resolve(serverReply({ type: "answer", action: null, answer: "Reviewers record a decision." })));
+    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={b} navigation={nav} {...quiet} />);
+    await openTom(user);
+    await askTom(user, "how are hazard reports reviewed?");
+    await waitFor(() => expect(log()).toHaveTextContent("Reviewers record a decision."));
+    await askTom(user, "and what does rejecting mean?");
+    await waitFor(() => expect(b.interpret).toHaveBeenCalledTimes(2));
+    expect((b.interpret as ReturnType<typeof vi.fn>).mock.calls[1]![0].history).toEqual([
+      { role: "user", content: "how are hazard reports reviewed?" },
+      { role: "assistant", content: "Reviewers record a decision." },
+    ]);
+  });
+
+  it("shows a loading state while waiting", async () => {
+    const user = userEvent.setup();
+    let release!: (r: AssistantInterpretResponse) => void;
+    const b = backend(() => new Promise((r) => (release = r)));
+    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={b} {...quiet} />);
+    await openTom(user);
+    const thread = await askTom(user, "zebra crossing paint colour");
+    expect(thread).toHaveTextContent("Tom is thinking…");
+    release(serverReply({ type: "answer", action: null }));
+    await waitFor(() => expect(thread).not.toHaveTextContent("Tom is thinking…"));
   });
 
   it("drops a server suggestion this client has not registered", async () => {
     const user = userEvent.setup();
-    const interpretFn = vi.fn().mockResolvedValue(serverReply({ suggestedAction: { type: "NAVIGATE", destinationId: "admin.delete-everything" } }));
-    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={{ status: "CONFIGURED", interpret: interpretFn }} navigation={nav} {...quiet} />);
+    const b = backend(() => Promise.resolve(serverReply({ action: { type: "NAVIGATE", destinationId: "admin.delete-everything" } })));
+    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={b} navigation={nav} {...quiet} />);
     await openTom(user);
     const thread = await askTom(user, "zebra crossing paint colour");
     await waitFor(() => expect(thread).toHaveTextContent("Hazard reports are reviewed"));
     expect(within(thread).queryByRole("button", { name: /Go to/ })).not.toBeInTheDocument();
   });
 
-  it("never sends emergencies or action requests to the server", async () => {
+  it("never sends emergencies, action requests or explicit navigation to the server", async () => {
     const user = userEvent.setup();
-    const interpretFn = vi.fn().mockResolvedValue(serverReply());
-    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={{ status: "CONFIGURED", interpret: interpretFn }} navigation={nav} {...quiet} />);
+    const b = backend(() => Promise.resolve(serverReply()));
+    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={b} navigation={nav} {...quiet} />);
     await openTom(user);
     await askTom(user, "there is a fire");
     await askTom(user, "acknowledge DEMO-HR-001");
     await askTom(user, "take me to hazard review");
-    expect(interpretFn).not.toHaveBeenCalled();
+    expect(b.interpret).not.toHaveBeenCalled();
   });
 
-  it("falls back to local help when the server is unavailable, unsupported or errors", async () => {
+  it.each<[string, () => Promise<AssistantInterpretResponse>, RegExp]>([
+    ["network error", () => Promise.reject(new AssistantHttpError(0, "NETWORK_ERROR")), /Couldn't reach the AI assistant/],
+    ["signed out", () => Promise.reject(new AssistantHttpError(401, "UNAUTHORIZED")), /Sign in to use the AI assistant/],
+    ["rate limited", () => Promise.reject(new AssistantHttpError(429, "RATE_LIMITED", 12)), /try again in 12 seconds/],
+    ["invalid reply", () => Promise.reject(new AssistantHttpError(502, "INVALID_RESPONSE")), /couldn't verify/],
+    ["server unavailable", () => Promise.resolve(serverReply({ type: "unavailable", action: null, references: [], origin: { source: "FALLBACK", provider: "rules", model: null, fallbackReason: "TIMEOUT" } })), /AI assistant is unavailable \(the AI took too long\)/],
+  ])("%s → explicit notice plus built-in help", async (_n, impl, notice) => {
     const user = userEvent.setup();
-    for (const impl of [
-      () => Promise.resolve(serverReply({ status: "UNAVAILABLE", suggestedAction: null, references: [] })),
-      () => Promise.resolve(serverReply({ status: "UNSUPPORTED", suggestedAction: null, references: [] })),
-      () => Promise.reject(new Error("timeout")),
-    ]) {
-      const { unmount } = render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={{ status: "CONFIGURED", interpret: vi.fn(impl) }} {...quiet} />);
-      await openTom(user);
-      const thread = await askTom(user, "zebra crossing paint colour");
-      await waitFor(() => expect(thread).toHaveTextContent("I don't know the answer to that."));
-      expect(thread).not.toHaveTextContent("AI-generated");
-      unmount();
-    }
-  });
-
-  it("labels mock and degraded answers honestly", async () => {
-    const user = userEvent.setup();
-    const interpretFn = vi
-      .fn()
-      .mockResolvedValueOnce(serverReply({ provider: { kind: "MOCK", model: null } }))
-      .mockResolvedValueOnce(serverReply({ provider: { kind: "RULES", model: null }, degraded: true }));
-    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={{ status: "CONFIGURED", interpret: interpretFn }} {...quiet} />);
+    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={backend(impl)} {...quiet} />);
     await openTom(user);
-    let thread = await askTom(user, "zebra one");
-    await waitFor(() => expect(thread).toHaveTextContent("Simulated (mock) assistant answer for development. Not an AI model"));
-    thread = await askTom(user, "zebra two");
-    await waitFor(() => expect(thread).toHaveTextContent("The AI service didn't answer, so this comes straight from approved help."));
+    const thread = await askTom(user, "zebra crossing paint colour");
+    await waitFor(() => expect(thread).toHaveTextContent(notice));
+    expect(thread).toHaveTextContent("I don't know the answer to that.");
+    expect(thread).not.toHaveTextContent("AI answer (");
   });
 
-  it("a SAFETY_REDIRECT from the server becomes the local emergency fallback", async () => {
+  it("labels fallback, rules and mock answers honestly", async () => {
     const user = userEvent.setup();
-    const interpretFn = vi.fn().mockResolvedValue(serverReply({ status: "SAFETY_REDIRECT", answer: "server text", suggestedAction: null }));
-    render(<Tom role="STUDENT" context="student.check-in" mode="DEMO" assistant={{ status: "CONFIGURED", interpret: interpretFn }} {...quiet} />);
+    const replies = [
+      serverReply({ type: "answer", action: null, origin: { source: "FALLBACK", provider: "rules", model: null, fallbackReason: "INVALID_OUTPUT" } }),
+      serverReply({ type: "unsupported", action: null, origin: { source: "RULES", provider: "rules", model: null, fallbackReason: null } }),
+      serverReply({ type: "answer", action: null, origin: { source: "AI", provider: "mock", model: null, fallbackReason: null } }),
+    ];
+    const b = backend(() => Promise.resolve(replies.shift()!));
+    render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" assistant={b} {...quiet} />);
+    await openTom(user);
+    const thread = await askTom(user, "zebra one");
+    await waitFor(() => expect(thread).toHaveTextContent("AI unavailable (the AI answer failed safety checks). Answer from Tom's built-in help."));
+    await askTom(user, "zebra two");
+    await waitFor(() => expect(thread).toHaveTextContent("Answer from Tom's fixed safety rules."));
+    await askTom(user, "zebra three");
+    await waitFor(() => expect(thread).toHaveTextContent("Simulated (mock) answer for development. Not a real AI model"));
+  });
+
+  it("a safety_redirect from the server becomes the local emergency fallback", async () => {
+    const user = userEvent.setup();
+    const b = backend(() => Promise.resolve(serverReply({ type: "safety_redirect", answer: "server text", action: null, origin: { source: "RULES", provider: "rules", model: null, fallbackReason: null } })));
+    render(<Tom role="STUDENT" context="student.check-in" mode="DEMO" assistant={b} {...quiet} />);
     await openTom(user);
     const thread = await askTom(user, "my friend feels faint");
     await waitFor(() => expect(thread).toHaveTextContent("I can't give emergency instructions, routes or contacts."));

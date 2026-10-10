@@ -89,10 +89,27 @@ export interface TomMessages {
   refuseWhere: (label: string) => string;
   sourceLink: string;
   thinking: string;
-  aiAnswerLabel: string;
+  aiAnswerLabel: (provider: string, model: string | null) => string;
   mockAnswerLabel: string;
   rulesAnswerLabel: string;
-  degradedNote: string;
+  fallbackLabel: (reason: string) => string;
+  fallbackReasons: Record<
+    | "PROVIDER_DISABLED"
+    | "PROVIDER_UNCONFIGURED"
+    | "MODEL_UNAVAILABLE"
+    | "TIMEOUT"
+    | "RATE_LIMITED"
+    | "REFUSED"
+    | "TRUNCATED"
+    | "INVALID_OUTPUT"
+    | "UNAVAILABLE",
+    string
+  >;
+  aiServiceUnavailable: (reason: string) => string;
+  aiUnreachable: string;
+  aiSignedOut: string;
+  aiRateLimited: (retryAfter: number | null) => string;
+  aiInvalid: string;
   basedOn: string;
   refMeta: (source: string, version: string) => string;
   draftRef: string;
@@ -161,7 +178,7 @@ export const TOM_MESSAGES_EN: TomMessages = {
   prototypeNotice:
     "Functional prototype: Tom matches your words to a fixed list of app help, sections and tours. It is not an AI model.",
   prototypeNoticeAi:
-    "Tom answers some questions with an AI assistant that uses only approved SAFE CAMPUS help. AI answers are labelled and are never official instructions. Emergencies and actions are always handled by fixed rules.",
+    "Tom answers open questions with a hosted AI model, grounded in SAFE CAMPUS help and checked by the server. Every answer says whether it came from AI or built-in help. Emergencies and requests to take actions are always handled by fixed rules and never sent to the AI.",
   you: "You",
   suggestionsLabel: "Try asking",
   navTaking: (label, description) => `Taking you to ${label}. ${description}`,
@@ -186,11 +203,29 @@ export const TOM_MESSAGES_EN: TomMessages = {
   refuse: (action) => `I can't ${action} for you. Tom never takes actions on your behalf.`,
   refuseWhere: (label) => `You can do it yourself in ${label}.`,
   sourceLink: "source",
-  thinking: "Looking that up…",
-  aiAnswerLabel: "AI-generated answer based on approved SAFE CAMPUS help. Not an official instruction.",
-  mockAnswerLabel: "Simulated (mock) assistant answer for development. Not an AI model and not an official instruction.",
-  rulesAnswerLabel: "Answer from approved SAFE CAMPUS help.",
-  degradedNote: "The AI service didn't answer, so this comes straight from approved help.",
+  thinking: "Tom is thinking…",
+  aiAnswerLabel: (provider, model) =>
+    `AI answer (${provider}${model ? ` · ${model}` : ""}) based on SAFE CAMPUS help. Not an official instruction.`,
+  mockAnswerLabel: "Simulated (mock) answer for development. Not a real AI model and not an official instruction.",
+  rulesAnswerLabel: "Answer from Tom's fixed safety rules.",
+  fallbackLabel: (reason) => `AI unavailable (${reason}). Answer from Tom's built-in help.`,
+  fallbackReasons: {
+    PROVIDER_DISABLED: "AI is switched off on this server",
+    PROVIDER_UNCONFIGURED: "the AI provider isn't configured",
+    MODEL_UNAVAILABLE: "the configured AI model isn't available",
+    TIMEOUT: "the AI took too long",
+    RATE_LIMITED: "the AI usage limit was reached",
+    REFUSED: "the AI declined",
+    TRUNCATED: "the AI answer was cut off",
+    INVALID_OUTPUT: "the AI answer failed safety checks",
+    UNAVAILABLE: "the AI service is unavailable",
+  },
+  aiServiceUnavailable: (reason) => `The AI assistant is unavailable (${reason}). Here's Tom's built-in help instead.`,
+  aiUnreachable: "Couldn't reach the AI assistant. Here's Tom's built-in help instead.",
+  aiSignedOut: "Sign in to use the AI assistant. Here's Tom's built-in help instead.",
+  aiRateLimited: (retryAfter) =>
+    `You've asked a lot of questions quickly${retryAfter ? `; try again in ${retryAfter} seconds` : ""}. Here's Tom's built-in help instead.`,
+  aiInvalid: "The AI assistant sent a reply Tom couldn't verify, so it wasn't shown. Here's Tom's built-in help instead.",
   basedOn: "Based on:",
   refMeta: (source, version) => `${source}, version ${version}`,
   draftRef: "draft, not yet reviewed",
