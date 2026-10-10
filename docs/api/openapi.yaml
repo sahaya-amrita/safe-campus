@@ -483,6 +483,55 @@ paths:
       responses:
         '201': { description: Draft drill configuration }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /drills/preflight:
+    get:
+      tags: [Drills]
+      operationId: getDrillPreflight
+      summary: Checks the drill console runs before a start (staff only)
+      responses:
+        '200':
+          {
+            description: 'verifiedIncidentsOpen, activeDrills and canStart (false while a verified incident is open)',
+          }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /drills/stop-all:
+    post:
+      tags: [Drills]
+      operationId: stopAllDrills
+      summary: Kill switch. Any staff member can stop every ACTIVE drill (audited)
+      responses:
+        '200': { description: 'Number and ids of drills stopped' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /drills/{drillId}/start:
+    post:
+      tags: [Drills]
+      operationId: startDrill
+      summary: Start a DRAFT or AUTHORIZED drill (drill manager or admin)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: drillId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Drill now ACTIVE with startedAt }
+        '409':
+          {
+            description: 'Drill not startable, or LIVE_INCIDENT_ACTIVE while a verified incident is open',
+          }
+  /drills/{drillId}/stop:
+    post:
+      tags: [Drills]
+      operationId: stopDrill
+      summary: Stop an ACTIVE drill (any staff; idempotent)
+      parameters:
+        - name: drillId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Drill COMPLETED with stoppedAt and stopReason }
+        '404': { $ref: '#/components/responses/NotFound' }
   /drills/{drillId}/metrics:
     get:
       tags: [Drills]
@@ -600,6 +649,48 @@ paths:
       responses:
         '200': { description: Up to 200 buildings }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /maps/blocks:
+    get:
+      tags: [Maps]
+      operationId: listRouteBlocks
+      summary: Active responder-marked blocked areas (routing avoids them)
+      responses:
+        '200': { description: 'Blocks with longitude, latitude, radiusM, reason, mode, createdAt' }
+    post:
+      tags: [Maps]
+      operationId: createRouteBlock
+      summary: Mark an area impassable (responder or admin; audited)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [longitude, latitude, radiusM, reason]
+              properties:
+                longitude: { type: number, minimum: 76.88, maximum: 76.92 }
+                latitude: { type: number, minimum: 10.88, maximum: 10.93 }
+                radiusM: { type: integer, minimum: 5, maximum: 200 }
+                reason: { type: string, minLength: 3, maxLength: 200 }
+      responses:
+        '201': { description: Block created }
+        '400': { description: Invalid body or location outside the campus bounds }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /maps/blocks/{blockId}/clear:
+    post:
+      tags: [Maps]
+      operationId: clearRouteBlock
+      summary: Clear a block (responder or admin; idempotent; audited)
+      parameters:
+        - name: blockId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Block with clearedAt set }
+        '404': { $ref: '#/components/responses/NotFound' }
   /maps/{buildingId}/approved:
     get:
       tags: [Maps]

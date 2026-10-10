@@ -88,7 +88,7 @@ export function createApp(
   app.use('/api/v1/trusted-contacts', trustedContactsRouter(pool, config));
   app.use('/api/v1/drills', drillsRouter(pool));
   app.use('/api/v1/training', trainingRouter(pool));
-  app.use('/api/v1/maps', mapsRouter(pool));
+  app.use('/api/v1/maps', mapsRouter(pool, config));
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;

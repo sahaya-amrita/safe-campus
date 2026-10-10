@@ -14,7 +14,7 @@ export function isEmergencyQuestion(q: string): boolean {
 const POLITE =
   '(?:(?:hey |hi |ok |okay )?tom[,:]? |please |can you |could you |would you |will you |go ahead and |just |i want you to )*';
 const ACTION_REQUEST = new RegExp(
-  `^${POLITE}(acknowledge|ack|verify|approve|reject|confirm|mark|send|broadcast|alert|notify|announce|call|phone|dial|text|message|email|contact|dispatch|submit|report|file|log|assign|resolve|close|cancel|delete|dismiss|change|update|edit|raise)\\b`,
+  `^${POLITE}(acknowledge|ack|verify|approve|reject|confirm|mark|send|broadcast|alert|notify|announce|call|phone|dial|text|message|email|contact|dispatch|submit|report|file|log|assign|resolve|close|cancel|delete|dismiss|change|update|edit|raise|stop|block|unblock)\\b`,
   'i',
 );
 const QUESTION =

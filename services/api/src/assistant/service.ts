@@ -89,16 +89,37 @@ const TEXT = {
 };
 
 const ACTION_DESTINATION: Array<[RegExp, string]> = [
-  [/\b(acknowledge|ack)\b/i, 'responder.help-requests'],
-  [/\b(verify|approve|reject|mark|duplicate)\b/i, 'responder.hazard-review'],
+  [/\b(acknowledge|ack|assign)\b/i, 'responder.help-requests'],
+  [/\b(verify|approve|reject|refute|confirm|mark|duplicate)\b/i, 'responder.incidents'],
+  [/\bdrills?\b/i, 'responder.drills'],
+  [/\b(block|blocked|unblock)\b/i, 'responder.map'],
   [/\b(call|phone|dial|contact|ring)\b/i, 'responder.contacts'],
 ];
 
 const DEST_WORDS: Record<string, string[]> = {
-  'responder.help-requests': ['help requests', 'help request', 'requests', 'queue'],
-  'responder.hazard-review': ['hazard review', 'hazards', 'hazard', 'reports'],
-  'responder.roll-call': ['roll call', 'roll-call', 'rollcall', 'attendance', 'headcount'],
+  'responder.overview': [
+    'overview',
+    'control room',
+    'dashboard',
+    'check-ins',
+    'roll call',
+    'roll-call',
+    'headcount',
+  ],
+  'responder.help-requests': ['help requests', 'help request', 'requests'],
+  'responder.incidents': ['incidents', 'incident', 'hazard queue', 'hazards', 'hazard', 'reports'],
+  'responder.dispatches': ['dispatches', 'dispatch'],
+  'responder.alerts': ['alerts', 'alert'],
+  'responder.packs': ['instruction packs', 'packs', 'pack'],
+  'responder.drills': ['drill console', 'drills', 'drill'],
+  'responder.map': ['campus map', 'map', 'blocked areas', 'routes'],
   'responder.contacts': ['contacts', 'contact numbers', 'phone numbers', 'directory', 'resources'],
+  'student.home': ['home'],
+  'student.map': ['campus map', 'map', 'routes'],
+  'student.alerts': ['alerts', 'alert'],
+  'student.prepare': ['prepare', 'instructions', 'practice'],
+  'student.profile': ['profile', 'trusted contacts', 'settings'],
+  'student.report': ['report an incident', 'report'],
 };
 
 export class AssistantService {

@@ -84,8 +84,8 @@ const good: ModelOutput = {
   type: 'navigation_suggestion',
   answer:
     'Reported hazards are reviewed on the Hazard review screen, where a reviewer records a decision.',
-  action: { kind: 'NAVIGATE', target: 'responder.hazard-review' },
-  referenceIds: ['screen.hazard-review'],
+  action: { kind: 'NAVIGATE', target: 'responder.incidents' },
+  referenceIds: ['screen.incidents'],
 };
 
 let pool: DatabasePool;
@@ -147,11 +147,11 @@ describe('AI answers through the real HTTP stack (mocked Groq client)', () => {
     expect(assistantInterpretResponseSchema.safeParse(res.body).success).toBe(true);
     expect(res.body).toMatchObject({
       type: 'navigation_suggestion',
-      action: { type: 'NAVIGATE', destinationId: 'responder.hazard-review' },
+      action: { type: 'NAVIGATE', destinationId: 'responder.incidents' },
       origin: { source: 'AI', provider: 'groq', model: MODEL, fallbackReason: null },
     });
     expect(res.body.references[0]).toMatchObject({
-      id: 'screen.hazard-review',
+      id: 'screen.incidents',
       reviewState: 'DRAFT',
     });
     // Uses Groq structured outputs in strict mode.
@@ -173,7 +173,7 @@ describe('AI answers through the real HTTP stack (mocked Groq client)', () => {
     const res = await ask(
       appWith(groqProvider(g.client)),
       body('my colleague wants to know why some cards have a dotted edge', {
-        context: { screen: 'responder.hazard-review', locale: 'en' },
+        context: { screen: 'responder.incidents', locale: 'en' },
       }),
     );
     expect(g.create).toHaveBeenCalledOnce();
@@ -365,7 +365,7 @@ describe('authentication and authorization', () => {
 
   it('roles come from the token: a student cannot be sent to responder screens', async () => {
     const g = fakeGroq((p) => {
-      expect(p.messages[1]!.content).not.toContain('responder.hazard-review');
+      expect(p.messages[1]!.content).not.toContain('responder.incidents');
       return completion(good);
     });
     const res = await ask(
@@ -531,7 +531,7 @@ describe('provider failures fall back honestly', () => {
     const res = await ask(appWith(null), body('take me to roll call'));
     expect(res.body).toMatchObject({
       type: 'navigation_suggestion',
-      action: { type: 'NAVIGATE', destinationId: 'responder.roll-call' },
+      action: { type: 'NAVIGATE', destinationId: 'responder.overview' },
       origin: { source: 'FALLBACK', fallbackReason: 'PROVIDER_DISABLED' },
     });
   });
@@ -545,6 +545,8 @@ describe('consequential actions and emergencies never reach the model', () => {
     'Tom, submit a help request for me',
     'resolve the incident',
     'change the record',
+    'stop the drill now',
+    'block the path near the library',
   ])('%s → refused by rules', async (q) => {
     const g = fakeGroq(() => completion(good));
     const res = await ask(appWith(groqProvider(g.client)), body(q));
@@ -556,6 +558,8 @@ describe('consequential actions and emergencies never reach the model', () => {
   it('refusal points to the right authorised workflow', async () => {
     const res = await ask(appWith(null), body('acknowledge the oldest request'));
     expect(res.body.action).toEqual({ type: 'NAVIGATE', destinationId: 'responder.help-requests' });
+    const drill = await ask(appWith(null), body('stop the drill'));
+    expect(drill.body.action).toEqual({ type: 'NAVIGATE', destinationId: 'responder.drills' });
   });
 
   it.each([
@@ -577,7 +581,7 @@ describe('consequential actions and emergencies never reach the model', () => {
         type: 'answer',
         answer: 'Roll call shows check-ins for one stated scope.',
         action: { kind: 'NONE', target: '' },
-        referenceIds: ['screen.roll-call'],
+        referenceIds: ['screen.checkins'],
       }),
     );
     const res = await ask(appWith(groqProvider(g.client)), body('explain roll call'));

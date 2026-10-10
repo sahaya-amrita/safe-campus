@@ -14,6 +14,8 @@ import { withTransaction } from '../db.js';
 import { ApiError, badRequest, forbidden, notFound } from '../errors.js';
 import { validateBody, requireRoles, validateUuidParam } from '../middleware.js';
 import { writeAudit } from '../audit.js';
+import { stopActiveDrills } from './drills.js';
+import { hazardLevel } from '../hazardLevel.js';
 import {
   getIdempotentResponse,
   requestHash,
@@ -30,6 +32,49 @@ function duplicateKey(type: string, zoneId: string | undefined, occurredAt?: str
   return createHash('sha256')
     .update(`${type.trim().toLowerCase()}|${zoneId ?? 'unknown'}|${bucket}`)
     .digest('hex');
+}
+
+/**
+ * Staff-only corroboration facts for the hazard queue: how many reports and
+ * distinct reporters an incident has, which other open incidents look like the
+ * same event (same type, zone and 15-minute window), and the derived level.
+ * Students never receive these fields (blueprint §13.4: no raw crowd clusters).
+ */
+interface IncidentRow {
+  id: string;
+  createdAt: Date;
+  verificationStatus: HazardVerificationStatus;
+  duplicateGroupKey: string;
+  [key: string]: unknown;
+}
+
+async function withCorroboration(pool: DatabasePool, rows: IncidentRow[]) {
+  if (!rows.length) return [];
+  const ids = rows.map((row) => row.id);
+  const keys = [...new Set(rows.map((row) => row.duplicateGroupKey))];
+  const list = (values: string[]) => values.map((_, i) => `$${i + 1}`).join(', ');
+  const reports = await pool.query<{ incident_id: string; reporter_id: string }>(
+    `SELECT incident_id, reporter_id FROM incident_reports WHERE incident_id IN (${list(ids)})`,
+    ids,
+  );
+  const related = await pool.query<{ id: string; key: string; reporter_id: string }>(
+    `SELECT id, duplicate_group_key AS key, reporter_id FROM incidents
+     WHERE duplicate_group_key IN (${list(keys)})
+       AND verification_status IN ('REPORTED', 'CORROBORATED')`,
+    keys,
+  );
+  return rows.map(({ duplicateGroupKey, ...row }) => {
+    const own = reports.rows.filter((r) => r.incident_id === row.id);
+    const group = related.rows.filter((r) => r.key === duplicateGroupKey);
+    const reporters = new Set([...own, ...group].map((r) => r.reporter_id));
+    return {
+      ...row,
+      reportCount: Math.max(1, own.length),
+      independentReporters: reporters.size,
+      relatedIncidentIds: group.map((r) => r.id).filter((id) => id !== row.id),
+      level: hazardLevel(row.verificationStatus, reporters.size),
+    };
+  });
 }
 
 export function incidentsRouter(pool: DatabasePool, config: Config) {
@@ -160,20 +205,19 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
       );
     }
     values.push(parsed.data.limit + 1);
-    const result = await pool.query<{
-      id: string;
-      reporter_id: string;
-      createdAt: Date;
-      [key: string]: unknown;
-    }>(
+    const result = await pool.query<IncidentRow>(
       `SELECT id, type, description, priority, verification_status AS "verificationStatus",
               mode, building_id AS "buildingId", floor_id AS "floorId", zone_id AS "zoneId",
-              reporter_id AS "reporterId", server_received_at AS "serverReceivedAt", created_at AS "createdAt"
+              reporter_id AS "reporterId", server_received_at AS "serverReceivedAt", created_at AS "createdAt",
+              duplicate_group_key AS "duplicateGroupKey"
        FROM incidents ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
        ORDER BY created_at DESC, id DESC LIMIT $${values.length}`,
       values,
     );
-    response.json(paginatedResponse(result.rows, parsed.data.limit));
+    const rows = privileged
+      ? await withCorroboration(pool, result.rows)
+      : result.rows.map(({ duplicateGroupKey: _key, ...row }) => row);
+    response.json(paginatedResponse(rows, parsed.data.limit));
   });
 
   router.get('/:incidentId', validateUuidParam('incidentId'), async (request, response) => {
@@ -281,7 +325,17 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
           entityId: incidentId,
           metadata: { from: current, to: body.status, reason: body.reason },
         });
-        const responseBody = { ...inserted.rows[0], fromStatus: current, toStatus: body.status };
+        // A verified live incident suspends every running drill.
+        const suspendedDrills =
+          body.status === 'VERIFIED'
+            ? await stopActiveDrills(client, auth.id, 'LIVE_INCIDENT_VERIFIED')
+            : [];
+        const responseBody = {
+          ...inserted.rows[0],
+          fromStatus: current,
+          toStatus: body.status,
+          suspendedDrills: suspendedDrills.length,
+        };
         await saveIdempotentResponse(
           client,
           auth.id,
