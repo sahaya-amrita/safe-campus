@@ -1,0 +1,30 @@
+{
+  "name": "@safe-campus/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "TEMPORARY bootstrap scaffold for the SAFE CAMPUS web client. Integration-owned; see SCAFFOLD.md.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^29.1.1",
+    "typescript": "~5.9",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}
