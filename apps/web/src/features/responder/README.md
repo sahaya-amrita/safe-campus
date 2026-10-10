@@ -105,21 +105,23 @@ function ResponderRoute() {
   tour, links approved instructions, gives the emergency fallback, refuses
   consequential actions, asks "which one did you mean?", and says "I don't know".
   It is labelled in the UI as a functional prototype.
-- **Optional AI assistant server: PROPOSED, not built.** The proposal is in
-  [`components/tom/assistant-api/ASSISTANT_API_PROPOSAL.md`](../../components/tom/assistant-api/ASSISTANT_API_PROPOSAL.md),
-  with tested reference server code in `REFERENCE_IMPLEMENTATION.md`, for Codex 1
-  to adopt.
-  - Tom's client (`HttpTomAssistantBackend`) is implemented and disabled until
-    the shell passes `assistant={...}`.
-  - It sends only `{ question, context: { screen, locale } }` with the
-    session's Bearer token, and contains no model keys.
-  - It validates the response strictly and keeps a suggested action only if the
-    host registered that target.
+- **AI assistant: implemented on the API branch `feat/tom-assistant-api`** (draft PR
+  into `develop`). It is `POST /api/v1/assistant/interpret` with a Groq provider,
+  a deterministic fallback, and the strict validation described in
+  `services/api/src/assistant/README.md` on that branch.
+  - Tom's client (`HttpTomAssistantBackend`) is used only when the shell passes
+    `assistant={...}`.
+  - It sends the question, screen, locale and up to 6 recent turns, with the
+    session's Bearer token. It contains no model keys.
+  - It validates the response strictly, including origin consistency, and keeps
+    a suggested action only if the host registered that target.
   - Emergencies, refusals, explicit navigation, back, tours and instruction
     requests are always answered locally and never sent.
-  - AI answers are labelled by provider (LLM / MOCK / RULES), show their approved
-    references, and are never official instructions.
-  - AI is never used in LIVE mode.
+  - Every server answer is labelled by its real origin: AI (provider and model),
+    fixed rules, or AI-unavailable fallback with the reason. When the API is
+    unreachable, the user is signed out, rate-limited, or a reply fails
+    validation, Tom says so and shows built-in help.
+  - Never used in LIVE mode.
 
 ### Onboarding and shortcut
 

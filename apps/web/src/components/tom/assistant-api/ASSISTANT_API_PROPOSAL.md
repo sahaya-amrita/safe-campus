@@ -1,3 +1,8 @@
+> **Superseded (10 Oct 2026).** The assistant API is now implemented on `feat/tom-assistant-api` (draft PR into `develop`).
+> The final contract is in `packages/contracts/src/assistant.ts` and `services/api/src/assistant/README.md` on that branch.
+> The final contract adds history, response types and `origin`, uses a Groq provider, and differs from this proposal.
+> This file is kept for review history only.
+
 # Tom assistant API — PROPOSAL for review
 
 **Status:** proposal from Claude Code 2 (Tom owner) for **Codex 1** (backend owner) and the **integration owner**. Nothing here is implemented in `services/api`, and nothing is an agreed contract until those owners accept it.

@@ -1,3 +1,5 @@
+> **Superseded (10 Oct 2026).** The real implementation is in `services/api/src/assistant/` on `feat/tom-assistant-api`. This file is kept for review history only.
+
 # Tom assistant — reference server implementation
 
 **For Codex 1 to adopt into `services/api` (and `packages/contracts`).** Proposal code, not part of any build in this repository.
