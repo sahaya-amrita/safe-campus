@@ -1,0 +1,70 @@
+# Render Blueprint for the SAFE CAMPUS DEMO deployment with Tom's AI assistant.
+# Integration-owned file: proposed by the Tom owner; review with Codex 1 and the
+# integration owner before relying on it. See services/api/src/assistant/README.md.
+#
+# Secrets (GROQ_API_KEY) are entered in Render's dashboard when the Blueprint is
+# created (sync: false) and are never committed. The static site receives only
+# the API's public URL.
+services:
+  - type: web
+    name: safe-campus-api
+    runtime: node
+    plan: free
+    branch: feat/tom-assistant-api
+    buildCommand: npx -y pnpm@11.25.0 install --frozen-lockfile --prod=false && npx -y pnpm@11.25.0 build
+    # Migrations and the fictional DEMO seed are idempotent, so they run on every start.
+    startCommand: node services/api/dist/scripts/migrate.js && node services/api/dist/scripts/seed.js && node services/api/dist/server.js
+    healthCheckPath: /api/v1/assistant/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: '22'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: safe-campus-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OPERATING_MODE
+        value: DEMO
+      - key: LOG_LEVEL
+        value: info
+      - key: CORS_ALLOWED_ORIGINS
+        fromService:
+          type: web
+          name: safe-campus-web
+          property: host
+      - key: ASSISTANT_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        sync: false
+      - key: ASSISTANT_ALLOW_DRAFT_CONTENT
+        value: 'true'
+      - key: ASSISTANT_TIMEOUT_MS
+        value: '12000'
+      - key: ASSISTANT_PROVIDER_MAX_PER_MINUTE
+        value: '25'
+      - key: ASSISTANT_PROVIDER_MAX_PER_DAY
+        value: '900'
+
+  - type: web
+    name: safe-campus-web
+    runtime: static
+    branch: feat/responder-dashboard
+    buildCommand: cd apps/responder-dashboard && npm ci && npm run build
+    staticPublishPath: apps/responder-dashboard/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: safe-campus-api
+          property: host
+
+databases:
+  - name: safe-campus-db
+    plan: free
+    databaseName: sahaya
+    user: sahaya

@@ -90,6 +90,18 @@ Reviewers/admins create versioned drafts through `POST /instruction-packs`; revi
 - `GET /maps/{buildingId}/approved` returns versioned geometry metadata and disables routing when unapproved.
 - Drill APIs support authorized configuration, aggregate metrics, training results, and check-ins. Real alarms and notifications are forbidden.
 
+## Assistant (Tom)
+
+`POST /api/v1/assistant/interpret` (authenticated, any role; rate-limited per user, `429 RATE_LIMITED` with `Retry-After`) and `GET /api/v1/assistant/health` (public, secret-free). Schemas: `packages/contracts/src/assistant.ts`, `docs/api/openapi.yaml`.
+
+- **Request:** `{ question (1–500), context: { screen, locale: en|ta }, history? (≤6 × ≤600) }`. Unknown fields return `400 VALIDATION_ERROR`. Roles come only from the access token. Body ≤ 8 KB (`413`).
+- **Response:** `{ type, answer, action, references, origin, generatedAt }`.
+  - `type`: `answer | clarification | navigation_suggestion | guided_tour | safety_redirect | unsupported | unavailable`.
+  - `action`: `null` or an allowlisted, role-permitted suggestion (`NAVIGATE`, `START_GUIDED_TOUR`, `OPEN_APPROVED_INSTRUCTIONS`) that is **never executed by the server or automatically by the client**.
+  - `origin.source`: `AI | RULES | FALLBACK`, with `fallbackReason` for fallbacks.
+- **Safety:** emergencies and requests to perform actions are answered by fixed rules and never sent to a model. Model text is never an official instruction.
+- **Details:** `services/api/src/assistant/README.md`.
+
 ## Validation and errors
 
 Representative statuses are `200/201` success, `400 VALIDATION_ERROR` or invalid transition, `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 NOT_FOUND`, and `409 CONFLICT` for idempotency misuse or uniqueness conflicts. Internal SQL, tokens, credentials, and private records are never returned.

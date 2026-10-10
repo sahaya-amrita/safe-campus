@@ -578,6 +578,49 @@ paths:
       responses:
         '200': { description: Versioned building/floor/zone metadata and explicit approval flags }
         '404': { $ref: '#/components/responses/NotFound' }
+  /assistant/health:
+    get:
+      tags: [Assistant]
+      security: []
+      operationId: getAssistantHealth
+      summary: Secret-free status of Tom's AI provider
+      responses:
+        '200':
+          description: Provider, configured model id and whether it was verified against the provider's model list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantHealth' }
+  /assistant/interpret:
+    post:
+      tags: [Assistant]
+      operationId: interpretAssistantQuestion
+      summary: Ask Tom a question about using SAFE CAMPUS
+      description: >-
+        Roles come only from the access token. Emergencies and requests to perform actions are answered by
+        fixed rules and never sent to a model. Suggested actions are never executed by the server. Provider
+        failures return a deterministic answer with origin.source FALLBACK (HTTP 200), or type unavailable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssistantInterpretRequest' }
+      responses:
+        '200':
+          description: Validated answer; see origin for AI vs rules vs fallback
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantInterpretResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413':
+          description: Request body larger than 8192 bytes
+          content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+        '429':
+          description: Per-user assistant rate limit reached (Retry-After header set)
+          headers:
+            Retry-After: { schema: { type: integer } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
 components:
   securitySchemes:
     bearerAuth:
@@ -638,6 +681,128 @@ components:
     DeliveryStatus: { enum: [LOCAL_ONLY, QUEUED, SENDING, SERVER_RECEIVED, ACKNOWLEDGED, FAILED] }
     HelpRequestStatus: { enum: [OPEN, ACKNOWLEDGED, ASSIGNED, RESOLVED, CANCELLED] }
     InstructionPackApprovalState: { enum: [DRAFT, APPROVED, REJECTED, PUBLISHED, RETIRED] }
+    AssistantAction:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type, destinationId]
+          properties: { type: { const: NAVIGATE }, destinationId: { type: string, maxLength: 64 } }
+        - type: object
+          additionalProperties: false
+          required: [type, tourId]
+          properties:
+            { type: { const: START_GUIDED_TOUR }, tourId: { type: string, maxLength: 64 } }
+        - type: object
+          additionalProperties: false
+          required: [type, instructionPackId]
+          properties:
+            {
+              type: { const: OPEN_APPROVED_INSTRUCTIONS },
+              instructionPackId: { type: string, maxLength: 64 },
+            }
+    AssistantInterpretRequest:
+      type: object
+      additionalProperties: false
+      required: [question, context]
+      properties:
+        question: { type: string, minLength: 1, maxLength: 500 }
+        context:
+          type: object
+          additionalProperties: false
+          required: [screen]
+          properties:
+            screen: { type: string, maxLength: 64, pattern: '^[a-z][a-z0-9-]*(\.[a-z0-9-]+){0,3}$' }
+            locale: { enum: [en, ta], default: en }
+        history:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            additionalProperties: false
+            required: [role, content]
+            properties:
+              role: { enum: [user, assistant] }
+              content: { type: string, minLength: 1, maxLength: 600 }
+    AssistantInterpretResponse:
+      type: object
+      additionalProperties: false
+      required: [type, answer, action, references, origin, generatedAt]
+      properties:
+        type:
+          {
+            enum:
+              [
+                answer,
+                clarification,
+                navigation_suggestion,
+                guided_tour,
+                safety_redirect,
+                unsupported,
+                unavailable,
+              ],
+          }
+        answer: { type: string, maxLength: 1200 }
+        action:
+          oneOf:
+            - { $ref: '#/components/schemas/AssistantAction' }
+            - { type: 'null' }
+        references:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, kind, title, version, source, reviewState]
+            properties:
+              id: { type: string }
+              kind:
+                {
+                  enum:
+                    [
+                      SCREEN_GUIDE,
+                      STATUS_GLOSSARY,
+                      WORKFLOW,
+                      TOUR,
+                      CAMPUS_CONTACT,
+                      INSTRUCTION_PACK,
+                    ],
+                }
+              title: { type: string }
+              version: { type: string }
+              source: { type: string }
+              reviewState: { enum: [APPROVED, DRAFT] }
+        origin:
+          type: object
+          additionalProperties: false
+          required: [source, provider, model, fallbackReason]
+          properties:
+            source: { enum: [AI, RULES, FALLBACK] }
+            provider: { enum: [groq, mock, rules] }
+            model: { type: [string, 'null'] }
+            fallbackReason:
+              enum:
+                [
+                  PROVIDER_DISABLED,
+                  PROVIDER_UNCONFIGURED,
+                  MODEL_UNAVAILABLE,
+                  TIMEOUT,
+                  RATE_LIMITED,
+                  REFUSED,
+                  TRUNCATED,
+                  INVALID_OUTPUT,
+                  UNAVAILABLE,
+                  null,
+                ]
+        generatedAt: { type: string, format: date-time }
+    AssistantHealth:
+      type: object
+      additionalProperties: false
+      required: [status, provider, model, modelCheck]
+      properties:
+        status: { enum: [ready, degraded, disabled] }
+        provider: { enum: [groq, mock, disabled] }
+        model: { type: [string, 'null'] }
+        modelCheck: { enum: [ok, not_listed, unchecked, error] }
     User:
       type: object
       required: [id, email, displayName, language, roles, mode]
