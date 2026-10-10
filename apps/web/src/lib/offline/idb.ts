@@ -4,11 +4,13 @@
  */
 
 export const OFFLINE_DB_NAME = 'safe-campus-student-offline';
-const OFFLINE_DB_VERSION = 1;
+// v2 adds `attachments` (photos kept on this device). Upgrades keep existing stores and data.
+const OFFLINE_DB_VERSION = 2;
 
 export const STORES = {
   outbox: 'outbox',
   instructionPacks: 'instructionPacks',
+  attachments: 'attachments',
 } as const;
 export type StoreName = (typeof STORES)[keyof typeof STORES];
 
@@ -35,8 +37,17 @@ export function openOfflineDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORES.instructionPacks)) {
         db.createObjectStore(STORES.instructionPacks, { keyPath: 'pack.id' });
       }
+      if (!db.objectStoreNames.contains(STORES.attachments)) db.createObjectStore(STORES.attachments, { keyPath: 'id' });
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      // Let a newer version of the app (another tab) upgrade the schema instead of being blocked.
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
     request.onerror = () => reject(new OfflineStorageError('Could not open offline storage', { cause: request.error }));
     request.onblocked = () => reject(new OfflineStorageError('Offline storage is blocked by another open tab'));
   });

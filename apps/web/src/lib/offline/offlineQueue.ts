@@ -48,7 +48,8 @@ export interface QueueSnapshot<P, R> {
 
 export interface OfflineQueueOptions<P, R> {
   store: QueueStore<P, R>;
-  send: (payload: P, idempotencyKey: string) => Promise<SendOutcome<R>>;
+  /** `createdAt` is the entry's original creation time, so retries report when the user acted. */
+  send: (payload: P, idempotencyKey: string, createdAt: string) => Promise<SendOutcome<R>>;
   isOnline: () => boolean;
   now?: () => Date;
   generateKey?: () => string;
@@ -168,7 +169,7 @@ export class OfflineQueue<P, R> {
 
       let outcome: SendOutcome<R>;
       try {
-        outcome = await this.options.send(entry.payload, entry.key);
+        outcome = await this.options.send(entry.payload, entry.key, entry.createdAt);
       } catch (error) {
         // Adapters should not throw; if one does, the outcome is unknown, so keep it queued.
         outcome = {

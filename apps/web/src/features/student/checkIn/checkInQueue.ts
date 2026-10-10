@@ -1,31 +1,69 @@
-import { IndexedDbQueueStore, OfflineQueue, type QueueEntry, type QueueStore } from '../../../lib/offline';
-import type { StudentApi } from '../api/studentApi';
-import type { CheckIn, CheckInStatus, CreateCheckInRequest, DeliveryState } from '../contracts/provisional';
+import { IndexedDbQueueStore, isRetryable, OfflineQueue, type QueueEntry, type QueueStore, type SendOutcome } from '../../../lib/offline';
+import { CLIENT_FAILURE, type StudentApi } from '../api/studentApi';
+import {
+  upgradeStoredDraft,
+  type CheckInDraft,
+  type CheckInReceipt,
+  type MessageDeliveryStatus,
+  type SubmittableStatus,
+} from '../contracts/studentContract';
 
-export type CheckInEntry = QueueEntry<CreateCheckInRequest, CheckIn>;
-export type CheckInQueue = OfflineQueue<CreateCheckInRequest, CheckIn>;
+export type CheckInEntry = QueueEntry<CheckInDraft, CheckInReceipt>;
+export type CheckInQueue = OfflineQueue<CheckInDraft, CheckInReceipt>;
+
+/** Upgrades drafts saved by earlier builds as they are read, so no queued check-in is lost. */
+class UpgradingStore implements QueueStore<CheckInDraft, CheckInReceipt> {
+  constructor(private readonly inner: QueueStore<CheckInDraft, CheckInReceipt>) {}
+  async loadAll(): Promise<CheckInEntry[]> {
+    return (await this.inner.loadAll()).map((entry) => ({ ...entry, payload: upgradeStoredDraft(entry.payload) }));
+  }
+  put(entry: CheckInEntry): Promise<void> {
+    return this.inner.put(entry);
+  }
+}
 
 export function createCheckInQueue(
   api: StudentApi,
   isOnline: () => boolean,
-  store: QueueStore<CreateCheckInRequest, CheckIn> = new IndexedDbQueueStore(),
+  store: QueueStore<CheckInDraft, CheckInReceipt> = new IndexedDbQueueStore(),
 ): CheckInQueue {
-  return new OfflineQueue<CreateCheckInRequest, CheckIn>({
-    store,
+  return new OfflineQueue<CheckInDraft, CheckInReceipt>({
+    store: new UpgradingStore(store),
     isOnline,
-    send: (payload, key) => api.createCheckIn(payload, key),
+    send: (draft, key, createdAt) => sendWithSession(api, draft, key, createdAt),
   });
 }
 
-/** Maps the queue's internal lifecycle onto the shared contract's delivery state. */
-export function toDeliveryState(entry: CheckInEntry): DeliveryState {
+/**
+ * A check-in made while the app had never learned the active drill/incident
+ * (e.g. first opened offline) has no session. Rather than fail it forever,
+ * ask the server at send time: attach the active one if there is one, fail
+ * honestly if the server says there is none, and keep waiting if it cannot be reached.
+ */
+async function sendWithSession(api: StudentApi, draft: CheckInDraft, key: string, createdAt: string): Promise<SendOutcome<CheckInReceipt>> {
+  if (draft.session) return api.submitCheckIn(draft, key, createdAt);
+  const lookup = await api.getActiveSession();
+  if (lookup.kind === 'found') return api.submitCheckIn({ ...draft, session: lookup.session }, key, createdAt);
+  if (lookup.kind === 'none') return { kind: 'failed', problem: 'REJECTED', detail: CLIENT_FAILURE.noSession };
+  return isRetryable(lookup.problem)
+    ? { kind: 'retryable', problem: lookup.problem }
+    : { kind: 'failed', problem: lookup.problem };
+}
+
+/**
+ * Maps the queue's lifecycle onto the shared `MessageDeliveryStatus`.
+ * - Saved while offline → LOCAL_ONLY (AGENT_HANDOFF: "store offline operations as LOCAL_ONLY").
+ * - Waiting to send or retry while online → QUEUED.
+ * - ACKNOWLEDGED is never produced here: the API gives students no acknowledgement field yet.
+ */
+export function toDeliveryStatus(entry: CheckInEntry): MessageDeliveryStatus {
   switch (entry.lifecycle) {
     case 'QUEUED':
-      return 'QUEUED_OFFLINE';
+      return entry.problem === 'OFFLINE' ? 'LOCAL_ONLY' : 'QUEUED';
     case 'SENDING':
-      return 'PENDING';
+      return 'SENDING';
     case 'ACCEPTED':
-      return 'ACCEPTED';
+      return 'SERVER_RECEIVED';
     case 'FAILED':
       return 'FAILED';
   }
@@ -40,7 +78,7 @@ export const REPEAT_GUARD_MS = 5_000;
  */
 export function findAccidentalRepeat(
   entries: readonly CheckInEntry[],
-  status: CheckInStatus,
+  status: SubmittableStatus,
   now: Date,
 ): CheckInEntry | undefined {
   const latest = entries[0];

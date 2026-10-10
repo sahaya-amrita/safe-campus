@@ -13,7 +13,11 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    "paths": {
+      "@sahaya/contracts": ["../../packages/contracts/src/index.ts"],
+      "zod": ["./node_modules/zod"]
+    },
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node", "vite-plugin-pwa/client"]
   },
   "include": ["src", "vite.config.ts"]
 }

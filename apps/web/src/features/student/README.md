@@ -1,50 +1,67 @@
-# Student feature (Claude Code 1)
+# Amrita Sahaya — student app (Claude Code 1)
 
-Task: `docs/tasks/02-student-pwa-claude.md`. Owned paths: this folder, `src/lib/offline/` and `src/i18n/`.
+Owned paths: this folder, `src/lib/offline/` and `src/i18n/`. Mount it with `<StudentApp />`; it needs no router or global providers. Tests inject `deps`.
 
-Mount it with `<StudentApp />`. It needs no router or global providers. Tests can inject `deps`.
+## Screens
+- **Home:** the brand, the question "How are you right now?", **I'm Safe** and **I Need Help** (both above the fold at 360–430 px in all six languages), the active drill or incident, the latest check-in with its delivery track, and **112**.
+- **Guides:** instruction packs and campus contacts (none approved yet).
+- **Activity:** sync status (connection, waiting count, last server receipt, offline readiness, storage persistence), the latest check-in, and earlier check-ins.
+- **Help sheet** (full screen): call-112 warning, an optional note, optional location (GPS and/or a landmark), optional photos, and a **Send** button pinned at the bottom so a request can go out immediately.
 
-## Flow
-- **I'm Safe**: one tap sends `SAFE`.
-- **I Need Help**: opens one optional screen with an optional note (max 500 characters) and an optional one-time location. The send button is first, so neither field blocks sending.
-- A second tap of the **same** button within 5 s is ignored and the app says so. Switching from Safe to Need Help is never blocked.
+## Contract (Codex 1: `@sahaya/contracts`, `docs/api/openapi.yaml`)
+- **Sending:** `POST /api/v1/checkins` with `{status, clientActionId, clientCreatedAt, incidentId XOR drillId, helpDetails?}`. The `Idempotency-Key` header equals `clientActionId`. Bodies are validated with the shared `submitCheckInSchema` before sending, in both the HTTP and the mock adapter.
+- **Delivery states** (`MessageDeliveryStatus`):
 
-## Delivery states (`docs/api-contracts.md`)
-| Queue lifecycle (`lib/offline`) | Contract `DeliveryState` | What the student sees |
-| --- | --- | --- |
-| QUEUED | `QUEUED_OFFLINE` | NOT SENT — QUEUED ON THIS PHONE, plus the reason: offline, timeout, server unavailable, or waiting |
-| SENDING | `PENDING` | SENDING — NOT CONFIRMED YET |
-| ACCEPTED | `ACCEPTED` | ACCEPTED BY SERVER, plus "This does NOT mean a responder has seen it." |
-| FAILED | `FAILED` | FAILED — NOT DELIVERED (permission denied or rejected), plus the 112 fallback and a Retry button |
+  | State | When |
+  |---|---|
+  | `LOCAL_ONLY` | Saved while offline |
+  | `QUEUED` | Waiting or retrying while online |
+  | `SENDING` | Request in flight |
+  | `SERVER_RECEIVED` | 201 receipt from the server |
+  | `FAILED` | Refused by the server |
+  | `ACKNOWLEDGED` | **Never produced.** No API sets it for students; the responder step says "Not tracked in this prototype". |
 
-## Offline behaviour
-- Entries are written to IndexedDB (`safe-campus-student-offline`) **before** the UI shows them.
-- Each entry has one `crypto.randomUUID()` idempotency key, reused for every retry.
-- **No request is made while offline.** The queue flushes on load and on the browser `online` event.
-- Timeouts and 5xx/429 responses retry with backoff: 5 s, 15 s, 30 s, then 60 s.
-- 401, 403 and other 4xx responses go to FAILED and are only resent when the student taps Retry.
-- An entry still marked SENDING when the app reloads is re-queued and resent with the same key.
+- **Session:** every check-in needs a drill or incident. The app uses the first `ACTIVE` drill from `GET /api/v1/drills` and caches the last answer for offline use. If a draft was made with no known session, it's resolved at send time: attached if the server reports an active drill, `FAILED` (no session) if not, kept queued if the server is unreachable.
+- **Gaps worked around** (reported to Codex 1; see `contracts/studentContract.ts`):
+  - `helpDetails` is required (at least 3 characters), so a quick help request sends a fixed, client-labelled text.
+  - There's no location field, so the landmark and GPS are appended to `helpDetails` as labelled lines.
+  - There's no upload endpoint for help requests, so photos are kept on the device and never sent.
+  - Packs accept only `en`/`ta`, so the other languages fall back to English explicitly.
+  - The `POST /checkins` receipt and pack row shapes are copied from `services/api`.
 
-## Instruction packs
-- Fetched with `GET /api/v1/instruction-packs?language=` and cached per language in IndexedDB.
-- Only `APPROVED`/`PUBLISHED` packs are labelled official.
-- `DEMO_SAMPLE` packs (from the mock) are always labelled "SAMPLE — NOT OFFICIAL".
-- Any other state is never cached or shown.
-- Each pack shows its version, language, published and expiry dates, and when it was saved on the phone.
-- Expired packs get a warning. Copies not refreshed for 7 days are flagged as possibly out of date.
+## Location (`location/useLocationCapture.ts`)
+**Root causes found:**
+1. **`http://<LAN-IP>` is not a secure context.** The browser rejects location in about 4 ms with code 1, which the old UI showed as "permission denied". This was reproduced.
+2. **No retry after a failure.**
+3. **The permission-prompt wait isn't covered by the Geolocation `timeout`,** so an ignored prompt could spin forever.
+4. **Coarse, stale fixes:** low-accuracy mode plus `maximumAge: 60 s`.
 
-## Contract assumptions for Codex 1
-All of these are listed in `contracts/provisional.ts` §B:
-- **B1:** the POST body is `{status, note?, locationReference?}`, and the response is the stored `CheckIn`.
-- **B2:** `locationReference` is an RFC 5870 `geo:` URI rounded to 4 decimals.
-- **B3:** the note is at most 500 characters.
-- **B4:** the official approval states are `APPROVED` and `PUBLISHED`.
-- **B5:** a `DEMO_SAMPLE` approval state exists for demo packs.
-- **B6:** packs carry `sections[{heading, body}]`.
-- **B7:** the pack list response is `{items}`.
+**Now:** location starts only on a tap.
+- It checks for a secure page, then asks the Permissions API whether access is already denied.
+- It watches in high-accuracy mode with `maximumAge: 0`, keeping the best fix. It stops at ≤30 m, or when the student taps "Use this location".
+- A 25 s watchdog ends any attempt.
+- Each failure has its own state: insecure, unsupported, denied, timeout or unavailable, each with Retry.
+- Fixes over 100 m are flagged as low accuracy, and fixes older than 2 minutes as stale.
+- The manual landmark field is always available, and the request is always sendable without a location.
 
-## Not done here
-- **Service worker / app-shell caching.** That's integration-owned (see `apps/web/SCAFFOLD.md`). Without it, offline data works only while the page is open; reopening the app with no connection needs the integrator's service worker.
-- **Responder acknowledgement.** The contract has no student-facing acknowledgement field yet.
-- **`contentHash` verification.** No hash algorithm is specified.
-- **Tamil review.** The Tamil strings are an unreviewed draft, and the UI says so.
+## Photos (`attachments/`)
+- **Input:** "Take photo" (camera, where the browser supports `capture`) or "Choose photos" (library). Up to 3 photos, at most 15 MB each.
+- **Validation:** the real format is identified from the file's bytes (JPEG, PNG or WebP), and the photo must decode.
+- **On-device processing:** each photo is re-encoded to JPEG ≤1600 px. That bakes in the camera orientation, **drops all EXIF including GPS**, and computes the SHA-256 the contract expects. Verified in Chromium: no APP1 segment in the output.
+- **Storage:** IndexedDB `attachments` (schema v2; the v1→v2 upgrade keeps queued check-ins). Free space is checked before saving, and a full device is reported as such.
+- **Lifecycle:**
+  - Photos survive a refresh while the student is still composing.
+  - On send they're linked to the check-in. Closing the sheet deletes unsent photos.
+  - "Delete photos from this phone" is available on the sent check-in.
+- **Never transmitted.** The UI says so wherever photos appear.
+
+## Offline (verified vs plausible)
+See the final report for the full matrix. In short:
+- **Queue:** IndexedDB with idempotent retries, no request while offline, flush on reconnect, timeout/5xx backoff, and recovery of a send interrupted by a reload. Verified by tests and in a real browser.
+- **App-shell offline startup:** depends on the service worker, which is configured and statically checked. It's **not runtime-verified**, because this embedded browser refuses service-worker registration.
+- **Persistent storage:** requested once, after the first saved check-in. Granting it is at the browser's discretion.
+
+## Languages (`src/i18n/`)
+- **Typed dictionaries:** `en` is the source; `ta`, `hi`, `ml`, `te` and `kn` are `UNREVIEWED_DRAFT`.
+- **Safety-critical strings** (`SAFETY_CRITICAL_KEYS`, 15 keys) show the English source next to the draft.
+- **Adding a language:** one dictionary file plus one entry in `locales.ts`.

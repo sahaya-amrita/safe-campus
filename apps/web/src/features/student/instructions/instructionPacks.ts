@@ -1,10 +1,6 @@
 import type { CachedRecord, GroupedCacheStore, RequestProblem } from '../../../lib/offline';
 import type { StudentApi } from '../api/studentApi';
-import {
-  DEMO_SAMPLE_APPROVAL_STATE,
-  OFFICIAL_APPROVAL_STATES,
-  type InstructionPackWithContent,
-} from '../contracts/provisional';
+import type { StudentInstructionPack } from '../contracts/studentContract';
 
 export type PackKind = 'OFFICIAL' | 'DEMO_SAMPLE';
 
@@ -12,19 +8,43 @@ export type PackKind = 'OFFICIAL' | 'DEMO_SAMPLE';
 export const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Only approved/published packs are official. Demo samples may be shown but
- * always labelled as samples. Anything else (draft, rejected, unknown) is
- * neither cached nor displayed.
+ * Students may only treat `PUBLISHED` packs as official (API_CONTRACT_RECONCILIATION:
+ * "student-facing instruction access returns only PUBLISHED, unexpired packs").
+ * Mock samples carry `demoSample` and are always labelled as samples.
+ * Anything else is neither cached nor displayed.
  */
-export function classifyPack(pack: Pick<InstructionPackWithContent, 'approvalState'>): PackKind | null {
-  if (OFFICIAL_APPROVAL_STATES.has(pack.approvalState)) return 'OFFICIAL';
-  if (pack.approvalState === DEMO_SAMPLE_APPROVAL_STATE) return 'DEMO_SAMPLE';
+export function classifyPack(pack: Pick<StudentInstructionPack, 'approvalState' | 'demoSample'>): PackKind | null {
+  if (pack.demoSample) return 'DEMO_SAMPLE';
+  if (pack.approvalState === 'PUBLISHED') return 'OFFICIAL';
+  return null;
+}
+
+export interface PackSection {
+  heading: string;
+  body: string;
+}
+
+/**
+ * The contract types `content` as free-form JSON. This client renders exactly
+ * two shapes and refuses anything else rather than guessing at structure.
+ */
+export function packSections(pack: Pick<StudentInstructionPack, 'title' | 'content'>): PackSection[] | null {
+  const content = pack.content as { sections?: unknown; body?: unknown };
+  if (Array.isArray(content.sections)) {
+    const sections = content.sections.filter(
+      (s): s is PackSection =>
+        typeof s === 'object' && s !== null && typeof (s as PackSection).heading === 'string' && typeof (s as PackSection).body === 'string',
+    );
+    return sections.length === content.sections.length && sections.length > 0 ? sections : null;
+  }
+  if (typeof content.body === 'string') return [{ heading: pack.title, body: content.body }];
   return null;
 }
 
 export interface DisplayPack {
-  pack: InstructionPackWithContent;
+  pack: StudentInstructionPack;
   kind: PackKind;
+  sections: PackSection[] | null;
   fetchedAt: string;
   expired: boolean;
   stale: boolean;
@@ -38,16 +58,17 @@ export interface PacksView {
   storageFailed: boolean;
 }
 
-export function toDisplayPacks(records: CachedRecord<InstructionPackWithContent>[], now: Date): DisplayPack[] {
+export function toDisplayPacks(records: CachedRecord<StudentInstructionPack>[], now: Date): DisplayPack[] {
   return records
     .flatMap((record) => {
       const kind = classifyPack(record.pack);
-      if (!kind || !Array.isArray(record.pack.sections)) return [];
+      if (!kind) return [];
       const expiresAt = record.pack.expiresAt ? Date.parse(record.pack.expiresAt) : Number.NaN;
       return [
         {
           pack: record.pack,
           kind,
+          sections: packSections(record.pack),
           fetchedAt: record.fetchedAt,
           expired: Number.isFinite(expiresAt) && expiresAt <= now.getTime(),
           stale: now.getTime() - Date.parse(record.fetchedAt) > STALE_AFTER_MS,
@@ -59,7 +80,7 @@ export function toDisplayPacks(records: CachedRecord<InstructionPackWithContent>
 
 /** Reads the device copy for `language`. Never throws. */
 export async function readCachedPacks(
-  store: GroupedCacheStore<InstructionPackWithContent>,
+  store: GroupedCacheStore<StudentInstructionPack>,
   language: string,
   now: Date,
 ): Promise<{ packs: DisplayPack[]; storageFailed: boolean }> {
@@ -77,7 +98,7 @@ export async function readCachedPacks(
  */
 export async function refreshPacks(
   api: StudentApi,
-  store: GroupedCacheStore<InstructionPackWithContent>,
+  store: GroupedCacheStore<StudentInstructionPack>,
   language: string,
   cached: DisplayPack[],
   now: Date,
@@ -86,7 +107,7 @@ export async function refreshPacks(
   if (result.kind === 'error') return { packs: cached, refresh: result.problem, storageFailed: false };
 
   const fetchedAt = now.toISOString();
-  const records: CachedRecord<InstructionPackWithContent>[] = result.packs
+  const records: CachedRecord<StudentInstructionPack>[] = result.packs
     .filter((pack) => pack.language === language && classifyPack(pack) !== null)
     .map((pack) => ({ pack, group: language, fetchedAt }));
   let storageFailed = false;

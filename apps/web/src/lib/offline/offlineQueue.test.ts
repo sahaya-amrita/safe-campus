@@ -10,7 +10,7 @@ const fixedNow = () => new Date('2026-10-10T09:00:00.000Z');
 function setup(options: { online?: boolean; outcomes?: SendOutcome<Result>[]; store?: MemoryQueueStore<Payload, Result> } = {}) {
   const network = { online: options.online ?? true };
   const outcomes = [...(options.outcomes ?? [])];
-  const send = vi.fn(async (_payload: Payload, _key: string): Promise<SendOutcome<Result>> => {
+  const send = vi.fn(async (_payload: Payload, _key: string, _createdAt: string): Promise<SendOutcome<Result>> => {
     const next = outcomes.shift();
     if (!next) throw new Error('no scripted outcome');
     return next;
@@ -84,7 +84,7 @@ describe('OfflineQueue', () => {
     await queue.flush();
     network.online = true;
     await queue.flush();
-    expect(send).toHaveBeenCalledWith({ status: 'SAFE' }, key);
+    expect(send).toHaveBeenCalledWith({ status: 'SAFE' }, key, '2026-10-10T09:00:00.000Z');
     expect(queue.getSnapshot().entries[0]?.lifecycle).toBe('ACCEPTED');
   });
 
@@ -178,7 +178,8 @@ describe('OfflineQueue', () => {
     expect(queue.getSnapshot().entries[0]?.lifecycle).toBe('QUEUED');
     expect(store.rows.get('persisted-key')?.lifecycle).toBe('QUEUED');
     await queue.flush();
-    expect(send).toHaveBeenCalledWith({ status: 'NEED_HELP' }, 'persisted-key');
+    // Retries report when the user originally acted, not when the retry happened.
+    expect(send).toHaveBeenCalledWith({ status: 'NEED_HELP' }, 'persisted-key', '2026-10-10T08:59:00.000Z');
   });
 
   it('reports storage failure instead of pretending the entry was saved', async () => {
