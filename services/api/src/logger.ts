@@ -11,6 +11,8 @@ export function createLogger(config: Config) {
         '*.password',
         '*.contactValue',
         '*.evidence.objectKey',
+        '*.question',
+        '*.history',
       ],
       censor: '[REDACTED]',
     },

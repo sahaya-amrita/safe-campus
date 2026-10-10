@@ -34,3 +34,16 @@ Offline clients store `LOCAL_ONLY` work and retry with the same idempotency key.
 The hackathon uses short-lived JWTs from `POST /api/v1/auth/demo-login`. Passwords use scrypt with unique salts; roles come from PostgreSQL and client-supplied roles never authorize actions. Institutional SSO is deferred.
 
 PostgreSQL stores users/roles, buildings/floors/zones, incidents and evidence metadata, verification history, check-ins, help requests, responders, dispatches, alerts/delivery records, instruction metadata, trusted contacts, drills/training, outbox events, idempotency responses, and audit events. Evidence bytes and long-lived precise location histories are outside this API.
+
+## Assistant (Tom) data flow and trust boundaries
+
+1. **Request:** the browser (untrusted) sends a question, screen id and up to 6 recent turns to `POST /api/v1/assistant/interpret`.
+2. **API checks:** it authenticates the JWT, applies per-user limits and validates strictly.
+3. **Fixed rules first:** emergency wording and requests to perform actions are answered by rules and never reach a model.
+4. **Knowledge:** approved, current knowledge is filtered by role, locale, review state and expiry, then retrieved by keyword.
+5. **Model call:** the hosted model (Groq, server-side key from env) receives minimal input with a timeout and a shared budget.
+6. **Validation:** model output is checked against the schema, the action allowlist, registered and role-permitted targets, supplied references, and text checks (no URLs, unverified numbers, official instructions or claimed actions).
+7. **Fallback:** on any failure, a deterministic answer is labelled `FALLBACK`.
+8. **Client:** it validates the response again and shows suggestions as buttons. Navigation still goes through the host's authorization.
+
+Credentials never reach the browser. The assistant never changes records, sends messages or performs consequential actions. Deployment notes are in `services/api/src/assistant/README.md` and `render.yaml`.
