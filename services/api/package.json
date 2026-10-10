@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:seed": "tsx src/scripts/seed.ts",
-    "outbox:once": "tsx src/scripts/process-outbox.ts"
+    "outbox:once": "tsx src/scripts/process-outbox.ts",
+    "assistant:smoke": "tsx src/assistant/smoke.ts"
   },
   "dependencies": {
     "@sahaya/contracts": "workspace:*",

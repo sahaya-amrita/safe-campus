@@ -40,12 +40,17 @@ export function loadAssistantConfig(overrides: Record<string, unknown> = {}): As
   return assistantEnvSchema.parse({ ...process.env, ...overrides });
 }
 
-/** Exact allowed browser origins (comma-separated CORS_ALLOWED_ORIGINS). */
+/**
+ * Exact allowed browser origins (comma-separated CORS_ALLOWED_ORIGINS). A bare
+ * host such as "safe-campus-web.onrender.com" (as Render provides it) is
+ * treated as https://host.
+ */
 export function loadAllowedOrigins(
   env: Record<string, string | undefined> = process.env,
 ): string[] {
   return (env.CORS_ALLOWED_ORIGINS ?? '')
     .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+    .map((o) => (/^https?:\/\//.test(o) ? o : `https://${o}`));
 }

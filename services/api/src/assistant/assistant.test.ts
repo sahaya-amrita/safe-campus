@@ -665,3 +665,41 @@ describe('no credential or sensitive-data leakage', () => {
     ).toThrow(/requires GROQ_API_KEY and GROQ_MODEL/);
   });
 });
+
+describe('deployment CORS', () => {
+  it('normalises bare hosts and keeps exact origins', async () => {
+    const { loadAllowedOrigins } = await import('./config.js');
+    expect(
+      loadAllowedOrigins({
+        CORS_ALLOWED_ORIGINS: 'safe-campus-web.onrender.com, https://a.example/ ,',
+      }),
+    ).toEqual(['https://safe-campus-web.onrender.com', 'https://a.example']);
+  });
+
+  it('in production allows only configured origins (no localhost)', async () => {
+    const previous = process.env.CORS_ALLOWED_ORIGINS;
+    process.env.CORS_ALLOWED_ORIGINS = 'https://tom-demo.example';
+    try {
+      const app = createApp(
+        pool,
+        { ...core, NODE_ENV: 'production' },
+        { assistant: { config: baseConfig(), provider: null } },
+      );
+      const allowed = await request(app)
+        .get('/api/v1/assistant/health')
+        .set('Origin', 'https://tom-demo.example');
+      expect(allowed.headers['access-control-allow-origin']).toBe('https://tom-demo.example');
+      const other = await request(app)
+        .get('/api/v1/assistant/health')
+        .set('Origin', 'https://evil.example');
+      expect(other.headers['access-control-allow-origin']).toBeUndefined();
+      const local = await request(app)
+        .get('/api/v1/assistant/health')
+        .set('Origin', 'http://localhost:5173');
+      expect(local.headers['access-control-allow-origin']).toBeUndefined();
+    } finally {
+      if (previous === undefined) delete process.env.CORS_ALLOWED_ORIGINS;
+      else process.env.CORS_ALLOWED_ORIGINS = previous;
+    }
+  });
+});
