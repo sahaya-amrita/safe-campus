@@ -11,7 +11,7 @@
     "dev": "pnpm --filter @sahaya/api dev",
     "lint": "eslint .",
     "typecheck": "pnpm --filter @sahaya/contracts build && pnpm --filter @sahaya/api typecheck",
-    "test": "pnpm --filter @sahaya/api test",
+    "test": "pnpm --filter @sahaya/contracts build && pnpm --filter @sahaya/api test",
     "db:migrate": "pnpm --filter @sahaya/api db:migrate",
     "db:seed": "pnpm --filter @sahaya/api db:seed",
     "outbox:once": "pnpm --filter @sahaya/api outbox:once",
