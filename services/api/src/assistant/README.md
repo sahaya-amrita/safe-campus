@@ -112,14 +112,14 @@ Put `GROQ_API_KEY` and `GROQ_MODEL` in `services/api/.env` (git-ignored) with `A
 pnpm --filter @sahaya/api assistant:smoke
 ```
 
-**Frontend:** in `apps/responder-dashboard` (temporary harness), run `npm run dev`. It talks to `http://localhost:3000` by default. Sign in through "Tom AI: not signed in" with the seeded **fictional** responder account listed in `services/api/.env.example`.
+**Frontend:** run `pnpm dev:web` (set `VITE_API_BASE_URL=http://127.0.0.1:3000` in `apps/web/.env.local`). Sign in with a seeded **fictional** DEMO account; Tom uses the session token automatically.
 
 ## Deploy (Render Blueprint, `render.yaml` at the repo root)
 
 **Creates:**
 
 - `safe-campus-api`: Node web service on this branch.
-- `safe-campus-web`: static site for the harness, from `feat/responder-dashboard`.
+- `safe-campus-web`: static site for `apps/web`.
 - `safe-campus-db`: free Postgres.
 
 **Steps (account actions are yours):**
@@ -159,11 +159,5 @@ pnpm --filter @sahaya/api assistant:smoke
 - **Per-process rate limits:** fine for one instance. Use a shared store before scaling out.
 - **Student destinations:** not registered yet (coordinate with Claude Code 1). Tamil answers depend on the model; Tom's UI strings are English until the shared i18n is wired.
 - **Retrieval:** keyword-based. Good enough for the small knowledge base; upgrade if it grows.
-
-## Merge order
-
-1. `feat/tom-assistant-api` → `develop` (this module; needs Codex 1's review, since it touches `app.ts`, `logger.ts`, `.env.example`, the contracts index and the OpenAPI spec).
-2. `develop` → `main` (PR #4).
-3. `feat/responder-dashboard` → `main` (PR #2: Tom UI and client).
 
 `render.yaml` is integration-owned: review it with the integration owner before use.

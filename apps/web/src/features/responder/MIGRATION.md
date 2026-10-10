@@ -1,6 +1,6 @@
 # Responder module: migration checklist for `apps/web`
 
-**Status: waiting for integration owner approval. Nothing here has been done to `feat/student-pwa` or the shared scaffold.**
+**Status: done.** The integration commit `d90b160` on `main` added `apps/web` to the workspace and removed `apps/responder-dashboard/`. This checklist is kept as a record only.
 
 ## What actually moves
 

@@ -197,23 +197,13 @@ from the shared package. Nothing below is an established contract.
 
 Migration into the shared `apps/web` scaffold: see [MIGRATION.md](./MIGRATION.md).
 
-## Tests (temporary harness)
+## Tests
 
-Until `apps/web` has its own test setup, run the tests from the dev-only harness:
+The module's tests run in the shared `apps/web` Vitest setup (jsdom + Testing Library):
 
 ```bash
-cd apps/responder-dashboard
-npm ci
-npm test            # 159 module tests + 10 harness tests
-npm run typecheck   # tsc strict
-npm run build       # vite build of the DEMO harness page
+pnpm --filter @sahaya/web test:unit   # all apps/web unit tests, including these modules
+pnpm --filter @sahaya/web typecheck
 ```
 
-When `apps/web` has a working Vitest + Testing Library (jsdom) setup:
-
-1. Add the three owned paths to its test `include` (the test files sit next to the code: `*.test.ts(x)`).
-2. Make sure its setup imports `@testing-library/jest-dom/vitest` and clears `sessionStorage` after each test, as `apps/responder-dashboard/src/setupTests.ts` does.
-3. Delete the entire `apps/responder-dashboard/` directory: `package.json`,
-   `package-lock.json`, `vite.config.ts`, `tsconfig.json`, `index.html`,
-   `src/main.tsx`, `src/setupTests.ts`, `README.md`, `.gitignore`. No feature
-   code lives there.
+The temporary `apps/responder-dashboard` harness was removed when the modules joined `apps/web`.
