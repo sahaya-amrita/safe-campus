@@ -2,7 +2,7 @@
 
 Owned paths:
 
-- `apps/web/src/features/responder/` — dashboard, help-request queue/detail, roll-call summary, API adapters
+- `apps/web/src/features/responder/` — dashboard, help-request queue/detail, roll-call summary, campus contacts, API adapters
 - `apps/web/src/features/incidents/` — hazard review queue, review form, review rules
 - `apps/web/src/components/tom/` — Tom help launcher/panel, knowledge base, optional AI adapter
 
@@ -18,7 +18,8 @@ const responderApi = new HttpResponderApi({ baseUrl: "" }); // cookie session; n
 
 function ResponderRoute() {
   const [view, setView] = useState<ResponderView>("help-requests");
-  return <ResponderDashboard api={responderApi} onViewChange={setView} />;
+  // mode: "DEMO" | "DRILL" | "LIVE" (defaults: DEMO for the mock, LIVE for HTTP)
+  return <ResponderDashboard api={responderApi} mode={appMode} onViewChange={setView} />;
   // Tell the shell-level <Tom> the context: `responder.${view}`
 }
 
@@ -28,18 +29,39 @@ function ResponderRoute() {
   context={currentTomContext}         // e.g. "responder.hazard-review", "student.check-in"
   mode={appMode}                      // "DEMO" | "DRILL" | "LIVE"
   approvedInstructions={publishedPacks} // APPROVED/PUBLISHED instruction packs only
+  contacts={CAMPUS_CONTACTS}          // LIVE shows institution-confirmed contacts only
+  messages={tomMessagesFor(language)} // optional; English by default (see TomMessages)
 />
 ```
 
 - The dashboard does not grant access. It renders a "Responder access required"
   notice for any 401/403. The shell should still route to it only for
   responder/admin sessions.
+- `<ResponderDashboard>` is a full-height workspace with its own section rail and
+  status bar (`min-height: 100dvh`). Give it the full content area of the
+  responder route. If the shell adds its own global navigation, raise it with the
+  integrator so the two don't stack awkwardly.
 - `<Tom>` is a fixed, non-modal launcher (`z-index: 40`). Shell dialogs and alert
-  banners should sit above it.
+  banners should sit above it. If the shell has a bottom bar, set
+  `--sc-tom-offset-bottom` (for example `64px`) to lift the launcher above it.
+  "Minimise" shrinks Tom to an icon for the session; Tom never disappears
+  without a way back.
+- **Campus contacts** are data in `features/responder/campusDirectory.ts`, apart from
+  the UI. Each record has a source, a last-checked date and a verification state
+  (`INSTITUTION_CONFIRMED`, `PUBLISHED_ONLINE` or `UNVERIFIED`). None is confirmed
+  yet. LIVE mode withholds every unconfirmed contact. The Security Office,
+  Medical/Clinic and Ambulance numbers were supplied by the project team, but on
+  10 Oct 2026 they were not found on the official contact pages, so their source
+  URL is still blank. Only office lines are allowed, and personal mobile numbers
+  are rejected by `validateCampusContact`.
+- **Tom strings** live in `components/tom/tomMessages.ts` (`TomMessages`, same flat
+  typed shape as the student i18n `Messages`). Wiring them into the shared i18n,
+  including Tamil, waits for Claude Code 1 to confirm that integration contract.
 - Styles read shared tokens when defined (`--color-text`, `--color-surface`,
   `--color-border`, `--color-danger`, `--color-warning`, `--color-info`,
   `--color-success`, `--color-text-muted`) and fall back to local values.
-- In LIVE mode Tom shows only knowledge-base entries with `review.reviewed === true`.
+- In LIVE mode Tom shows only knowledge-base entries with `review.reviewed === true`
+  and an unexpired `review.validUntil` (if set).
   All seeded entries in `components/tom/knowledgeBase.ts` are unreviewed drafts, so
   a named reviewer must approve them before LIVE use. The AI adapter defaults to
   disabled and is never used in LIVE mode.
@@ -75,7 +97,7 @@ Until `apps/web` has its own test setup, run the tests from the dev-only harness
 ```bash
 cd apps/responder-dashboard
 npm ci
-npm test            # vitest run over the three owned paths
+npm test            # vitest run over the three owned paths + harness tests
 npm run typecheck   # tsc strict
 npm run build       # vite build of the DEMO harness page
 ```

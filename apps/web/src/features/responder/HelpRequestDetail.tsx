@@ -5,6 +5,7 @@ import { describeError } from "./apiError";
 import type { HelpRequest } from "./contracts";
 import { formatTimestamp } from "./formatTime";
 import { canAcknowledge, HELP_REQUEST_STATUS_PRESENTATION } from "./helpRequests";
+import { Icon } from "./Icon";
 import { StatusBadge } from "./StatusBadge";
 
 export interface HelpRequestDetailProps {
@@ -51,18 +52,18 @@ export function HelpRequestDetail({ request, api, onUpdated, onClose, now = () =
 
   const n = now();
   return (
-    <section className="sc-detail" aria-labelledby="sc-hr-detail-title">
-      <div className="sc-detail__header">
-        <h3 id="sc-hr-detail-title" tabIndex={-1} ref={headingRef}>
-          Help request {request.id}
-        </h3>
-        <button type="button" onClick={onClose}>
-          Back to queue
-        </button>
-      </div>
-      <p>
-        <StatusBadge {...p} /> <span className="sc-muted">{p.description}</span>
-      </p>
+    <section className={`sc-view sc-detail sc-detail--${p.tone}`} aria-labelledby="sc-hr-detail-title">
+      <button type="button" className="sc-btn sc-btn--ghost sc-detail__back" onClick={onClose}>
+        <Icon name="back" size={16} /> Back to queue
+      </button>
+      <div className="sc-detail__card">
+        <div className="sc-detail__header">
+          <h2 id="sc-hr-detail-title" tabIndex={-1} ref={headingRef}>
+            Help request <span className="sc-mono">{request.id}</span>
+          </h2>
+          <StatusBadge {...p} />
+        </div>
+        <p className="sc-muted">{p.description}</p>
       <dl className="sc-fields">
         <dt>Received</dt>
         <dd>{formatTimestamp(request.createdAt, n)}</dd>
@@ -82,6 +83,7 @@ export function HelpRequestDetail({ request, api, onUpdated, onClose, now = () =
         <dd>{request.assignedResponderId ?? "None assigned"}</dd>
       </dl>
 
+      </div>
       {canAcknowledge(request) ? (
         <div className="sc-action">
           <p className="sc-muted" id="sc-ack-help">
@@ -90,7 +92,7 @@ export function HelpRequestDetail({ request, api, onUpdated, onClose, now = () =
           </p>
           <button
             type="button"
-            className="sc-button sc-button--primary"
+            className="sc-btn sc-btn--primary"
             onClick={acknowledge}
             disabled={ack.phase === "submitting"}
             aria-describedby="sc-ack-help"
@@ -99,7 +101,7 @@ export function HelpRequestDetail({ request, api, onUpdated, onClose, now = () =
           </button>
         </div>
       ) : (
-        <p className="sc-muted">
+        <p className="sc-muted sc-action">
           No further actions are available here: only acknowledgement has an agreed API operation so far.
         </p>
       )}

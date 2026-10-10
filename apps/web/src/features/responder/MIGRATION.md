@@ -8,15 +8,15 @@ The responder feature code is **already** in its final folders. It does not need
 
 | Path | Contents |
 |---|---|
-| `apps/web/src/features/responder/` | Dashboard, help-request queue and detail, roll-call summary, API client and mock, status badge, error notice, `usePagedList` hook, `responder.css` |
+| `apps/web/src/features/responder/` | Dashboard layout (rail + status bar), help-request queue and detail, roll-call summary, contacts view and `campusDirectory.ts` data, API client and mock, status badge, icons, error notice, `usePagedList` hook, `responder.css` |
 | `apps/web/src/features/incidents/` | Hazard review queue and form, review rules, hazard types |
-| `apps/web/src/components/tom/` | Tom component, knowledge base, question logic, AI adapter (disabled by default), session storage helpers, `tom.css` |
+| `apps/web/src/components/tom/` | Tom component and avatar, `tomMessages.ts` (i18n-ready strings), knowledge base, question logic, AI adapter (disabled by default), session storage helpers, `tom.css` |
 
 Only the **temporary harness** in `apps/responder-dashboard/` exists because `apps/web` had no test setup. When the branches merge, the three folders above sit next to `features/student/` in the same tree. Nothing is copied or duplicated.
 
 ## Inventory
 
-**Components:** `ResponderDashboard`, `HelpRequestQueue`, `HelpRequestDetail`, `RollCallSummary`, `StatusBadge`, `RequestErrorNotice` (responder); `HazardReviewQueue`, `HazardReviewForm` (incidents); `Tom` (tom).
+**Components:** `ResponderDashboard`, `HelpRequestQueue`, `HelpRequestDetail`, `RollCallSummary`, `ContactsView`, `StatusBadge`, `RequestErrorNotice`, `Icon` (responder); `HazardReviewQueue`, `HazardReviewForm` (incidents); `Tom`, `TomAvatar` (tom).
 
 **Hooks:** `usePagedList` (responder). Tom keeps its state inside the component.
 
@@ -41,19 +41,21 @@ I put the three folders into a throwaway, detached copy of `origin/feat/student-
 | `vitest run`, after fix | **160 / 160 pass** (75 responder + 85 student) |
 | `vite build` (Vite 8) | pass |
 
+**Re-run after the UI upgrade (10 Oct 2026):** the same throwaway trial against `e902492` passed `tsc --noEmit`, **175 / 175 tests** (85 student + 90 module tests; the 5 harness tests aren't part of `apps/web`), and `vite build`.
+
 ## Checklist (for when the move is approved)
 
 ### A. Merge order
 - [ ] 1. The integration owner merges or approves the `apps/web` scaffold (`feat/student-pwa`) first.
 - [ ] 2. Rebase `feat/responder-dashboard` onto it. Expect **no file conflicts**: the responder folders and the student/scaffold files don't overlap. `apps/responder-dashboard/` is outside `apps/web`.
-- [ ] 3. In `apps/web`, run `npm ci && npm test && npm run typecheck && npm run build`. Expect 160 tests, or more if either side has added tests.
+- [ ] 3. In `apps/web`, run `npm ci && npm test && npm run typecheck && npm run build`. Expect at least 175 tests (85 student + 90 module tests as of 10 Oct 2026).
 
 ### B. Dependencies
 - [ ] 4. No `package.json` change is needed. If the integration owner changes the stack, the responder module needs React 18.3+ or 19, plus the test packages listed above.
 
 ### C. Test setup
 - [ ] 5. No change is needed to `src/test/setup.ts`. The vitest config has no `include`, so it finds `*.test.ts(x)` in the three folders automatically.
-- [ ] 6. Confirm the responder tests are picked up: `npx vitest run src/features/responder src/features/incidents src/components/tom` should report 75 tests.
+- [ ] 6. Confirm the responder tests are picked up: `npx vitest run src/features/responder src/features/incidents src/components/tom` should report 90 tests.
 
 ### D. Routing and shell (integration owner)
 - [ ] 7. **Responder route,** for example `/responder`, rendering `<ResponderDashboard api={responderApi} onViewChange={...} />`.
@@ -64,7 +66,8 @@ I put the three folders into a throwaway, detached copy of `origin/feat/student-
   - `mode`: `"DEMO" | "DRILL" | "LIVE"`.
   - `context`: the current screen. Use `responder.help-requests`, `responder.hazard-review` or `responder.roll-call` (from `onViewChange`) and `student.check-in` for the student screen.
   - `approvedInstructions`: see item 11.
-- [ ] 9. **Layering:** Tom is `position: fixed`, bottom-right, `z-index: 40`. Shell dialogs, toasts and alert banners should sit above it. Check that it doesn't cover the student "I Need Help" button on small phones. If it does, the shell can offset it or place the launcher.
+- [ ] 9. **Layering:** Tom is `position: fixed`, bottom-right, `z-index: 40`. Shell dialogs, toasts and alert banners should sit above it. Check that it doesn't cover the student "I Need Help" button on small phones. If it does, set `--sc-tom-offset-bottom` or keep that corner free; the responder views already reserve it (row actions are left-aligned on phones, and the workspace has bottom padding).
+- [ ] 9a. **Contacts:** pass `contacts` to both `<ResponderDashboard>` (default `CAMPUS_CONTACTS`) and `<Tom>`. The student module also shows emergency-call text (`emergencyCall`, `campusContactsMissing` in its i18n), so agree with Claude Code 1 on **one** shared contact source instead of two. No number may be marked `INSTITUTION_CONFIRMED` until the institution confirms it.
 - [ ] 10. A **session/role provider** is needed for items 7 and 8. Neither the scaffold nor my module includes one.
 
 ### E. Shared contracts and overlaps
@@ -75,7 +78,7 @@ I put the three folders into a throwaway, detached copy of `origin/feat/student-
 - [ ] 15. The 11 provisional API assumptions in `features/responder/README.md` still need Codex 1's confirmation. **Roll call has no agreed endpoint.**
 
 ### F. Language
-- [ ] 16. The responder and Tom text is **English only**. The student module has `src/i18n` with English and Tamil. Tom is shown to students too, so its student-facing entries and the emergency fallback text should go through `i18n`, with Tamil translations reviewed by a fluent speaker. This needs agreement from the i18n owner (Claude Code 1).
+- [ ] 16. The responder and Tom text is **English only**. Tom's UI strings are now in `TomMessages` (`components/tom/tomMessages.ts`), which matches the shape of the student `Messages`. Once Claude Code 1 confirms the i18n contract, either add Tom keys to the shared dictionaries or pass `messages` per language. Knowledge-base entries (tips/FAQs) also need translation. Tamil must be reviewed by a fluent speaker before LIVE use.
 
 ### G. Remove the harness (only after A–C pass in `apps/web`)
 - [ ] 17. Delete the whole `apps/responder-dashboard/` directory: `package.json`, `package-lock.json`, `vite.config.ts`, `tsconfig.json`, `index.html`, `src/main.tsx`, `src/setupTests.ts`, `README.md`, `.gitignore`. No feature code lives there.

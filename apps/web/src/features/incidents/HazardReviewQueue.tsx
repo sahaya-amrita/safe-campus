@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { formatTimestamp } from "../responder/formatTime";
+import { Icon } from "../responder/Icon";
 import { RequestErrorNotice } from "../responder/RequestErrorNotice";
 import { StatusBadge } from "../responder/StatusBadge";
 import { usePagedList } from "../responder/usePagedList";
@@ -12,9 +13,11 @@ export interface HazardReviewQueueProps {
   api: HazardReviewApi;
   now?: () => Date;
   initialStatus?: HazardStatus;
+  /** Called after the server confirms a review (e.g. to refresh summaries). */
+  onChanged?: () => void;
 }
 
-export function HazardReviewQueue({ api, now = () => new Date(), initialStatus = "PENDING_REVIEW" }: HazardReviewQueueProps) {
+export function HazardReviewQueue({ api, now = () => new Date(), initialStatus = "PENDING_REVIEW", onChanged }: HazardReviewQueueProps) {
   const [status, setStatus] = useState<HazardStatus>(initialStatus);
   const [lastReviewed, setLastReviewed] = useState<HazardReport | null>(null);
   const fetchPage = useCallback((cursor: string | null) => api.listHazardReports({ status, cursor }), [api, status]);
@@ -25,32 +28,42 @@ export function HazardReviewQueue({ api, now = () => new Date(), initialStatus =
   function onReviewed(updated: HazardReport) {
     replaceItem(updated);
     setLastReviewed(updated);
+    onChanged?.();
   }
 
   return (
-    <section aria-labelledby="sc-hz-title">
-      <h2 id="sc-hz-title">Hazard review</h2>
-      <p className="sc-muted">
-        Reports are unverified until a human reviewer records a decision. Report counts are informational only:
-        they never raise an official alert. Campus notices are issued separately by authorized staff.
-      </p>
-      <fieldset className="sc-filter">
+    <section aria-labelledby="sc-hz-title" className="sc-view">
+      <div className="sc-view__head">
+        <h2 id="sc-hz-title">Hazard review</h2>
+        <p className="sc-muted">
+          Reports are unverified until a human reviewer records a decision. Report counts are informational only:
+          they never raise an official alert. Campus notices are issued separately by authorized staff.
+        </p>
+      </div>
+      <fieldset className="sc-seg">
         <legend>Show status</legend>
-        {HAZARD_STATUSES.map((s) => (
-          <label key={s} className="sc-filter__option">
-            <input
-              type="radio"
-              name="sc-hz-status"
-              value={s}
-              checked={status === s}
-              onChange={() => {
-                setStatus(s);
-                setLastReviewed(null);
-              }}
-            />{" "}
-            {HAZARD_STATUS_PRESENTATION[s].label}
-          </label>
-        ))}
+        <div className="sc-seg__options">
+          {HAZARD_STATUSES.map((s) => {
+            const p = HAZARD_STATUS_PRESENTATION[s];
+            return (
+              <label key={s} className={`sc-seg__opt sc-seg__opt--${p.tone}`}>
+                <input
+                  type="radio"
+                  name="sc-hz-status"
+                  value={s}
+                  checked={status === s}
+                  onChange={() => {
+                    setStatus(s);
+                    setLastReviewed(null);
+                  }}
+                />
+                <span>
+                  <span aria-hidden="true">{p.icon}</span> {p.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
       </fieldset>
 
       <div role="status" aria-live="polite" className="sc-live">
@@ -60,7 +73,11 @@ export function HazardReviewQueue({ api, now = () => new Date(), initialStatus =
             "."}
       </div>
 
-      {state.phase === "loading" && <p role="status">Loading hazard reports…</p>}
+      {state.phase === "loading" && (
+        <p role="status" className="sc-loading">
+          Loading hazard reports…
+        </p>
+      )}
       {state.phase === "error" && <RequestErrorNotice error={state.error} onRetry={reload} subject="hazard reports" />}
       {state.phase === "ready" && (
         <>
@@ -68,20 +85,30 @@ export function HazardReviewQueue({ api, now = () => new Date(), initialStatus =
             <section className="sc-counts" aria-labelledby="sc-hz-counts">
               <h3 id="sc-hz-counts">Pending reports by category (informational)</h3>
               <p className="sc-muted">Counts of loaded, unverified reports. Many reports do not confirm a hazard.</p>
-              <ul>
+              <ul className="sc-counts__list">
                 {categoryCounts.map((c) => (
                   <li key={c.category}>
-                    {c.category}: {c.count} unverified
+                    <span className="sc-counts__n">{c.count}</span>
+                    <span>
+                      {c.category}: {c.count} unverified
+                    </span>
                   </li>
                 ))}
               </ul>
             </section>
           )}
-          <p className="sc-muted">
+          <p className="sc-muted sc-count">
             {state.items.length === 0
               ? `No ${HAZARD_STATUS_PRESENTATION[status].label.toLowerCase()} reports returned by the server.`
               : `Showing ${state.items.length} report(s)${state.nextCursor ? " (more available)" : ""}, oldest first.`}
           </p>
+          {state.items.length === 0 && (
+            <div className="sc-empty">
+              <Icon name="check" size={28} />
+              <p className="sc-empty__title">No reports with this status</p>
+              <p className="sc-muted">Reports appear here after the server accepts them.</p>
+            </div>
+          )}
           <ul className="sc-list" aria-label={`${HAZARD_STATUS_PRESENTATION[status].label} hazard reports`}>
             {state.items.map((r) => {
               const p = HAZARD_STATUS_PRESENTATION[r.status];
@@ -89,8 +116,8 @@ export function HazardReviewQueue({ api, now = () => new Date(), initialStatus =
                 <li key={r.id} className={`sc-card sc-card--${p.tone}`} data-status={r.status}>
                   <div className="sc-card__head">
                     <StatusBadge {...p} />
-                    <strong>{r.category}</strong>
-                    <span className="sc-row__id">{r.id}</span>
+                    <strong className="sc-card__title">{r.category}</strong>
+                    <span className="sc-mono sc-item__id">{r.id}</span>
                   </div>
                   <p>{r.description}</p>
                   <dl className="sc-fields">
@@ -127,7 +154,7 @@ export function HazardReviewQueue({ api, now = () => new Date(), initialStatus =
             })}
           </ul>
           {state.nextCursor && (
-            <button type="button" onClick={loadMore} disabled={state.loadingMore}>
+            <button type="button" className="sc-btn sc-btn--ghost" onClick={loadMore} disabled={state.loadingMore}>
               {state.loadingMore ? "Loading more…" : "Load more"}
             </button>
           )}

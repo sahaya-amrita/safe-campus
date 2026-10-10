@@ -1,6 +1,6 @@
 /**
  * Session-only preferences. Stores only which tips were dismissed and whether
- * Tom is hidden; no behavioural analytics. All access is guarded because
+ * Tom is minimised; no behavioural analytics. All access is guarded because
  * storage can be unavailable (private mode, blocked site data).
  */
 export interface TomStore {
@@ -9,7 +9,9 @@ export interface TomStore {
   removeItem(key: string): void;
 }
 
-const HIDDEN_KEY = "safe-campus.tom.hidden";
+// Earlier builds used "safe-campus.tom.hidden", which removed Tom with no way
+// back in that tab. That key is deliberately ignored now.
+const MINIMISED_KEY = "safe-campus.tom.minimised";
 const DISMISSED_KEY = "safe-campus.tom.dismissedTips";
 
 export function defaultStore(): TomStore | null {
@@ -20,18 +22,18 @@ export function defaultStore(): TomStore | null {
   }
 }
 
-export function readHidden(store: TomStore | null): boolean {
+export function readMinimised(store: TomStore | null): boolean {
   try {
-    return store?.getItem(HIDDEN_KEY) === "1";
+    return store?.getItem(MINIMISED_KEY) === "1";
   } catch {
     return false;
   }
 }
 
-export function writeHidden(store: TomStore | null, hidden: boolean): void {
+export function writeMinimised(store: TomStore | null, minimised: boolean): void {
   try {
-    if (hidden) store?.setItem(HIDDEN_KEY, "1");
-    else store?.removeItem(HIDDEN_KEY);
+    if (minimised) store?.setItem(MINIMISED_KEY, "1");
+    else store?.removeItem(MINIMISED_KEY);
   } catch {
     /* ignore */
   }
@@ -56,8 +58,8 @@ export function writeDismissed(store: TomStore | null, ids: Set<string>): void {
   }
 }
 
-/** For the shell's settings screen: bring Tom back and restore all tips. */
+/** For the shell's settings screen: restore Tom's full launcher and all tips. */
 export function clearTomSessionPreferences(store: TomStore | null = defaultStore()): void {
-  writeHidden(store, false);
+  writeMinimised(store, false);
   writeDismissed(store, new Set());
 }

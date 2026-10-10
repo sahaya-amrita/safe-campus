@@ -2,19 +2,32 @@ import type { AppMode, ApprovedInstructionLink, Role, TomContext, TomEntry } fro
 
 const PUBLISHED_STATES = new Set(["APPROVED", "PUBLISHED"]);
 
-export function isVisible(entry: TomEntry, role: Role, context: TomContext, mode: AppMode): boolean {
+export function isVisible(
+  entry: TomEntry,
+  role: Role,
+  context: TomContext,
+  mode: AppMode,
+  now: Date = new Date(),
+): boolean {
   if (entry.contentType !== "APP_HELP") return false;
   if (!entry.roles.includes(role)) return false;
   if (!entry.contexts.includes("*") && !entry.contexts.includes(context)) return false;
-  if (mode === "LIVE" && !entry.review.reviewed) return false;
+  if (mode === "LIVE") {
+    // LIVE: reviewed and still current only.
+    if (!entry.review.reviewed) return false;
+    if (entry.review.validUntil) {
+      const t = Date.parse(entry.review.validUntil);
+      if (Number.isNaN(t) || t <= now.getTime()) return false;
+    }
+  }
   return true;
 }
 
 export function selectEntries(
   kb: readonly TomEntry[],
-  opts: { role: Role; context: TomContext; mode: AppMode },
+  opts: { role: Role; context: TomContext; mode: AppMode; now?: Date },
 ) {
-  const visible = kb.filter((e) => isVisible(e, opts.role, opts.context, opts.mode));
+  const visible = kb.filter((e) => isVisible(e, opts.role, opts.context, opts.mode, opts.now));
   return {
     hints: visible.filter((e) => e.kind === "HINT"),
     faqs: visible.filter((e) => e.kind === "FAQ"),

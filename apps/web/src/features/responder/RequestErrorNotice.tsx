@@ -28,7 +28,7 @@ export function RequestErrorNotice({ error, onRetry, subject }: RequestErrorNoti
         Could not load {subject}. {describeError(error)}
       </p>
       {onRetry && (
-        <button type="button" onClick={onRetry}>
+        <button type="button" className="sc-btn" onClick={onRetry}>
           Retry
         </button>
       )}

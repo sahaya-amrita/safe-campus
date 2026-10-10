@@ -118,6 +118,17 @@ export const DEFAULT_TOM_KNOWLEDGE: readonly TomEntry[] = [
     contentType: "APP_HELP",
     review: draft,
   },
+  // ---- Responder: contacts
+  {
+    id: "resp-ct-hint-verification",
+    kind: "HINT",
+    roles: ["RESPONDER", "ADMIN"],
+    contexts: ["responder.contacts"],
+    title: "Check each number's status",
+    body: "Each contact shows its source, when it was last checked, and whether the institution has confirmed it. LIVE mode hides any number the institution has not confirmed.",
+    contentType: "APP_HELP",
+    review: draft,
+  },
   // ---- Student (navigation only)
   {
     id: "student-faq-status",

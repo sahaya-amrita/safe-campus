@@ -8,6 +8,9 @@
  * be confirmed by the API owner.
  */
 
+/** DEMO/DRILL use synthetic or exercise data; LIVE is an approved deployment. */
+export type AppMode = "DEMO" | "DRILL" | "LIVE";
+
 export const ROLES = ["STUDENT", "VOLUNTEER", "RESPONDER", "ADMIN"] as const;
 export type Role = (typeof ROLES)[number];
 

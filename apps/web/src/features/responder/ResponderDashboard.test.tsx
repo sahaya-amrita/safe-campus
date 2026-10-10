@@ -159,7 +159,7 @@ describe("help request acknowledgement", () => {
     await user.keyboard("{Enter}");
     const heading = screen.getByRole("heading", { name: "Help request DEMO-HR-001" });
     await waitFor(() => expect(heading).toHaveFocus());
-    await user.tab();
+    // The next control after the focused heading is the primary action.
     await user.tab();
     expect(screen.getByRole("button", { name: "Acknowledge request" })).toHaveFocus();
     await user.keyboard("{Enter}");
@@ -182,5 +182,42 @@ describe("roll-call summary", () => {
     render(<ResponderDashboard api={new MockResponderApi({ now, rollCall: null })} now={now} />);
     await user.click(screen.getByRole("button", { name: "Roll-call summary" }));
     expect(await screen.findByText(/Roll-call data is not available/)).toBeInTheDocument();
+  });
+});
+
+describe("workspace layout", () => {
+  it("shows header counts from the server's first page, and refreshes after an acknowledgement", async () => {
+    const user = userEvent.setup();
+    render(<ResponderDashboard api={new MockResponderApi({ now })} now={now} />);
+    const summary = screen.getByRole("group", { name: "Queue summary" });
+    await waitFor(() => expect(within(summary).getByText("Open help requests").nextElementSibling).toHaveTextContent("2"));
+    expect(within(summary).getByText("Hazards pending review").nextElementSibling).toHaveTextContent("4");
+    await user.click(await screen.findByRole("button", { name: "Open help request DEMO-HR-001" }));
+    await user.click(screen.getByRole("button", { name: "Acknowledge request" }));
+    await waitFor(() => expect(within(summary).getByText("Open help requests").nextElementSibling).toHaveTextContent("1"));
+  });
+
+  it("shows 'No access' in the header instead of counts when the server denies access", async () => {
+    render(<ResponderDashboard api={new MockResponderApi({ now, session: { role: "STUDENT", actorId: "s" } })} now={now} />);
+    await waitFor(() => expect(screen.getAllByText("No access")).toHaveLength(2));
+  });
+
+  it("marks the current section in the navigation", async () => {
+    const user = userEvent.setup();
+    render(<ResponderDashboard api={new MockResponderApi({ now })} now={now} />);
+    const nav = screen.getByRole("navigation", { name: "Responder sections" });
+    expect(within(nav).getByRole("button", { name: "Help requests" })).toHaveAttribute("aria-current", "page");
+    await user.click(within(nav).getByRole("button", { name: "Hazard review" }));
+    expect(within(nav).getByRole("button", { name: "Hazard review" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("button", { name: "Help requests" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("heading", { level: 1, name: "Hazard review" })).toBeInTheDocument();
+  });
+
+  it("shows a designed empty state when a status has no records", async () => {
+    const user = userEvent.setup();
+    render(<ResponderDashboard api={new MockResponderApi({ now, helpRequests: [] })} now={now} />);
+    expect(await screen.findByText("Nothing open right now")).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Assigned" }));
+    expect(await screen.findByText("Nothing assigned right now")).toBeInTheDocument();
   });
 });

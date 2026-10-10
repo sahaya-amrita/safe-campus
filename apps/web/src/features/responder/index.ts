@@ -8,3 +8,5 @@ export { ResponderDashboard, type ResponderView } from "./ResponderDashboard";
 export { HelpRequestQueue } from "./HelpRequestQueue";
 export { HelpRequestDetail } from "./HelpRequestDetail";
 export { RollCallSummary } from "./RollCallSummary";
+export * from "./campusDirectory";
+export { ContactsView } from "./ContactsView";

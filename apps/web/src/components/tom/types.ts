@@ -1,9 +1,7 @@
-import type { Role } from "../../features/responder/contracts";
+import type { AppMode, Role } from "../../features/responder/contracts";
 
-export type { Role };
-
-/** DEMO/DRILL may show draft app help; LIVE shows only reviewed content. */
-export type AppMode = "DEMO" | "DRILL" | "LIVE";
+/** DEMO/DRILL may show draft app help; LIVE shows only reviewed, current content. */
+export type { AppMode, Role };
 
 /** Screen identifier supplied by the app shell, e.g. "responder.hazard-review". */
 export type TomContext = string;
@@ -27,7 +25,7 @@ export interface TomEntry {
    */
   contentType: "APP_HELP";
   /** Whether a named person has reviewed the copy. LIVE mode requires true. */
-  review: { reviewed: boolean; reviewer?: string; reviewedAt?: string };
+  review: { reviewed: boolean; reviewer?: string; reviewedAt?: string; validUntil?: string };
 }
 
 /**

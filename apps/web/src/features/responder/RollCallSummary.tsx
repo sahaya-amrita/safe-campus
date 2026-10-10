@@ -29,12 +29,15 @@ export function RollCallSummary({ api, now = () => new Date() }: RollCallSummary
   useEffect(() => load(), [load]);
 
   return (
-    <section aria-labelledby="sc-rc-title">
-      <h2 id="sc-rc-title">Roll-call summary</h2>
+    <section aria-labelledby="sc-rc-title" className="sc-view">
+      <div className="sc-view__head">
+        <h2 id="sc-rc-title">Roll-call summary</h2>
+        <p className="sc-muted">Counts describe only the stated scope. This view never declares a campus-wide roll call complete.</p>
+      </div>
       {state.phase === "loading" && <p role="status">Loading roll-call summary…</p>}
       {state.phase === "error" &&
         (classifyError(state.error) === "UNAVAILABLE" ? (
-          <p className="sc-notice">
+          <p className="sc-notice sc-notice--warn">
             Roll-call data is not available: no roll-call endpoint has been agreed in the API contract yet. No totals
             are shown rather than estimates.
           </p>
@@ -53,23 +56,38 @@ function RollCallBody({ data, now }: { data: RollCallSnapshot; now: Date }) {
       {data.isDemo && (
         <p className="sc-demo-label">DEMO DATA — synthetic participants, not real people.</p>
       )}
-      <p>
+      <p className="sc-scope">
         <strong>Scope:</strong> {data.scopeLabel}.{" "}
         {data.scopeKind === "PARTIAL"
           ? "This is a partial scope, not a campus-wide roll call."
           : "The data source cannot state its coverage; do not treat this as campus-wide."}
       </p>
-      <dl className="sc-fields">
-        <dt>Reported safe</dt>
-        <dd>{data.safeCount}</dd>
-        <dt>Reported needing help</dt>
-        <dd>{data.needHelpCount}</dd>
-        <dt>Expected in scope</dt>
-        <dd>{data.expectedCount ?? "Unknown"}</dd>
-        <dt>As of</dt>
-        <dd>{formatTimestamp(data.asOf, now)}</dd>
+      <dl className="sc-tiles">
+        <div className="sc-tile sc-tile--done">
+          <dt>Reported safe</dt>
+          <dd>{data.safeCount}</dd>
+        </div>
+        <div className="sc-tile sc-tile--urgent">
+          <dt>Reported needing help</dt>
+          <dd>{data.needHelpCount}</dd>
+        </div>
+        <div className="sc-tile">
+          <dt>Expected in scope</dt>
+          <dd>{data.expectedCount ?? "Unknown"}</dd>
+        </div>
+        <div className="sc-tile sc-tile--neutral">
+          <dt>Not yet accounted for</dt>
+          <dd>{c.kind === "INCOMPLETE" ? c.missing : c.kind === "ALL_RESPONDED_IN_SCOPE" ? 0 : "Unknown"}</dd>
+        </div>
       </dl>
-      <p role="status">
+      {c.kind !== "UNKNOWN_EXPECTED" && (
+        <div className="sc-progress" aria-hidden="true">
+          <span className="sc-progress__safe" style={{ width: `${Math.min(100, (data.safeCount / c.expected) * 100)}%` }} />
+          <span className="sc-progress__help" style={{ width: `${Math.min(100, (data.needHelpCount / c.expected) * 100)}%` }} />
+        </div>
+      )}
+      <p className="sc-muted">As of {formatTimestamp(data.asOf, now)}</p>
+      <p role="status" className="sc-rc-status">
         {c.kind === "UNKNOWN_EXPECTED" &&
           `${c.responded} responses received. Expected headcount is unknown, so completeness cannot be determined.`}
         {c.kind === "INCOMPLETE" &&

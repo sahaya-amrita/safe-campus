@@ -64,7 +64,7 @@ export function HazardReviewForm({ report, api, onReviewed }: HazardReviewFormPr
 
   return (
     <form className="sc-review" onSubmit={submit} aria-label={`Review hazard report ${report.id}`}>
-      <fieldset>
+      <fieldset className="sc-review__decisions">
         <legend>Your review decision</legend>
         {decisions.map((d) => (
           <label key={d} className="sc-review__option">
@@ -88,7 +88,7 @@ export function HazardReviewForm({ report, api, onReviewed }: HazardReviewFormPr
           Verifying records your review only. It does not issue a campus alert or notify anyone.
         </p>
       )}
-      <button type="submit" className="sc-button sc-button--primary" disabled={phase === "submitting"}>
+      <button type="submit" className="sc-btn sc-btn--primary" disabled={phase === "submitting"}>
         {phase === "submitting" ? "Saving review…" : "Submit review"}
       </button>
       {phase === "submitting" && (

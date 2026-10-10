@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { disabledTomAi, mockTomAi, type TomAiAdapter } from "./aiAdapter";
 import { DEFAULT_TOM_KNOWLEDGE } from "./knowledgeBase";
 import { Tom } from "./Tom";
+import { TOM_MESSAGES_EN } from "./tomMessages";
 import type { ApprovedInstructionLink, TomEntry } from "./types";
+import type { CampusContact } from "../../features/responder/campusDirectory";
+import { CAMPUS_CONTACTS } from "../../features/responder/campusDirectory";
 
 afterEach(() => { try { window.sessionStorage.clear(); } catch { /* storage unavailable */ } });
 
@@ -83,15 +86,22 @@ describe("Tom launcher and panel", () => {
     expect(screen.getByText("Counts are not alerts.")).toBeInTheDocument();
   });
 
-  it("can be hidden for the session", async () => {
+  it("can be minimised for the session but always offers a way back", async () => {
     const user = userEvent.setup();
     const { unmount } = render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" />);
     await openTom(user);
-    await user.click(screen.getByRole("button", { name: "Hide Tom for this session" }));
-    expect(screen.queryByRole("button", { name: /Tom/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Minimise Tom for this session" }));
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    const compact = screen.getByRole("button", { name: "Show Tom help" });
+    await waitFor(() => expect(compact).toHaveFocus());
     unmount();
+
     render(<Tom role="RESPONDER" context="responder.help-requests" mode="DEMO" />);
-    expect(screen.queryByRole("button", { name: /Tom/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Help \(Tom\)/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show Tom help" }));
+    expect(panel()).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close Tom help panel" }));
+    expect(launcher()).toBeInTheDocument();
   });
 
   it("works when session storage is unavailable", async () => {
@@ -286,5 +296,71 @@ describe("AI adapter", () => {
 
   it("disabled adapter rejects if called directly", async () => {
     await expect(disabledTomAi.explain({ entry: DEFAULT_TOM_KNOWLEDGE[0]!, role: "RESPONDER" })).rejects.toThrow();
+  });
+});
+
+describe("campus contacts and current content", () => {
+  const confirmed: CampusContact = {
+    ...CAMPUS_CONTACTS[0]!,
+    id: "test-confirmed",
+    label: "Test confirmed line",
+    phoneDisplay: "0422 0000000",
+    phoneDial: "+914220000000",
+    verification: "INSTITUTION_CONFIRMED",
+    source: { url: "https://example.test/directory", label: "Test directory" },
+  };
+
+  async function askEmergency(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText("Ask about using this screen"), "there is a fire");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    return screen.getByRole("status");
+  }
+
+  it("DEMO: lists contacts on record with their unconfirmed state", async () => {
+    const user = userEvent.setup();
+    render(<Tom role="STUDENT" context="student.check-in" mode="DEMO" contacts={CAMPUS_CONTACTS} />);
+    await openTom(user);
+    const status = await askEmergency(user);
+    expect(status).toHaveTextContent("Security Office: 0422 2685802");
+    expect(status).toHaveTextContent("unverified, confirm before live; not yet confirmed by the institution");
+  });
+
+  it("LIVE: shows only institution-confirmed contacts", async () => {
+    const user = userEvent.setup();
+    render(<Tom role="STUDENT" context="student.check-in" mode="LIVE" contacts={[...CAMPUS_CONTACTS, confirmed]} />);
+    await openTom(user);
+    const status = await askEmergency(user);
+    expect(status).toHaveTextContent("Test confirmed line: 0422 0000000");
+    expect(status).not.toHaveTextContent("2685802");
+    expect(status).not.toHaveTextContent("2685000");
+  });
+
+  it("LIVE: hides reviewed entries whose review has expired", async () => {
+    const user = userEvent.setup();
+    const kb = DEFAULT_TOM_KNOWLEDGE.map((e) =>
+      e.id === "resp-hr-hint-oldest-first"
+        ? { ...e, review: { reviewed: true, validUntil: "2026-01-01T00:00:00Z" } }
+        : { ...e, review: { reviewed: true, validUntil: "2027-01-01T00:00:00Z" } },
+    );
+    render(
+      <Tom role="RESPONDER" context="responder.help-requests" mode="LIVE" knowledgeBase={kb} now={() => new Date("2026-10-10T00:00:00Z")} />,
+    );
+    await openTom(user);
+    expect(screen.queryByText("Oldest requests are listed first.")).not.toBeInTheDocument();
+    expect(screen.getByText("What does “Acknowledge” do?")).toBeInTheDocument();
+  });
+
+  it("uses translated messages when provided", async () => {
+    const user = userEvent.setup();
+    render(
+      <Tom
+        role="RESPONDER"
+        context="responder.help-requests"
+        mode="DEMO"
+        messages={{ ...TOM_MESSAGES_EN, launcherOpen: "உதவி (Tom)", panelTitle: "Tom — உதவி" }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "உதவி (Tom)" }));
+    expect(screen.getByRole("complementary", { name: "Tom — உதவி" })).toBeInTheDocument();
   });
 });
