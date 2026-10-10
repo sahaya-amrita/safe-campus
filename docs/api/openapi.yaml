@@ -1,0 +1,828 @@
+openapi: 3.1.0
+info:
+  title: Amrita Sahaya API
+  version: 0.1.1
+  description: >-
+    Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
+    behavior is simulated. No endpoint contacts real emergency services.
+servers:
+  - url: http://127.0.0.1:3000/api/v1
+    description: Local development
+tags:
+  - name: Health
+  - name: Authentication
+  - name: Users
+  - name: Incidents
+  - name: Check-ins
+  - name: Help requests
+  - name: Instruction packs
+  - name: Responders
+  - name: Dispatches
+  - name: Alerts
+  - name: Trusted contacts
+  - name: Drills
+  - name: Training
+  - name: Maps
+paths:
+  /health:
+    get:
+      tags: [Health]
+      security: []
+      operationId: getHealth
+      responses:
+        '200':
+          description: API and database are available
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, mode, database, timestamp]
+                properties:
+                  status: { const: ok }
+                  service: { const: amrita-sahaya-api }
+                  mode: { $ref: '#/components/schemas/OperatingMode' }
+                  database: { const: connected }
+                  latencyMs: { type: integer }
+                  timestamp: { type: string, format: date-time }
+  /auth/demo-login:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: demoLogin
+      summary: Authenticate a fictional local account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: Short-lived demo access token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accessToken, expiresInSeconds, user, warning]
+                properties:
+                  accessToken: { type: string }
+                  expiresInSeconds: { type: integer, const: 7200 }
+                  user: { $ref: '#/components/schemas/User' }
+                  warning: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /incidents:
+    get:
+      tags: [Incidents]
+      operationId: listIncidents
+      summary: List own incidents or the authorized operational queue
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Paginated incident list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Incident' } }
+                  nextCursor: { type: [string, 'null'] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Incidents]
+      operationId: createIncident
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIncident' }
+      responses:
+        '201':
+          description: Incident accepted by the server; urgent priorities include a simulated dispatch
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, verificationStatus, priority, deliveryStatus, serverReceivedAt]
+                properties:
+                  id: { type: string, format: uuid }
+                  verificationStatus: { const: REPORTED }
+                  priority: { $ref: '#/components/schemas/IncidentPriority' }
+                  deliveryStatus: { const: SERVER_RECEIVED }
+                  serverReceivedAt: { type: string, format: date-time }
+                  dispatch:
+                    oneOf:
+                      - type: 'null'
+                      - type: object
+                        properties:
+                          id: { type: string, format: uuid }
+                          status: { const: CREATED }
+                          simulated: { const: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /users/me:
+    get:
+      tags: [Users]
+      operationId: getAuthenticatedUser
+      summary: Retrieve the authenticated profile and server-owned roles
+      responses:
+        '200':
+          description: Authenticated user profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /incidents/{incidentId}:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    get:
+      tags: [Incidents]
+      operationId: getIncident
+      summary: Retrieve an incident when permitted by ownership or role
+      responses:
+        '200': { description: Incident detail }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /incidents/{incidentId}/reports:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    post:
+      tags: [Incidents]
+      operationId: addIncidentReport
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description]
+              properties:
+                description: { type: string, minLength: 3, maxLength: 2000 }
+                zoneId: { type: string, format: uuid }
+                observedAt: { type: string, format: date-time }
+      responses:
+        '201':
+          description: Eyewitness report accepted without changing official verification
+        '404': { $ref: '#/components/responses/NotFound' }
+  /incidents/{incidentId}/reviews:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    post:
+      tags: [Incidents]
+      operationId: reviewIncident
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      summary: Apply an authorized verification transition
+      description: Requires INCIDENT_VERIFIER or ADMIN. Report count never invokes this transition automatically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, reason]
+              properties:
+                status: { enum: [CORROBORATED, VERIFIED, RESOLVED, DISMISSED] }
+                reason: { type: string, minLength: 5, maxLength: 1000 }
+                evidenceIds: { type: array, maxItems: 20, items: { type: string, format: uuid } }
+      responses:
+        '201': { description: Append-only review record }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /incidents/{incidentId}/checkins/summary:
+    parameters: [{ $ref: '#/components/parameters/IncidentId' }]
+    get:
+      tags: [Check-ins]
+      operationId: getIncidentCheckinSummary
+      summary: Get latest check-in counts including eligible students with no response
+      responses:
+        '200': { description: 'CONFIRMED_SAFE, HELP_REQUESTED, and UNCONFIRMED counts' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /checkins:
+    post:
+      tags: [Check-ins]
+      operationId: submitCheckin
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitCheckin' }
+      responses:
+        '201':
+          description: Server-received check-in; HELP_REQUESTED also returns a persistent OPEN helpRequest
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /checkins/me/latest:
+    get:
+      tags: [Check-ins]
+      operationId: getLatestOwnCheckin
+      parameters:
+        - name: incidentId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: drillId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Latest server-received state, or UNCONFIRMED when no state exists
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /checkins/help-requests:
+    get:
+      tags: [Check-ins]
+      operationId: listHelpRequests
+      responses:
+        '200':
+          description: Responders receive requests only for their verified assigned zone; verifiers and admins receive all
+        '403': { $ref: '#/components/responses/Forbidden' }
+      deprecated: true
+  /help-requests:
+    get:
+      tags: [Help requests]
+      operationId: listPersistentHelpRequests
+      summary: List persistent help requests within the caller's operational scope
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/HelpRequestStatus' }
+      responses:
+        '200':
+          description: Cursor-paginated help requests; responders are restricted to their verified assigned zone
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /help-requests/{helpRequestId}/acknowledge:
+    post:
+      tags: [Help requests]
+      operationId: acknowledgeHelpRequest
+      parameters:
+        - { $ref: '#/components/parameters/HelpRequestId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200': { description: OPEN help request moved to ACKNOWLEDGED }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /help-requests/{helpRequestId}/assign:
+    post:
+      tags: [Help requests]
+      operationId: assignHelpRequest
+      parameters:
+        - { $ref: '#/components/parameters/HelpRequestId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignHelpRequest' }
+      responses:
+        '200':
+          { description: Help request assigned to a verified on-duty responder in the same zone }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /help-requests/{helpRequestId}/resolve:
+    post:
+      tags: [Help requests]
+      operationId: resolveHelpRequest
+      parameters:
+        - { $ref: '#/components/parameters/HelpRequestId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200': { description: Assigned responder or administrator moved the request to RESOLVED }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /help-requests/{helpRequestId}/cancel:
+    post:
+      tags: [Help requests]
+      operationId: cancelHelpRequest
+      parameters:
+        - { $ref: '#/components/parameters/HelpRequestId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200': { description: Owning student or administrator moved the request to CANCELLED }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /responders/appropriate:
+    get:
+      tags: [Responders]
+      operationId: listAppropriateResponders
+      parameters:
+        - name: zoneId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: qualification
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Verified available responders filtered by coarse assigned zone; no live GPS
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /dispatches:
+    get:
+      tags: [Dispatches]
+      operationId: listDispatches
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Admins receive all dispatches; responders receive unassigned and self-assigned dispatches
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /dispatches/{dispatchId}/acknowledge:
+    post:
+      tags: [Dispatches]
+      operationId: acknowledgeDispatch
+      parameters:
+        - name: dispatchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200':
+          description: Dispatch moved to ACCEPTED and an unassigned dispatch is claimed by the verified responder
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /alerts:
+    post:
+      tags: [Alerts]
+      operationId: createAlert
+      summary: Create a zone-scoped alert draft
+      description: Requires ADMIN; all supported modes are non-live.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAlert' }
+      responses:
+        '201': { description: Alert draft }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /alerts/{alertId}/authorize:
+    post:
+      tags: [Alerts]
+      operationId: authorizeAlert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200': { description: Simulated recipient records and outbox event queued }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /alerts/inbox:
+    get:
+      tags: [Alerts]
+      operationId: getAlertInbox
+      responses:
+        '200': { description: Alerts targeted to the authenticated test user }
+  /alerts/{alertId}/acknowledge:
+    post:
+      tags: [Alerts]
+      operationId: acknowledgeAlert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200': { description: Explicit recipient acknowledgment }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /trusted-contacts:
+    get:
+      tags: [Trusted contacts]
+      operationId: listTrustedContacts
+      responses:
+        '200': { description: Owner-scoped contacts without decrypted contact values }
+    post:
+      tags: [Trusted contacts]
+      operationId: createTrustedContact
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTrustedContact' }
+      responses:
+        '201': { description: Pending-consent contact; external delivery remains disabled }
+  /trusted-contacts/{contactId}:
+    parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Trusted contacts]
+      operationId: updateTrustedContact
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTrustedContact' }
+      responses:
+        '200': { description: Consent/preferences updated for the owner }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Trusted contacts]
+      operationId: deleteTrustedContact
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '204': { description: Contact removed }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /drills:
+    get:
+      tags: [Drills]
+      operationId: listDrills
+      responses:
+        '200': { description: Demonstration/test drill configurations }
+    post:
+      tags: [Drills]
+      operationId: createDrill
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDrill' }
+      responses:
+        '201': { description: Draft drill configuration }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /drills/{drillId}/metrics:
+    get:
+      tags: [Drills]
+      operationId: getDrillMetrics
+      parameters:
+        - name: drillId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          { description: Aggregated check-in and training metrics with synthetic-assumption label }
+  /training/results:
+    post:
+      tags: [Training]
+      operationId: saveTrainingResult
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TrainingResult' }
+      responses:
+        '201': { description: Training result persisted }
+  /instruction-packs:
+    get:
+      tags: [Instruction packs]
+      operationId: listPublishedInstructionPacks
+      summary: List only published and unexpired reviewed instruction packs
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - name: language
+          in: query
+          schema: { enum: [en, ta] }
+      responses:
+        '200': { description: Cursor-paginated published instruction packs }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Instruction packs]
+      operationId: createInstructionPack
+      summary: Create reviewable instruction metadata and caller-supplied content
+      description: Requires INCIDENT_VERIFIER or ADMIN. The API never generates instruction content.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateInstructionPack' }
+      responses:
+        '201': { description: Draft instruction pack created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /instruction-packs/review-queue:
+    get:
+      tags: [Instruction packs]
+      operationId: listInstructionPackReviewQueue
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: Review metadata for INCIDENT_VERIFIER and ADMIN roles }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /instruction-packs/{instructionPackId}:
+    get:
+      tags: [Instruction packs]
+      operationId: getInstructionPack
+      parameters: [{ $ref: '#/components/parameters/InstructionPackId' }]
+      responses:
+        '200': { description: 'Published pack, or any pack for an authorized reviewer' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /instruction-packs/{instructionPackId}/review:
+    post:
+      tags: [Instruction packs]
+      operationId: reviewInstructionPack
+      parameters:
+        - { $ref: '#/components/parameters/InstructionPackId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewInstructionPack' }
+      responses:
+        '200': { description: Pack moved to APPROVED or REJECTED with review metadata }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /instruction-packs/{instructionPackId}/publish:
+    post:
+      tags: [Instruction packs]
+      operationId: publishInstructionPack
+      description: Requires ADMIN and an APPROVED pack. No notifications are sent.
+      parameters:
+        - { $ref: '#/components/parameters/InstructionPackId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200': { description: Approved pack moved to PUBLISHED }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /maps/{buildingId}/approved:
+    get:
+      tags: [Maps]
+      operationId: getBuildingMapMetadata
+      parameters:
+        - name: buildingId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Versioned building/floor/zone metadata and explicit approval flags }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 200 }
+    IncidentId:
+      name: incidentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    HelpRequestId:
+      name: helpRequestId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    InstructionPackId:
+      name: instructionPackId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string, maxLength: 500 }
+      description: Opaque cursor returned as nextCursor by the preceding page
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+  responses:
+    BadRequest:
+      description: Validation or state transition failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Unauthorized:
+      description: Missing, invalid, or expired authentication
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Forbidden:
+      description: Authenticated role is not authorized
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    NotFound:
+      description: Resource not found or not visible
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Conflict:
+      description: Idempotency key was reused with a different request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+  schemas:
+    OperatingMode: { enum: [DEMO, DRILL, TEST, SIMULATION] }
+    Role: { enum: [STUDENT, RESPONDER, INCIDENT_VERIFIER, DRILL_MANAGER, ADMIN] }
+    VerificationStatus: { enum: [REPORTED, CORROBORATED, VERIFIED, RESOLVED, DISMISSED] }
+    IncidentPriority: { enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+    DeliveryStatus: { enum: [LOCAL_ONLY, QUEUED, SENDING, SERVER_RECEIVED, ACKNOWLEDGED, FAILED] }
+    HelpRequestStatus: { enum: [OPEN, ACKNOWLEDGED, ASSIGNED, RESOLVED, CANCELLED] }
+    InstructionPackApprovalState: { enum: [DRAFT, APPROVED, REJECTED, PUBLISHED, RETIRED] }
+    User:
+      type: object
+      required: [id, email, displayName, language, roles, mode]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        language: { enum: [en, ta] }
+        roles: { type: array, items: { $ref: '#/components/schemas/Role' } }
+        mode: { $ref: '#/components/schemas/OperatingMode' }
+    Incident:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        description: { type: string }
+        priority: { $ref: '#/components/schemas/IncidentPriority' }
+        verificationStatus: { $ref: '#/components/schemas/VerificationStatus' }
+        mode: { $ref: '#/components/schemas/OperatingMode' }
+        serverReceivedAt: { type: string, format: date-time }
+    CreateIncident:
+      type: object
+      additionalProperties: false
+      required: [type, description, priority]
+      properties:
+        type: { type: string, minLength: 2, maxLength: 80 }
+        description: { type: string, minLength: 3, maxLength: 2000 }
+        priority: { $ref: '#/components/schemas/IncidentPriority' }
+        buildingId: { type: string, format: uuid }
+        floorId: { type: string, format: uuid }
+        zoneId: { type: string, format: uuid }
+        occurredAt: { type: string, format: date-time }
+        evidence:
+          type: array
+          maxItems: 4
+          items:
+            type: object
+            required: [objectKey, mediaType, sizeBytes, sha256]
+            properties:
+              objectKey:
+                { type: string, description: 'Private object-store key, never a public URL' }
+              mediaType: { enum: [image/jpeg, image/png, video/mp4] }
+              sizeBytes: { type: integer, minimum: 1, maximum: 10000000 }
+              sha256: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+    SubmitCheckin:
+      type: object
+      additionalProperties: false
+      required: [status, clientCreatedAt, clientActionId]
+      properties:
+        incidentId: { type: string, format: uuid }
+        drillId: { type: string, format: uuid }
+        status: { enum: [CONFIRMED_SAFE, HELP_REQUESTED] }
+        helpDetails: { type: string, minLength: 3, maxLength: 1000 }
+        clientCreatedAt: { type: string, format: date-time }
+        clientActionId: { type: string, format: uuid }
+      description: Exactly one of incidentId/drillId; HELP_REQUESTED requires helpDetails.
+    AssignHelpRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        responderId:
+          type: string
+          format: uuid
+          description: Required for administrator assignment; responders may assign only themselves.
+    HelpRequest:
+      type: object
+      required: [id, studentId, status, priority, details, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        studentId: { type: string, format: uuid }
+        incidentId: { type: [string, 'null'], format: uuid }
+        drillId: { type: [string, 'null'], format: uuid }
+        zoneId: { type: [string, 'null'], format: uuid }
+        status: { $ref: '#/components/schemas/HelpRequestStatus' }
+        priority: { $ref: '#/components/schemas/IncidentPriority' }
+        details: { type: string }
+        assignedResponderId: { type: [string, 'null'], format: uuid }
+        acknowledgedAt: { type: [string, 'null'], format: date-time }
+        assignedAt: { type: [string, 'null'], format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateInstructionPack:
+      type: object
+      additionalProperties: false
+      required: [version, language, title, content, contentHash, sourceLabel]
+      properties:
+        version: { type: string, minLength: 1, maxLength: 80 }
+        language: { enum: [en, ta] }
+        title: { type: string, minLength: 3, maxLength: 200 }
+        content:
+          type: object
+          additionalProperties: true
+          description: Caller-supplied reviewed content; never generated by the API.
+        contentHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        sourceLabel: { type: string, minLength: 3, maxLength: 200 }
+        sourceReference: { type: string, maxLength: 500 }
+        expiresAt: { type: string, format: date-time }
+    ReviewInstructionPack:
+      type: object
+      additionalProperties: false
+      required: [decision, notes]
+      properties:
+        decision: { enum: [APPROVE, REJECT] }
+        notes: { type: string, minLength: 3, maxLength: 2000 }
+    InstructionPack:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: string }
+        language: { enum: [en, ta] }
+        title: { type: string }
+        content: { type: object, additionalProperties: true }
+        contentHash: { type: string }
+        sourceLabel: { type: string }
+        sourceReference: { type: [string, 'null'] }
+        approvalState: { $ref: '#/components/schemas/InstructionPackApprovalState' }
+        reviewNotes: { type: [string, 'null'] }
+        approvedAt: { type: [string, 'null'], format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        mode: { $ref: '#/components/schemas/OperatingMode' }
+    CreateAlert:
+      type: object
+      required: [zoneIds, title, message, precautionary, mode]
+      properties:
+        incidentId: { type: string, format: uuid }
+        zoneIds: { type: array, minItems: 1, maxItems: 100, items: { type: string, format: uuid } }
+        title: { type: string, minLength: 3, maxLength: 140 }
+        message: { type: string, minLength: 3, maxLength: 2000 }
+        precautionary: { type: boolean }
+        mode: { $ref: '#/components/schemas/OperatingMode' }
+    CreateTrustedContact:
+      type: object
+      required: [name, contactChannel, contactValue, notificationPreferences]
+      properties:
+        name: { type: string }
+        contactChannel: { enum: [EMAIL, PHONE] }
+        contactValue: { type: string }
+        notificationPreferences:
+          type: object
+          properties:
+            incidentUpdates: { type: boolean }
+            helpRequests: { type: boolean }
+    UpdateTrustedContact:
+      type: object
+      properties:
+        consentStatus: { enum: [PENDING, VERIFIED, REVOKED] }
+        notificationPreferences:
+          type: object
+          required: [incidentUpdates, helpRequests]
+          properties:
+            incidentUpdates: { type: boolean }
+            helpRequests: { type: boolean }
+    CreateDrill:
+      type: object
+      required: [name, buildingId, scenarioRef, scenarioVersion, mode]
+      properties:
+        name: { type: string }
+        buildingId: { type: string, format: uuid }
+        scenarioRef: { type: string }
+        scenarioVersion: { type: string }
+        mode: { enum: [DRILL, TEST, SIMULATION] }
+        assumptions: { type: object, additionalProperties: true }
+    TrainingResult:
+      type: object
+      required: [scenarioRef, scenarioVersion, score, answers]
+      properties:
+        drillId: { type: string, format: uuid }
+        scenarioRef: { type: string, minLength: 1, maxLength: 200 }
+        scenarioVersion: { type: string, minLength: 1, maxLength: 40 }
+        score: { type: number, minimum: 0, maximum: 100 }
+        answers: { type: object, additionalProperties: true }
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+            details: {}
+security:
+  - bearerAuth: []

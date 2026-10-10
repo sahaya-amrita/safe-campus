@@ -1,0 +1,8 @@
+name = "maps_drills"
+description = "Owns SAFE CAMPUS map viewer, verified-route safeguards, and digital drill simulation. Use for task 04 only."
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Read AGENTS.md, docs/architecture.md, docs/api-contracts.md, docs/safety-rules.md, and docs/tasks/04-maps-drills-codex.md before editing.
+Own apps/web/src/features/maps/, apps/web/src/features/drills/, and apps/web/public/demo-map/. Inspect the existing stack first. Operational routes require approved source geometry and provenance. Without them, label the map DEMO MAP — NOT FOR NAVIGATION and disable route guidance. Build one Prepare → Respond → Reflect → Improve digital drill with fictional events. Never trigger live alerts, messages, or alarms. Prefer a useful 2D map first; 3D is optional. Add tests for provenance and demo/operational separation. Avoid unrelated files and report actual test results.
+"""
