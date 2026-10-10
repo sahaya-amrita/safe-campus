@@ -5,6 +5,7 @@ Follow `AGENTS.md` as the source of shared engineering and safety rules.
 Before editing, read `docs/architecture.md`, `docs/api-contracts.md`, `docs/safety-rules.md`, and your assigned file under `docs/tasks/`.
 
 Claude Code contributor assignments:
+
 - Claude Code 1: `docs/tasks/02-student-pwa-claude.md`
 - Claude Code 2: `docs/tasks/03-responder-tom-claude.md`
 

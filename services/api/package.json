@@ -1,0 +1,43 @@
+{
+  "name": "@sahaya/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "db:seed": "tsx src/scripts/seed.ts",
+    "outbox:once": "tsx src/scripts/process-outbox.ts",
+    "assistant:smoke": "tsx src/assistant/smoke.ts"
+  },
+  "dependencies": {
+    "@sahaya/contracts": "workspace:*",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "helmet": "latest",
+    "jose": "latest",
+    "pg": "latest",
+    "pino": "latest",
+    "pino-http": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "@types/supertest": "latest",
+    "pg-mem": "^3.0.14",
+    "pino-pretty": "latest",
+    "supertest": "latest",
+    "tsx": "latest",
+    "vitest": "latest"
+  }
+}
