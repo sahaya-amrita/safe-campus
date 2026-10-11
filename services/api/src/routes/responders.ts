@@ -26,20 +26,31 @@ export function respondersRouter(pool: DatabasePool) {
         parsed.error.flatten(),
       );
     const { zoneId, qualification } = parsed.data;
-    const result = await pool.query(
+    // Filters run in code (at most a campus-sized roster), so the query stays
+    // portable and no array operators are needed.
+    const result = await pool.query<{
+      id: string;
+      displayName: string;
+      approvedRole: string;
+      qualifications: string[] | null;
+      assignedZoneId: string | null;
+      availability: string;
+      contactChannel: string;
+    }>(
       `SELECT r.id, u.display_name AS "displayName", r.approved_role AS "approvedRole",
               r.qualifications, r.assigned_zone_id AS "assignedZoneId", r.availability,
               r.contact_channel AS "contactChannel"
        FROM responders r JOIN users u ON u.id = r.user_id
-       WHERE r.verified = true AND r.availability = 'AVAILABLE'
-         AND ($1::uuid IS NULL OR r.assigned_zone_id = $1)
-         AND ($2::text IS NULL OR $2 = ANY(r.qualifications))
-       ORDER BY (r.assigned_zone_id = $1) DESC NULLS LAST, u.display_name LIMIT 20`,
-      [zoneId ?? null, qualification ?? null],
+       WHERE r.verified = true AND r.availability = 'AVAILABLE'`,
     );
+    const items = result.rows
+      .filter((r) => !zoneId || r.assignedZoneId === zoneId)
+      .filter((r) => !qualification || (r.qualifications ?? []).includes(qualification))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName))
+      .slice(0, 20);
     response.json({
-      items: result.rows,
-      fallback: result.rowCount === 0 ? { type: 'OFFICIAL_CONTACT_REQUIRED', contact: null } : null,
+      items,
+      fallback: items.length === 0 ? { type: 'OFFICIAL_CONTACT_REQUIRED', contact: null } : null,
       note: 'Results use assigned zones, not live GPS, and do not guarantee availability.',
     });
   });

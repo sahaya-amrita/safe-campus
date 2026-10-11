@@ -1,3 +1,4 @@
+import type { PhotoUploadStatus } from '../../features/student/attachments/photoUploads';
 import {
   createContext,
   useCallback,
@@ -127,6 +128,8 @@ export interface StudentCore {
   offlineReady: boolean;
   persisted: boolean | null;
   photoCount: (key: string) => number;
+  /** Upload progress per check-in; null when photos cannot be sent (no API). */
+  photoStatus: (key: string) => PhotoUploadStatus | null;
   deletePhotos: (key: string) => void;
   inbox: AsyncState<Page<InboxAlert>> | null;
   incidents: AsyncState<Page<Incident>> | null;

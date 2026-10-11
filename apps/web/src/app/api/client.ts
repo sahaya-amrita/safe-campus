@@ -103,6 +103,15 @@ export class ApiClient {
     });
   }
 
+  /** Binary upload (e.g. a photo). The body is sent as-is with its media type. */
+  postBytes<T>(path: string, bytes: ArrayBuffer | Blob, contentType: string): Promise<T> {
+    return this.request<T>(path, {
+      method: 'POST',
+      body: bytes,
+      headers: { 'Content-Type': contentType },
+    });
+  }
+
   patch<T>(path: string, body: unknown): Promise<T> {
     return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
   }
@@ -125,7 +134,7 @@ export class ApiClient {
         ...init,
         headers: {
           Accept: 'application/json',
-          ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+          ...(typeof init.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
           ...(init.headers as Record<string, string> | undefined),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },

@@ -6,10 +6,12 @@
  */
 import type {
   AdminUser,
+  AttachmentView,
   AuditEventView,
+  LocationView,
   AuthConfigResponse,
   OtpRequestResponse,
-  CreateIncidentInput,
+  CreateReportInput,
   DispatchStatus,
   HazardVerificationStatus,
   HelpRequestStatus,
@@ -103,12 +105,25 @@ export interface IncidentDetail {
   created_at: string;
   report_count: number;
   verification_history: VerificationRecord[];
+  /** Phase 3 report fields (snake_case, as stored). */
+  floor_id?: string | null;
+  category?: string | null;
+  report_kind?: 'EMERGENCY' | 'CONCERN' | 'SOS';
+  location_method?: 'GPS' | 'MANUAL' | 'NONE' | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracy_m?: number | null;
+  location_captured_at?: string | null;
+  landmark?: string | null;
+  attachments?: AttachmentView[];
 }
 
 export interface CreatedIncident {
   id: string;
   verificationStatus: HazardVerificationStatus;
   priority: IncidentPriority;
+  kind?: 'EMERGENCY' | 'CONCERN';
+  attachmentIds?: string[];
   deliveryStatus: 'SERVER_RECEIVED';
   serverReceivedAt: string;
   dispatch: { id: string; status: DispatchStatus; simulated: true } | null;
@@ -136,6 +151,14 @@ export interface HelpRequest {
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Phase 3 fields. */
+  source?: 'CHECKIN' | 'SOS';
+  category?: string | null;
+  buildingId?: string | null;
+  floorId?: string | null;
+  location?: LocationView | null;
+  attachments?: AttachmentView[];
+  respondersNotified?: number;
 }
 
 export interface MyHelpRequest {
@@ -309,6 +332,24 @@ const enc = encodeURIComponent;
 export function sahayaApi(client: ApiClient) {
   return {
     me: () => client.get<Me>('/api/v1/users/me'),
+    uploadPhoto: (bytes: ArrayBuffer | Blob, mediaType: 'image/jpeg' | 'image/png') =>
+      client.postBytes<AttachmentView>('/api/v1/attachments', bytes, mediaType),
+    linkHelpRequestPhotos: (helpRequestId: string, attachmentIds: string[]) =>
+      client.post<{ linked: string[]; attachments: AttachmentView[] }>(
+        `/api/v1/help-requests/${enc(helpRequestId)}/attachments`,
+        { attachmentIds },
+      ),
+    /** Photo bytes (authorised server-side; staff views are audited). */
+    photoBlobUrl: async (attachmentId: string, token: string | null): Promise<string> => {
+      const response = await fetch(
+        `${client.baseUrl}/api/v1/attachments/${enc(attachmentId)}/content`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
+      if (!response.ok) throw new Error(`Photo unavailable (${response.status})`);
+      return URL.createObjectURL(await response.blob());
+    },
     updateMe: (input: { displayName?: string; language?: 'en' | 'ta' }) =>
       client.patch<Me>('/api/v1/users/me', input),
     signOutEverywhere: () => client.post<void>('/api/v1/users/me/sign-out-everywhere', undefined),
@@ -352,7 +393,7 @@ export function sahayaApi(client: ApiClient) {
     // Incidents
     listIncidents: (limit = 50) => client.get<Page<Incident>>(`/api/v1/incidents?limit=${limit}`),
     getIncident: (id: string) => client.get<IncidentDetail>(`/api/v1/incidents/${enc(id)}`),
-    createIncident: (input: CreateIncidentInput, key: string) =>
+    createIncident: (input: CreateReportInput, key: string) =>
       client.post<CreatedIncident>('/api/v1/incidents', input, key),
     reviewIncident: (id: string, input: { status: ReviewDecision; reason: string }, key: string) =>
       client.post<{ toStatus: HazardVerificationStatus }>(

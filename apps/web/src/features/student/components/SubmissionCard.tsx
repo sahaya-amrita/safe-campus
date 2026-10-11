@@ -1,5 +1,6 @@
 import { forwardRef, type ReactNode } from 'react';
 import { CriticalText } from '../../../i18n/CriticalText';
+import type { PhotoUploadStatus } from '../attachments/photoUploads';
 import { useI18n, type Messages } from '../../../i18n';
 import { CLIENT_FAILURE } from '../api/studentApi';
 import { toDeliveryStatus, type CheckInEntry } from '../checkIn/checkInQueue';
@@ -95,12 +96,28 @@ interface Props {
   entry: CheckInEntry;
   onRetry: (key: string) => void;
   photoCount: number;
+  /** Upload progress when photos can be sent (signed in); null keeps them on the device. */
+  photoStatus?: PhotoUploadStatus | null;
   onDeletePhotos: (key: string) => void;
+}
+
+function photoLine(
+  count: number,
+  upload: PhotoUploadStatus | null,
+  status: ReturnType<typeof toDeliveryStatus>,
+  t: ReturnType<typeof useI18n>['t'],
+): string {
+  // Until the server has the request (or when uploads are unavailable), photos stay on the phone.
+  if (!upload || status !== 'SERVER_RECEIVED' || upload.total === 0)
+    return t.photosKeptOnPhone(count);
+  if (upload.sent === upload.total) return t.photosSent(upload.total);
+  if (upload.failed > 0) return t.photosNotSent(upload.total - upload.sent);
+  return t.photosSending(upload.total - upload.sent);
 }
 
 /** The latest check-in: what was sent, its delivery status, and the delivery track. */
 export const SubmissionCard = forwardRef<HTMLElement, Props>(function SubmissionCard(
-  { entry, onRetry, photoCount, onDeletePhotos },
+  { entry, onRetry, photoCount, photoStatus = null, onDeletePhotos },
   ref,
 ) {
   const { t, formatTime } = useI18n();
@@ -146,7 +163,7 @@ export const SubmissionCard = forwardRef<HTMLElement, Props>(function Submission
       {photoCount > 0 && (
         <div className="sc-photo-line">
           <p className="sc-meta-line">
-            <Icon name="image" size={14} /> {t.photosKeptOnPhone(photoCount)}
+            <Icon name="image" size={14} /> {photoLine(photoCount, photoStatus, status, t)}
           </p>
           <button
             type="button"

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { OfflineStorageError, storageHeadroom, type RecordStore, type StorageHeadroom } from '../../../lib/offline';
+import {
+  OfflineStorageError,
+  storageHeadroom,
+  type RecordStore,
+  type StorageHeadroom,
+} from '../../../lib/offline';
 import type { ImageProcessor } from './imageProcessor';
 import { MAX_PHOTOS, precheckPhoto, type PhotoRejection } from './photoPolicy';
 
@@ -18,6 +23,10 @@ export interface StoredPhoto {
   sha256: string | null;
   createdAt: string;
   checkInKey: string | null;
+  /** Server attachment id once uploaded (Phase 3). */
+  serverId?: string;
+  /** UPLOADED: on the server, not yet linked. LINKED: part of the help request. */
+  uploadState?: 'UPLOADED' | 'LINKED' | 'FAILED';
 }
 
 export interface PhotoItem {
@@ -37,21 +46,34 @@ export interface AttachmentDeps {
 }
 
 const defaultPreview = (photo: StoredPhoto) =>
-  typeof URL.createObjectURL === 'function' ? URL.createObjectURL(new Blob([photo.bytes], { type: photo.mediaType })) : '';
+  typeof URL.createObjectURL === 'function'
+    ? URL.createObjectURL(new Blob([photo.bytes], { type: photo.mediaType }))
+    : '';
 const defaultRevoke = (url: string) => {
   if (url && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(url);
 };
 
 function isQuotaError(error: unknown): boolean {
-  const cause = error instanceof OfflineStorageError ? (error.cause as { name?: string } | undefined) : (error as { name?: string });
-  return cause?.name === 'QuotaExceededError' || (error instanceof Error && /quota/i.test(error.message));
+  const cause =
+    error instanceof OfflineStorageError
+      ? (error.cause as { name?: string } | undefined)
+      : (error as { name?: string });
+  return (
+    cause?.name === 'QuotaExceededError' || (error instanceof Error && /quota/i.test(error.message))
+  );
 }
 
 /** Photos linked to a sent check-in, and removal of them. */
-export async function photosForCheckIn(store: RecordStore<StoredPhoto>, key: string): Promise<StoredPhoto[]> {
+export async function photosForCheckIn(
+  store: RecordStore<StoredPhoto>,
+  key: string,
+): Promise<StoredPhoto[]> {
   return (await store.getAll()).filter((p) => p.checkInKey === key);
 }
-export async function deletePhotosForCheckIn(store: RecordStore<StoredPhoto>, key: string): Promise<void> {
+export async function deletePhotosForCheckIn(
+  store: RecordStore<StoredPhoto>,
+  key: string,
+): Promise<void> {
   for (const photo of await photosForCheckIn(store, key)) await store.delete(photo.id);
 }
 
@@ -83,7 +105,9 @@ export function useAttachments(deps: AttachmentDeps) {
       .getAll()
       .then((all) => {
         if (cancelled) return;
-        const unsent = all.filter((p) => p.checkInKey === null).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const unsent = all
+          .filter((p) => p.checkInKey === null)
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
         setPhotos(unsent.slice(0, MAX_PHOTOS).map(toItem));
       })
       .catch(() => {
@@ -110,7 +134,8 @@ export function useAttachments(deps: AttachmentDeps) {
         return 'UNREADABLE';
       }
       const room = await headroom();
-      if (room.availableBytes !== null && room.availableBytes < prepared.bytes.byteLength * 2) return 'STORAGE_FULL';
+      if (room.availableBytes !== null && room.availableBytes < prepared.bytes.byteLength * 2)
+        return 'STORAGE_FULL';
       const record: StoredPhoto = {
         id: newId(),
         bytes: prepared.bytes,
@@ -192,7 +217,9 @@ export function useAttachments(deps: AttachmentDeps) {
     async (checkInKey: string) => {
       const all = await deps.store.getAll().catch(() => [] as StoredPhoto[]);
       const ids = new Set(photos.map((p) => p.id));
-      for (const record of all) if (ids.has(record.id)) await deps.store.put({ ...record, checkInKey }).catch(() => undefined);
+      for (const record of all)
+        if (ids.has(record.id))
+          await deps.store.put({ ...record, checkInKey }).catch(() => undefined);
       urls.current.forEach((url) => revoke(url));
       urls.current.clear();
       setPhotos([]);
@@ -205,5 +232,15 @@ export function useAttachments(deps: AttachmentDeps) {
     for (const photo of photos) await remove(photo.id);
   }, [photos, remove]);
 
-  return { photos, busy, lastError, add, remove, replace, linkTo, discard, ids: photos.map((p) => p.id) };
+  return {
+    photos,
+    busy,
+    lastError,
+    add,
+    remove,
+    replace,
+    linkTo,
+    discard,
+    ids: photos.map((p) => p.id),
+  };
 }

@@ -89,6 +89,10 @@ export interface Messages {
   photoErrStorageFailed: string;
   photosKeptOnPhone: (count: number) => string;
   photosDelete: string;
+  photosUploadAfter: string;
+  photosSending: (count: number) => string;
+  photosSent: (count: number) => string;
+  photosNotSent: (count: number) => string;
 
   latestHeading: string;
   statusSafe: string;
@@ -186,6 +190,7 @@ export const SAFETY_CRITICAL_KEYS = [
   'detailFailedFallback',
   'storageFailed',
   'photosLocalOnly',
+  'photosUploadAfter',
   'emergencyLimitation',
   'packExpired',
 ] as const satisfies readonly (keyof Messages)[];

@@ -8,6 +8,7 @@ import type { HelpAction, HelpRequest, Me, ReviewDecision, SahayaApi } from '../
 import { hasRole } from '../auth/session';
 import { useRoute } from '../router';
 import { useStaffLink } from '../staff/workspace';
+import { LocationLine, PhotoStrip } from './reportContext';
 import { ControlRoom } from './ControlRoom';
 import { IncidentSearch } from './IncidentSearch';
 import { Stat, useActions } from './shared';
@@ -154,9 +155,44 @@ export function IncidentDetailView({ api, user, id }: { api: SahayaApi; user: Me
                 <dd>{d.report_count}</dd>
                 <dt>Received</dt>
                 <dd>{formatWhen(d.created_at)}</dd>
-                <dt>Location</dt>
-                <dd>{d.zone_id ? 'Zone recorded (see Campus map)' : 'No zone given'}</dd>
+                {d.report_kind && (
+                  <>
+                    <dt>Kind</dt>
+                    <dd>
+                      {d.report_kind === 'CONCERN'
+                        ? 'Concern (not urgent)'
+                        : d.report_kind === 'SOS'
+                          ? 'SOS (no drill or incident open)'
+                          : 'Emergency'}
+                      {d.category ? ` · ${d.category.replace(/_/g, ' ').toLowerCase()}` : ''}
+                    </dd>
+                  </>
+                )}
+                <dt>Area</dt>
+                <dd>
+                  {d.floor_id
+                    ? 'Building and floor recorded (see Campus map)'
+                    : d.zone_id
+                      ? 'Zone recorded (see Campus map)'
+                      : 'No building or zone given'}
+                </dd>
               </dl>
+              <LocationLine
+                location={
+                  d.location_method
+                    ? {
+                        method: d.location_method,
+                        latitude: d.latitude ?? null,
+                        longitude: d.longitude ?? null,
+                        accuracyM: d.accuracy_m ?? null,
+                        capturedAt: d.location_captured_at ?? null,
+                        landmark: d.landmark ?? null,
+                      }
+                    : null
+                }
+                reportedAt={d.created_at}
+              />
+              <PhotoStrip attachments={d.attachments} />
             </Card>
             <Card title="Verification" icon="shield" labelledBy="as-inc-verify">
               {d.verification_history.length === 0 ? (
@@ -308,8 +344,18 @@ export function HelpRequestsView({ api, user }: { api: SahayaApi; user: Me }) {
               <span className="as-muted as-small">Opened {formatWhen(h.createdAt)}</span>
             </div>
             {h.details && <p style={{ whiteSpace: 'pre-line' }}>{h.details}</p>}
+            <LocationLine location={h.location} reportedAt={h.createdAt} />
+            <PhotoStrip attachments={h.attachments} />
             <p className="as-muted as-small">
-              {h.incidentId ? 'Incident' : 'Drill'} · {h.zoneId ? 'zone recorded' : 'no zone'} ·{' '}
+              {h.source === 'SOS'
+                ? 'SOS (no drill or incident open)'
+                : h.incidentId
+                  ? 'Incident'
+                  : 'Drill'}
+              {h.category ? ` · ${h.category.replace(/_/g, ' ').toLowerCase()}` : ''} ·{' '}
+              {h.floorId ? 'floor recorded' : h.zoneId ? 'zone recorded' : 'no zone'} ·{' '}
+              {typeof h.respondersNotified === 'number' &&
+                `${h.respondersNotified} responder(s) matched (simulated notice) · `}
               {h.acknowledgedAt && `acknowledged ${formatWhen(h.acknowledgedAt)} · `}
               {h.assignedAt && `assigned ${formatWhen(h.assignedAt)} · `}
               {h.resolvedAt && `resolved ${formatWhen(h.resolvedAt)}`}

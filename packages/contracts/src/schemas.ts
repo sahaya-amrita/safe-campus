@@ -12,9 +12,11 @@ import {
   roleSchema,
   studentCheckInStatusSchema,
 } from './enums.js';
+import { reportLocationSchema } from './reporting.js';
 
-export const uuidSchema = z.string().uuid();
-export const utcTimestampSchema = z.string().datetime({ offset: true });
+import { utcTimestampSchema, uuidSchema } from './primitives.js';
+
+export { utcTimestampSchema, uuidSchema };
 
 export const apiErrorSchema = z.object({
   error: z.object({
@@ -72,15 +74,15 @@ export const submitCheckInSchema = z
     incidentId: uuidSchema.optional(),
     drillId: uuidSchema.optional(),
     status: z.enum(['CONFIRMED_SAFE', 'HELP_REQUESTED']),
+    /** Optional since Phase 3: a quick help request may carry no text. */
     helpDetails: z.string().min(3).max(1000).optional(),
+    /** Structured location (Phase 3), chosen by the student. */
+    location: reportLocationSchema.optional(),
     clientCreatedAt: utcTimestampSchema,
     clientActionId: uuidSchema,
   })
   .refine((value) => Boolean(value.incidentId) !== Boolean(value.drillId), {
     message: 'Exactly one of incidentId or drillId is required',
-  })
-  .refine((value) => value.status !== 'HELP_REQUESTED' || Boolean(value.helpDetails), {
-    message: 'helpDetails is required for HELP_REQUESTED',
   });
 
 export const latestCheckInQuerySchema = z

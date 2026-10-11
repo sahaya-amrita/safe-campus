@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { createIncidentSchema, type IncidentPriority } from '@sahaya/contracts';
+import { createReportSchema, type IncidentPriority } from '@sahaya/contracts';
 import { newIdempotencyKey } from './api/client';
 import type { CreatedIncident, SahayaApi } from './api/sahaya';
 import { AppIcon, ErrorNotice, Loading, Pill, VerificationPill, formatWhen, useAsync } from './ui';
@@ -31,10 +31,9 @@ function label(type: string): string {
 }
 
 /**
- * Incident report form (POST /api/v1/incidents). Used by students to report
- * and by staff to open a responder-initiated SIMULATED incident. The same
- * idempotency key is reused for retries of one submission. Photo evidence is
- * not offered: the API stores evidence metadata only and has no upload.
+ * Staff form for a responder-initiated SIMULATED incident (POST /incidents).
+ * Students use student/ReportForm.tsx. The same idempotency key is reused for
+ * retries of one submission.
  */
 export function IncidentForm({
   api,
@@ -80,7 +79,7 @@ export function IncidentForm({
     ...(zoneId ? { zoneId } : {}),
     evidence: [],
   };
-  const valid = createIncidentSchema.safeParse(input);
+  const valid = createReportSchema.safeParse(input);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();

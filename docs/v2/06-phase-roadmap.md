@@ -25,15 +25,16 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Hosted Postgres (Supabase or other), RLS                                                       | **Not done.** Needs credentials; the API still uses any Postgres via `DATABASE_URL`.     |
 | Real email sender                                                                              | **Ready, not verified.** Resend adapter; needs a key and verified sender.                |
 
-## Phase 3: SOS, reporting and permissions (M3, M4)
+## Phase 3: SOS, reporting and permissions (built; see [09](./09-phase3-reporting-sos.md))
 
-| Item                                                | Integration boundary                                                                                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Report contract v2                                  | `packages/contracts`: location method, coordinates and accuracy, floor, category, attachment lifecycle. OpenAPI updated.              |
-| Contextual location, camera and contact permissions | `PermissionNotice` before every browser prompt; a fallback always exists                                                              |
-| SOS creation and responder matching                 | The server creates the help request and matches it by zone and duty. "Responder on the way" is shown only after confirmed acceptance. |
-| Photo upload                                        | Private bucket, signed URLs, EXIF already stripped on the device. Partial-failure states are shown honestly.                          |
-| Report a concern                                    | Non-emergency report flow (never auto-published as an alert)                                                                          |
+| Item                                                                   | Status                                                                                       |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Report contract v2 (category, kind, location, floor rule, attachments) | **Built**                                                                                    |
+| Contextual location and camera permissions                             | **Built** (`PermissionNotice` before the location prompt; landmark fallback)                 |
+| SOS without a drill or incident, quick help without text               | **Built** (`POST /sos`)                                                                      |
+| Responder matching                                                     | **Built** (up to three verified, available responders; simulated notice; never auto-assigns) |
+| Photo upload with server-side metadata stripping                       | **Built** (stored in Postgres for now)                                                       |
+| Report a concern (non-urgent)                                          | **Built** (`kind: CONCERN`, no dispatch)                                                     |
 
 ## Phase 4: responder operations and verification (M5)
 
@@ -70,11 +71,11 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Privacy and support pages, final    | Replace the Phase 1 drafts after institutional and legal review      |
 | Deployment                          | Production CORS, host secrets, second-device and real-device testing |
 
-## Prerequisites for Phase 3 (owner actions)
+## Prerequisites for Phase 4 (owner actions)
 
-1. **Review and approve** Phase 2 (`feat/phase2-auth`).
-2. **Email:** choose an email provider and verified sender domain. Put `RESEND_API_KEY` and `EMAIL_FROM` in server secrets only.
-3. **Domains:** confirm the allowed self-registration domains (`AUTH_ALLOWED_EMAIL_DOMAINS`).
-4. **Database:** provide the PostgreSQL database for development and staging (credentials in `services/api/.env` only).
-5. **Report contract:** confirm the report contract v2 fields: location method, floor, category and attachments.
-6. **Groq key:** rotate it (still outstanding from Phase 1).
+1. **Review and approve** Phase 3 (`feat/phase3-reporting`).
+2. **Notifications:** decide whether responders get real notifications (provider, channel) or stay simulated for now.
+3. **Responders:** confirm who the responders are and their zones; only synthetic responders exist today.
+4. **Photos:** choose private object storage (and a retention period) before any real photos are collected.
+5. **Database and email:** still needed from Phase 2: a Postgres database for development and staging, and an email provider with a verified sender.
+6. **Groq key:** rotate it (still outstanding).

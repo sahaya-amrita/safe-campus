@@ -29,14 +29,25 @@ interface Props {
   onAdd: (files: File[]) => void;
   onRemove: (id: string) => void;
   onReplace: (id: string, file: File) => void;
+  /** True when photos are uploaded after the request is received (signed in to the API). */
+  uploadsEnabled?: boolean;
 }
 
 /**
  * Optional photos. "Take photo" asks for the rear camera where the browser
- * supports `capture`; "Choose photos" opens the library. Photos stay on the
- * device — there is no upload contract yet — and the UI says so.
+ * supports `capture`; "Choose photos" opens the library. With an API
+ * session, photos are uploaded after the help request is received (so they
+ * never delay it); otherwise they stay on the device, and the UI says which.
  */
-export function PhotoPicker({ photos, busy, lastError, onAdd, onRemove, onReplace }: Props) {
+export function PhotoPicker({
+  photos,
+  busy,
+  lastError,
+  onAdd,
+  onRemove,
+  onReplace,
+  uploadsEnabled = false,
+}: Props) {
   const { t } = useI18n();
   const replaceTarget = useRef<string | null>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
@@ -51,7 +62,11 @@ export function PhotoPicker({ photos, busy, lastError, onAdd, onRemove, onReplac
 
   return (
     <div className="sc-photos" data-testid="photo-picker">
-      <CriticalText k="photosLocalOnly" className="sc-callout sc-callout--info" leading={<Icon name="info" size={18} />} />
+      <CriticalText
+        k={uploadsEnabled ? 'photosUploadAfter' : 'photosLocalOnly'}
+        className="sc-callout sc-callout--info"
+        leading={<Icon name="info" size={18} />}
+      />
 
       <div className="sc-row">
         <label className={`sc-btn sc-btn--outline sc-file ${full || busy ? 'is-disabled' : ''}`}>
@@ -93,15 +108,29 @@ export function PhotoPicker({ photos, busy, lastError, onAdd, onRemove, onReplac
         <ul className="sc-thumbs">
           {photos.map((photo, index) => (
             <li key={photo.id} className="sc-thumb">
-              {photo.previewUrl ? <img src={photo.previewUrl} alt={t.photoAlt(index + 1)} /> : <span className="sc-thumb-empty">{t.photoAlt(index + 1)}</span>}
+              {photo.previewUrl ? (
+                <img src={photo.previewUrl} alt={t.photoAlt(index + 1)} />
+              ) : (
+                <span className="sc-thumb-empty">{t.photoAlt(index + 1)}</span>
+              )}
               <div className="sc-thumb-actions">
-                <button type="button" className="sc-icon-btn" aria-label={t.photosReplace(index + 1)} onClick={() => {
-                  replaceTarget.current = photo.id;
-                  replaceInput.current?.click();
-                }}>
+                <button
+                  type="button"
+                  className="sc-icon-btn"
+                  aria-label={t.photosReplace(index + 1)}
+                  onClick={() => {
+                    replaceTarget.current = photo.id;
+                    replaceInput.current?.click();
+                  }}
+                >
                   <Icon name="retry" size={18} />
                 </button>
-                <button type="button" className="sc-icon-btn" aria-label={t.photosRemove(index + 1)} onClick={() => onRemove(photo.id)}>
+                <button
+                  type="button"
+                  className="sc-icon-btn"
+                  aria-label={t.photosRemove(index + 1)}
+                  onClick={() => onRemove(photo.id)}
+                >
                   <Icon name="trash" size={18} />
                 </button>
               </div>

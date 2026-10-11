@@ -16,6 +16,8 @@ import {
 } from './middleware.js';
 import { createEmailSender, DevMailbox, type EmailSender } from './auth/email.js';
 import { adminRouter } from './routes/admin.js';
+import { attachmentsRouter } from './routes/attachments.js';
+import { sosRouter } from './routes/sos.js';
 import { authRouter, devMailboxRouter } from './routes/auth.js';
 import { alertsRouter } from './routes/alerts.js';
 import { checkinsRouter, incidentCheckinsRouter } from './routes/checkins.js';
@@ -93,6 +95,8 @@ export function createApp(
   );
   app.use('/api/v1/checkins', checkinsRouter(pool));
   app.use('/api/v1/help-requests', helpRequestsRouter(pool));
+  app.use('/api/v1/sos', sosRouter(pool, config));
+  app.use('/api/v1/attachments', attachmentsRouter(pool));
   app.use('/api/v1/instruction-packs', instructionPacksRouter(pool, config));
   app.use('/api/v1/responders', respondersRouter(pool));
   app.use('/api/v1/dispatches', dispatchesRouter(pool));

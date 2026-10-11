@@ -1,4 +1,4 @@
-import { IncidentForm } from '../IncidentForm';
+import { ReportForm } from './ReportForm';
 import { useRoute } from '../router';
 import { ROUTES } from '../routes';
 import { AppIcon, Card, EmptyState } from '../ui';
@@ -17,17 +17,17 @@ export function ReportIncidentScreen() {
       >
         <AppIcon name="back" size={16} /> Back
       </button>
-      <h1 className="as-screen-title">Report an incident</h1>
+      <h1 className="as-screen-title">Report a problem</h1>
       <p className="as-notice as-notice--warn">
         If anyone is in danger, call <a href="tel:112">112</a> first. You do not need to report
         before asking for help.
       </p>
       <Card>
         {s.api ? (
-          <IncidentForm
+          <ReportForm
             api={s.api}
             online={s.online}
-            variant="student"
+            {...(s.deps.locationEnv ? { locationEnv: s.deps.locationEnv } : {})}
             onDone={() => {
               s.incidents?.reload();
               s.refreshSessions();

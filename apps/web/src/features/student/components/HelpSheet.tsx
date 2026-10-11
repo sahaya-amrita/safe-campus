@@ -15,6 +15,8 @@ interface Props {
   onClose: () => void;
   sending: boolean;
   attachmentDeps: AttachmentDeps;
+  /** Photos are uploaded after the request is received (signed in to the API). */
+  photosUploadable?: boolean;
   locationEnv?: LocationEnvironment;
   now: () => Date;
 }
@@ -23,7 +25,15 @@ interface Props {
  * Full-screen help request. The send button is pinned at the bottom so a
  * request can go out immediately; every field above it is optional.
  */
-export function HelpSheet({ onSend, onClose, sending, attachmentDeps, locationEnv, now }: Props) {
+export function HelpSheet({
+  onSend,
+  onClose,
+  sending,
+  attachmentDeps,
+  photosUploadable = false,
+  locationEnv,
+  now,
+}: Props) {
   const { t } = useI18n();
   const id = useId();
   const [note, setNote] = useState('');
@@ -83,7 +93,11 @@ export function HelpSheet({ onSend, onClose, sending, attachmentDeps, locationEn
         </header>
 
         <div className="sc-sheet-body">
-          <CriticalText k="helpCallFirst" className="sc-help-warning" leading={<Icon name="phone" size={18} />} />
+          <CriticalText
+            k="helpCallFirst"
+            className="sc-help-warning"
+            leading={<Icon name="phone" size={18} />}
+          />
           <a className="sc-call sc-call--compact" href="tel:112">
             <Icon name="phone" size={18} />
             {t.emergencyCall}
@@ -146,12 +160,17 @@ export function HelpSheet({ onSend, onClose, sending, attachmentDeps, locationEn
               onAdd={(files) => void attachments.add(files)}
               onRemove={(photoId) => void attachments.remove(photoId)}
               onReplace={(photoId, file) => void attachments.replace(photoId, file)}
+              uploadsEnabled={photosUploadable}
             />
           </section>
         </div>
 
         <footer className="sc-sheet-foot">
-          <button type="submit" className="sc-btn sc-btn--help sc-btn--block sc-btn--large" disabled={sending}>
+          <button
+            type="submit"
+            className="sc-btn sc-btn--help sc-btn--block sc-btn--large"
+            disabled={sending}
+          >
             {t.helpSend}
           </button>
         </footer>

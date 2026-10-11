@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Amrita Sahaya API
-  version: 0.2.0
+  version: 0.3.0
   description: >-
     Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
     behavior is simulated. No endpoint contacts real emergency services.
@@ -24,6 +24,8 @@ tags:
   - name: Training
   - name: Maps
   - name: Administration
+  - name: SOS
+  - name: Attachments
 paths:
   /health:
     get:
@@ -439,6 +441,150 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /sos:
+    post:
+      tags: [SOS]
+      operationId: sendSos
+      summary: Ask for help when no drill or incident is open (STUDENT)
+      description: >-
+        Records an unverified SOS incident (hazard level L1), the student's help check-in and an
+        OPEN help request, and matches up to three verified, available responders with a
+        SIMULATED notification. The reply is a server receipt only: nobody has acknowledged or
+        accepted the request, and nothing is published as an alert.
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientActionId, clientCreatedAt]
+              properties:
+                clientActionId: { type: string, format: uuid }
+                clientCreatedAt: { type: string, format: date-time }
+                details: { type: string, minLength: 1, maxLength: 1000 }
+                category: { $ref: '#/components/schemas/ReportCategory' }
+                location: { $ref: '#/components/schemas/ReportLocation' }
+                buildingId: { type: string, format: uuid }
+                floorId:
+                  { type: string, format: uuid, description: Required when buildingId is given }
+      responses:
+        '201':
+          description: Received by the server (not acknowledged by anyone)
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [
+                    id,
+                    status,
+                    deliveryStatus,
+                    serverReceivedAt,
+                    clientActionId,
+                    incidentId,
+                    helpRequest,
+                  ]
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { const: HELP_REQUESTED }
+                  deliveryStatus: { const: SERVER_RECEIVED }
+                  serverReceivedAt: { type: string, format: date-time }
+                  clientActionId: { type: string, format: uuid }
+                  incidentId: { type: string, format: uuid }
+                  helpRequest:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      status: { const: OPEN }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /attachments:
+    post:
+      tags: [Attachments]
+      operationId: uploadAttachment
+      summary: Upload one photo (raw JPEG or PNG bytes, at most 5 MB)
+      description: >-
+        The type is read from the bytes, and metadata (EXIF, XMP, text chunks) is removed before
+        storage. The same image uploaded twice by the same account returns the first record
+        (200). An account may hold at most 20 unattached photos.
+      requestBody:
+        required: true
+        content:
+          image/jpeg: { schema: { type: string, format: binary } }
+          image/png: { schema: { type: string, format: binary } }
+      responses:
+        '200':
+          description: Already uploaded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Attachment' }
+        '201':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Attachment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { description: Larger than 5 MB }
+        '415': { description: Not a JPEG or PNG }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /attachments/{attachmentId}/content:
+    get:
+      tags: [Attachments]
+      operationId: getAttachmentContent
+      summary: Photo bytes for the owner, or for staff once attached (every staff view is audited)
+      description: >-
+        RESPONDER-only accounts see help-request photos only for requests in their assigned zone,
+        assigned to them, or notified to them. Responses are private and never cached.
+      parameters:
+        - { name: attachmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Image bytes
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /help-requests/{helpRequestId}/attachments:
+    post:
+      tags: [Attachments]
+      operationId: attachHelpRequestPhotos
+      summary: Attach the owner's uploaded photos to their help request (at most 3)
+      parameters:
+        - { name: helpRequestId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attachmentIds]
+              properties:
+                attachmentIds:
+                  type: array
+                  maxItems: 3
+                  uniqueItems: true
+                  items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Photos now attached
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [linked, attachments]
+                properties:
+                  linked: { type: array, items: { type: string, format: uuid } }
+                  attachments: { type: array, items: { $ref: '#/components/schemas/Attachment' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /help-requests/{helpRequestId}/cancel:
     post:
       tags: [Help requests]
@@ -1283,6 +1429,18 @@ components:
         floorId: { type: string, format: uuid }
         zoneId: { type: string, format: uuid }
         occurredAt: { type: string, format: date-time }
+        category: { $ref: '#/components/schemas/ReportCategory' }
+        kind:
+          enum: [EMERGENCY, CONCERN]
+          default: EMERGENCY
+          description: CONCERN never starts a (simulated) dispatch.
+        location: { $ref: '#/components/schemas/ReportLocation' }
+        attachmentIds:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          description: Photos uploaded by the reporter via POST /attachments.
         evidence:
           type: array
           maxItems: 4
@@ -1304,9 +1462,36 @@ components:
         drillId: { type: string, format: uuid }
         status: { enum: [CONFIRMED_SAFE, HELP_REQUESTED] }
         helpDetails: { type: string, minLength: 3, maxLength: 1000 }
+        location: { $ref: '#/components/schemas/ReportLocation' }
         clientCreatedAt: { type: string, format: date-time }
         clientActionId: { type: string, format: uuid }
-      description: Exactly one of incidentId/drillId; HELP_REQUESTED requires helpDetails.
+      description: >-
+        Exactly one of incidentId/drillId. helpDetails is optional since 0.3.0; a help request
+        without text is recorded as "No details given (quick help request)".
+    ReportCategory: { enum: [FIRE_SMOKE, MEDICAL, PERSONAL_SAFETY, HAZARD, OTHER] }
+    ReportLocation:
+      type: object
+      required: [method]
+      description: >-
+        Where the reporter said they were. GPS needs latitude, longitude, accuracyM and
+        capturedAt; MANUAL needs a landmark. Never a verified position.
+      properties:
+        method: { enum: [GPS, MANUAL, NONE] }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        accuracyM: { type: number, minimum: 0 }
+        capturedAt: { type: string, format: date-time }
+        landmark: { type: string, minLength: 2, maxLength: 200 }
+    Attachment:
+      type: object
+      required: [id, mediaType, sizeBytes, sha256, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        mediaType: { enum: [image/jpeg, image/png] }
+        sizeBytes: { type: integer, maximum: 5000000 }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        status: { enum: [STORED, ATTACHED] }
+        createdAt: { type: string, format: date-time }
     AssignHelpRequest:
       type: object
       additionalProperties: false

@@ -2,6 +2,7 @@ import type { RequestProblem, SendOutcome } from '../../../lib/offline';
 import {
   API_PATHS,
   isPackLanguage,
+  toSosBody,
   toWireBody,
   type CheckInDraft,
   type CheckInReceipt,
@@ -9,7 +10,12 @@ import {
   type OperatingMode,
   type StudentInstructionPack,
 } from '../contracts/studentContract';
-import { CLIENT_FAILURE, type PackListResult, type SessionResult, type StudentApi } from './studentApi';
+import {
+  CLIENT_FAILURE,
+  type PackListResult,
+  type SessionResult,
+  type StudentApi,
+} from './studentApi';
 
 export const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -46,8 +52,7 @@ export interface HttpStudentApiAuth {
 }
 
 export type SessionListResult =
-  | { kind: 'ok'; sessions: CheckInSession[] }
-  | { kind: 'error'; problem: RequestProblem };
+  { kind: 'ok'; sessions: CheckInSession[] } | { kind: 'error'; problem: RequestProblem };
 
 /** HTTP adapter for Codex 1's API. The only file in the student feature that knows endpoint paths. */
 export class HttpStudentApi implements StudentApi {
@@ -59,7 +64,14 @@ export class HttpStudentApi implements StudentApi {
     private readonly auth: HttpStudentApiAuth = {},
   ) {}
 
-  async submitCheckIn(draft: CheckInDraft, clientActionId: string, clientCreatedAt: string): Promise<SendOutcome<CheckInReceipt>> {
+  async submitCheckIn(
+    draft: CheckInDraft,
+    clientActionId: string,
+    clientCreatedAt: string,
+  ): Promise<SendOutcome<CheckInReceipt>> {
+    // No drill or incident: a help request still goes out, as an SOS (Phase 3).
+    if (!draft.session && draft.status === 'HELP_REQUESTED')
+      return this.sendSos(draft, clientActionId, clientCreatedAt);
     const wire = toWireBody(draft, clientActionId, clientCreatedAt);
     if (!wire.ok) {
       return {
@@ -78,7 +90,35 @@ export class HttpStudentApi implements StudentApi {
     const body = await readJson(response);
     if (!isReceipt(body)) {
       // A 2xx we cannot read does not confirm what was stored; retry (idempotent).
-      return { kind: 'retryable', problem: 'SERVER_UNAVAILABLE', detail: 'Unreadable server reply' };
+      return {
+        kind: 'retryable',
+        problem: 'SERVER_UNAVAILABLE',
+        detail: 'Unreadable server reply',
+      };
+    }
+    return { kind: 'accepted', result: body };
+  }
+
+  private async sendSos(
+    draft: CheckInDraft,
+    clientActionId: string,
+    clientCreatedAt: string,
+  ): Promise<SendOutcome<CheckInReceipt>> {
+    const wire = toSosBody(draft, clientActionId, clientCreatedAt);
+    if (!wire.ok) return { kind: 'failed', problem: 'REJECTED', detail: CLIENT_FAILURE.invalid };
+    const response = await this.request(API_PATHS.sos, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': clientActionId },
+      body: JSON.stringify(wire.body),
+    });
+    if ('problem' in response) return toOutcome(response);
+    const body = await readJson(response);
+    if (!isReceipt(body)) {
+      return {
+        kind: 'retryable',
+        problem: 'SERVER_UNAVAILABLE',
+        detail: 'Unreadable server reply',
+      };
     }
     return { kind: 'accepted', result: body };
   }
@@ -122,7 +162,12 @@ export class HttpStudentApi implements StudentApi {
       const body = (await readJson(incidents)) as { items?: IncidentRow[] } | null;
       for (const row of body?.items ?? []) {
         if (CLOSED_INCIDENT.has(row.verificationStatus)) continue;
-        add({ kind: 'incident', id: row.id, name: `${row.type} (reported by you)`, mode: row.mode });
+        add({
+          kind: 'incident',
+          id: row.id,
+          name: `${row.type} (reported by you)`,
+          mode: row.mode,
+        });
       }
     }
     const drillBody = (await readJson(drills)) as { items?: DrillRow[] } | null;
@@ -138,19 +183,26 @@ export class HttpStudentApi implements StudentApi {
     const body = (await readJson(response)) as { items?: DrillRow[] } | null;
     const active = body?.items?.find((d) => d.status === 'ACTIVE');
     return active
-      ? { kind: 'found', session: { kind: 'drill', id: active.id, name: active.name, mode: active.mode } }
+      ? {
+          kind: 'found',
+          session: { kind: 'drill', id: active.id, name: active.name, mode: active.mode },
+        }
       : { kind: 'none' };
   }
 
   async listInstructionPacks(language: string): Promise<PackListResult> {
     // The API only accepts languages in the contract; others fall back to English in the UI.
     if (!isPackLanguage(language)) return { kind: 'ok', packs: [] };
-    const response = await this.request(`${API_PATHS.instructionPacks}?language=${encodeURIComponent(language)}`, {
-      method: 'GET',
-    });
+    const response = await this.request(
+      `${API_PATHS.instructionPacks}?language=${encodeURIComponent(language)}`,
+      {
+        method: 'GET',
+      },
+    );
     if ('problem' in response) return { kind: 'error', problem: response.problem };
     const body = (await readJson(response)) as { items?: StudentInstructionPack[] } | null;
-    if (!body || !Array.isArray(body.items)) return { kind: 'error', problem: 'SERVER_UNAVAILABLE' };
+    if (!body || !Array.isArray(body.items))
+      return { kind: 'error', problem: 'SERVER_UNAVAILABLE' };
     return { kind: 'ok', packs: body.items };
   }
 
@@ -171,7 +223,8 @@ export class HttpStudentApi implements StudentApi {
         signal: controller.signal,
       });
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return { problem: 'TIMEOUT' };
+      if (error instanceof DOMException && error.name === 'AbortError')
+        return { problem: 'TIMEOUT' };
       return { problem: this.isOnline() ? 'SERVER_UNAVAILABLE' : 'OFFLINE' };
     } finally {
       clearTimeout(timer);
@@ -179,9 +232,11 @@ export class HttpStudentApi implements StudentApi {
     if (response.ok) return response;
 
     const detail = await readErrorCode(response);
-    if (response.status === 401 || response.status === 403) return { problem: 'PERMISSION_DENIED', detail };
+    if (response.status === 401 || response.status === 403)
+      return { problem: 'PERMISSION_DENIED', detail };
     if (response.status === 408 || response.status === 504) return { problem: 'TIMEOUT', detail };
-    if (response.status === 429 || response.status >= 500) return { problem: 'SERVER_UNAVAILABLE', detail };
+    if (response.status === 429 || response.status >= 500)
+      return { problem: 'SERVER_UNAVAILABLE', detail };
     // 400 validation, 404 incident/drill not found, 409 idempotency-key reuse with a different body.
     return { problem: 'REJECTED', detail };
   }

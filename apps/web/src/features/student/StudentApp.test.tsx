@@ -14,7 +14,6 @@ import type { ImageProcessor } from './attachments/imageProcessor';
 import type { StoredPhoto } from './attachments/useAttachments';
 import { createCheckInQueue } from './checkIn/checkInQueue';
 import {
-  NO_DETAILS_TEXT,
   type CheckInDraft,
   type CheckInReceipt,
   type CheckInSession,
@@ -276,15 +275,14 @@ describe('Help request', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Send help request' }));
     await waitFor(() => expect(latest()).toHaveAttribute('data-state', 'SERVER_RECEIVED'));
-    expect(api.sentBodies[0]).toMatchObject({
-      status: 'HELP_REQUESTED',
-      helpDetails: NO_DETAILS_TEXT,
-    });
+    expect(api.sentBodies[0]).toMatchObject({ status: 'HELP_REQUESTED' });
+    // No text typed: no helpDetails sent; the server records that none were given.
+    expect(api.sentBodies[0]).not.toHaveProperty('helpDetails');
     expect(latest()).toHaveTextContent('Your help request is open on the server');
     expect(latest()).toHaveTextContent('no responder has confirmed seeing it');
   });
 
-  it('sends the note, landmark and an accurate GPS fix in helpDetails', async () => {
+  it('sends the note as text and the landmark and accurate GPS fix as structured location', async () => {
     const { user, api } = setup({ locationEnv: geoAt(12) });
     await user.click(await helpButton());
     await user.type(screen.getByLabelText('What is happening? (optional)'), 'Twisted ankle');
@@ -294,10 +292,16 @@ describe('Help request', () => {
     await user.type(screen.getByLabelText('Building, floor or landmark'), 'Library steps');
     await user.click(screen.getByRole('button', { name: 'Send help request' }));
     await waitFor(() => expect(api.sentBodies).toHaveLength(1));
-    const details = (api.sentBodies[0] as { helpDetails: string }).helpDetails;
-    expect(details).toContain('Twisted ankle');
-    expect(details).toContain('Location described by student: Library steps');
-    expect(details).toMatch(/Device location \(±12 m, captured .+\): 10\.90371, 76\.89999/);
+    expect(api.sentBodies[0]).toMatchObject({
+      helpDetails: 'Twisted ankle',
+      location: {
+        method: 'GPS',
+        latitude: expect.closeTo(10.90371, 4) as number,
+        longitude: expect.closeTo(76.89999, 4) as number,
+        accuracyM: 12,
+        landmark: 'Library steps',
+      },
+    });
   });
 
   it('warns about a low-accuracy fix but still lets the student send', async () => {
@@ -317,9 +321,7 @@ describe('Help request', () => {
     expect(screen.getByRole('button', { name: 'Get location again' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Send help request' }));
     await waitFor(() => expect(api.sentBodies).toHaveLength(1));
-    expect((api.sentBodies[0] as { helpDetails: string }).helpDetails).not.toContain(
-      'Device location',
-    );
+    expect(api.sentBodies[0]).not.toHaveProperty('location');
   });
 
   it('insecure page: explains https instead of claiming permission was denied', async () => {

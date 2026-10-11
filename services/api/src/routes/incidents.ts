@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import {
   addIncidentReportSchema,
-  createIncidentSchema,
+  createReportSchema,
   cursorPaginationSchema,
   reviewIncidentSchema,
   verificationTransitions,
@@ -23,6 +23,8 @@ import {
   saveIdempotentResponse,
 } from '../idempotency.js';
 import { decodeCursor, paginatedResponse } from '../pagination.js';
+import { LOCATION_COLUMNS, locationValues } from '../reporting/location.js';
+import { attachmentsFor, linkAttachments } from './attachments.js';
 
 const listRoles = ['RESPONDER', 'INCIDENT_VERIFIER', 'ADMIN'] as const;
 
@@ -80,10 +82,10 @@ async function withCorroboration(pool: DatabasePool, rows: IncidentRow[]) {
 export function incidentsRouter(pool: DatabasePool, config: Config) {
   const router = Router();
 
-  router.post('/', validateBody(createIncidentSchema), async (request, response) => {
+  router.post('/', validateBody(createReportSchema), async (request, response) => {
     const auth = request.auth!;
     const key = requireIdempotencyKey(request.header('idempotency-key'));
-    const body = createIncidentSchema.parse(request.body);
+    const body = createReportSchema.parse(request.body);
     const hash = requestHash(body);
     const result = await withTransaction(pool, async (client) => {
       const replay = await getIdempotentResponse(client, auth.id, 'create-incident', key, hash);
@@ -91,8 +93,9 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
       const incidentResult = await client.query<{ id: string; server_received_at: Date }>(
         `INSERT INTO incidents
           (type, description, priority, mode, reporter_id, building_id, floor_id, zone_id,
-           duplicate_group_key, occurred_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, server_received_at`,
+           duplicate_group_key, occurred_at, category, report_kind, ${LOCATION_COLUMNS})
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+         RETURNING id, server_received_at`,
         [
           body.type,
           body.description,
@@ -104,6 +107,9 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
           body.zoneId ?? null,
           duplicateKey(body.type, body.zoneId, body.occurredAt),
           body.occurredAt ?? null,
+          body.category ?? null,
+          body.kind,
+          ...locationValues(body.location),
         ],
       );
       const incident = incidentResult.rows[0]!;
@@ -125,8 +131,12 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
           ],
         );
       }
+      const attachmentIds = await linkAttachments(client, auth.id, body.attachmentIds, {
+        incidentReportId: reportResult.rows[0]!.id,
+      });
       let dispatchId: string | null = null;
-      if (body.priority === 'HIGH' || body.priority === 'CRITICAL') {
+      // A non-urgent concern is reviewed later; it never starts a (simulated) dispatch.
+      if (body.kind === 'EMERGENCY' && (body.priority === 'HIGH' || body.priority === 'CRITICAL')) {
         const dispatch = await client.query<{ id: string }>(
           `INSERT INTO dispatch_assignments (incident_id, response_category, mode)
            VALUES ($1,$2,$3) RETURNING id`,
@@ -153,6 +163,10 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
         entityId: incident.id,
         metadata: {
           priority: body.priority,
+          category: body.category ?? null,
+          kind: body.kind,
+          locationMethod: body.location?.method ?? null,
+          attachments: attachmentIds.length,
           verificationStatus: 'REPORTED',
           dispatchCreated: Boolean(dispatchId),
         },
@@ -161,6 +175,8 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
         id: incident.id,
         verificationStatus: 'REPORTED',
         priority: body.priority,
+        kind: body.kind,
+        attachmentIds,
         deliveryStatus: 'SERVER_RECEIVED',
         serverReceivedAt: incident.server_received_at.toISOString(),
         dispatch: dispatchId ? { id: dispatchId, status: 'CREATED', simulated: true } : null,
@@ -209,7 +225,7 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
       `SELECT id, type, description, priority, verification_status AS "verificationStatus",
               mode, building_id AS "buildingId", floor_id AS "floorId", zone_id AS "zoneId",
               reporter_id AS "reporterId", server_received_at AS "serverReceivedAt", created_at AS "createdAt",
-              duplicate_group_key AS "duplicateGroupKey"
+              duplicate_group_key AS "duplicateGroupKey", category, report_kind AS "kind"
        FROM incidents ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
        ORDER BY created_at DESC, id DESC LIMIT $${values.length}`,
       values,
@@ -239,10 +255,17 @@ export function incidentsRouter(pool: DatabasePool, config: Config) {
       'SELECT * FROM incident_verification_records WHERE incident_id = $1 ORDER BY created_at',
       [request.params.incidentId],
     );
+    const reportIds = (
+      await pool.query<{ id: string }>('SELECT id FROM incident_reports WHERE incident_id = $1', [
+        request.params.incidentId,
+      ])
+    ).rows.map((r) => r.id);
+    const photos = await attachmentsFor(pool, 'incident_report_id', reportIds);
     response.json({
       ...incident,
       report_count: reports.rows[0]!.count,
       verification_history: history.rows,
+      attachments: [...photos.values()].flat(),
     });
   });
 

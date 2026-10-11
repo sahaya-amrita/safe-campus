@@ -67,8 +67,8 @@ export function StudentHome() {
           <Loading label="Finding incidents and drills you can check in to…" />
         ) : s.sessions.length === 0 ? (
           <p className="as-muted">
-            No incident or drill is open for you in the app, so “I’m safe” / “Need help” cannot be
-            attached to an event yet. You can still report an incident or call 112.
+            No incident or drill is open for you in the app. “I’m safe” needs one; “I need help” is
+            still sent to the server as a personal SOS. You can also report a problem or call 112.
           </p>
         ) : (
           <label className="as-field">
@@ -105,6 +105,7 @@ export function StudentHome() {
           onHelp={s.openHelp}
           onRetry={s.checkIns.retry}
           photoCount={s.photoCount}
+          photoStatus={s.photoStatus}
           onDeletePhotos={s.deletePhotos}
         />
       </div>

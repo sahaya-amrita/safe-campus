@@ -18,6 +18,9 @@ import {
 } from '../idempotency.js';
 import { requireRoles, validateBody, validateUuidParam } from '../middleware.js';
 import { decodeCursor, paginatedResponse } from '../pagination.js';
+import { linkAttachmentsSchema } from '@sahaya/contracts';
+import { locationSelect, withLocation } from '../reporting/location.js';
+import { attachmentsFor, linkAttachments } from './attachments.js';
 
 type HelpRequestRow = {
   id: string;
@@ -93,16 +96,27 @@ export function helpRequestsRouter(pool: DatabasePool) {
   // Responder identity is not exposed; only whether someone is assigned.
   router.get('/mine', requireRoles('STUDENT'), async (request, response) => {
     const result = await pool.query(
-      `SELECT id, incident_id AS "incidentId", drill_id AS "drillId", status, details,
-              assigned_responder_id IS NOT NULL AS "responderAssigned",
-              acknowledged_at AS "acknowledgedAt", assigned_at AS "assignedAt",
-              resolved_at AS "resolvedAt", cancelled_at AS "cancelledAt",
-              created_at AS "createdAt", updated_at AS "updatedAt"
-       FROM help_requests WHERE student_id = $1
-       ORDER BY created_at DESC, id DESC LIMIT 50`,
+      `SELECT h.id, h.incident_id AS "incidentId", h.drill_id AS "drillId", h.status, h.details,
+              h.source, h.category, h.assigned_responder_id IS NOT NULL AS "responderAssigned",
+              h.acknowledged_at AS "acknowledgedAt", h.assigned_at AS "assignedAt",
+              h.resolved_at AS "resolvedAt", h.cancelled_at AS "cancelledAt",
+              h.created_at AS "createdAt", h.updated_at AS "updatedAt", ${locationSelect('h')}
+       FROM help_requests h WHERE h.student_id = $1
+       ORDER BY h.created_at DESC, h.id DESC LIMIT 50`,
       [request.auth!.id],
     );
-    response.json({ items: result.rows });
+    const rows = result.rows as { id: string }[];
+    const photos = await attachmentsFor(
+      pool,
+      'help_request_id',
+      rows.map((r) => r.id),
+    );
+    response.json({
+      items: rows.map((row) => ({
+        ...withLocation(row),
+        attachments: photos.get(row.id) ?? [],
+      })),
+    });
   });
 
   router.get(
@@ -149,12 +163,35 @@ export function helpRequestsRouter(pool: DatabasePool) {
           h.drill_id AS "drillId", h.zone_id AS "zoneId", h.status, h.priority, h.details,
           h.assigned_responder_id AS "assignedResponderId", h.acknowledged_at AS "acknowledgedAt",
           h.assigned_at AS "assignedAt", h.resolved_at AS "resolvedAt",
-          h.cancelled_at AS "cancelledAt", h.created_at AS "createdAt", h.updated_at AS "updatedAt"
+          h.cancelled_at AS "cancelledAt", h.created_at AS "createdAt", h.updated_at AS "updatedAt",
+          h.source, h.category, h.building_id AS "buildingId", h.floor_id AS "floorId",
+          ${locationSelect('h')}
          FROM help_requests h WHERE ${conditions.join(' AND ')}
          ORDER BY h.created_at DESC, h.id DESC LIMIT $${values.length}`,
         values,
       );
-      response.json(paginatedResponse(result.rows, limit));
+      const page = paginatedResponse(result.rows, limit);
+      const ids = page.items.map((row) => row.id);
+      const photos = await attachmentsFor(pool, 'help_request_id', ids);
+      const notified = new Map<string, number>();
+      if (ids.length > 0) {
+        const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+        const counts = await pool.query<{ help_request_id: string }>(
+          `SELECT help_request_id FROM help_request_notifications
+           WHERE help_request_id IN (${placeholders})`,
+          ids,
+        );
+        for (const row of counts.rows)
+          notified.set(row.help_request_id, (notified.get(row.help_request_id) ?? 0) + 1);
+      }
+      response.json({
+        ...page,
+        items: page.items.map((row) => ({
+          ...withLocation(row),
+          attachments: photos.get(row.id) ?? [],
+          respondersNotified: notified.get(row.id) ?? 0,
+        })),
+      });
     },
   );
 
@@ -366,6 +403,34 @@ export function helpRequestsRouter(pool: DatabasePool) {
         return { status: 200, body };
       });
       response.status(result.status).json(result.body);
+    },
+  );
+
+  router.post(
+    '/:helpRequestId/attachments',
+    validateUuidParam('helpRequestId'),
+    requireRoles('STUDENT'),
+    validateBody(linkAttachmentsSchema),
+    async (request, response) => {
+      const auth = request.auth!;
+      const id = request.params.helpRequestId as string;
+      const { attachmentIds } = linkAttachmentsSchema.parse(request.body);
+      const linked = await withTransaction(pool, async (client) => {
+        const helpRequest = await lockedHelpRequest(client, id);
+        if (helpRequest.student_id !== auth.id) throw forbidden();
+        const ids = await linkAttachments(client, auth.id, attachmentIds, { helpRequestId: id });
+        if (ids.length > 0)
+          await writeAudit(client, {
+            actorId: auth.id,
+            action: 'HELP_REQUEST_PHOTOS_ADDED',
+            entityType: 'HELP_REQUEST',
+            entityId: id,
+            metadata: { attachmentIds: ids },
+          });
+        return ids;
+      });
+      const photos = await attachmentsFor(pool, 'help_request_id', [id]);
+      response.json({ linked, attachments: photos.get(id) ?? [] });
     },
   );
 

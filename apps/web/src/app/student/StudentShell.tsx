@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BRAND } from '../../brand';
 import {
   createI18n,
@@ -25,6 +25,12 @@ import {
   deletePhotosForCheckIn,
   type StoredPhoto,
 } from '../../features/student/attachments/useAttachments';
+import {
+  photoUploadStatus,
+  sendPhotosForHelpRequest,
+  type PhotoUploader,
+  type PhotoUploadStatus,
+} from '../../features/student/attachments/photoUploads';
 import { createCheckInQueue, type CheckInEntry } from '../../features/student/checkIn/checkInQueue';
 import { useActiveSession } from '../../features/student/checkIn/useActiveSession';
 import { useCheckIns, type NewCheckIn } from '../../features/student/checkIn/useCheckIns';
@@ -36,7 +42,7 @@ import type {
 } from '../../features/student/contracts/studentContract';
 import '../../features/student/fonts';
 import '../../features/student/student.css';
-import type { Me } from '../api/sahaya';
+import type { Me, SahayaApi } from '../api/sahaya';
 import { WELCOME_KEY, useSession } from '../auth/session';
 import { WelcomeScreen } from './WelcomeScreen';
 import { appConfig } from '../config';
@@ -133,24 +139,66 @@ export const STUDENT_DESTINATIONS: AppDestination[] = [
   },
 ];
 
-/** Counts photos kept on the device per check-in key. */
-function usePhotoCounts(deps: StudentDeps, entries: readonly CheckInEntry[]) {
-  const [counts, setCounts] = useState<Map<string, number>>(new Map());
+/**
+ * Photos kept on the device per check-in, and their upload progress. With an
+ * API session, photos of a help request the server has received are uploaded
+ * and linked to it; this runs again when the connection comes back.
+ */
+function usePhotos(
+  deps: StudentDeps,
+  entries: readonly CheckInEntry[],
+  api: SahayaApi | null,
+  online: boolean,
+) {
+  const [byKey, setByKey] = useState<Map<string, StoredPhoto[]>>(new Map());
+  const running = useRef(new Set<string>());
+
   const refresh = useCallback(async () => {
     try {
-      const all = await deps.photoStore.getAll();
-      const next = new Map<string, number>();
-      for (const photo of all)
-        if (photo.checkInKey) next.set(photo.checkInKey, (next.get(photo.checkInKey) ?? 0) + 1);
-      setCounts(next);
+      const next = new Map<string, StoredPhoto[]>();
+      for (const photo of await deps.photoStore.getAll()) {
+        if (!photo.checkInKey) continue;
+        next.set(photo.checkInKey, [...(next.get(photo.checkInKey) ?? []), photo]);
+      }
+      setByKey(next);
     } catch {
-      setCounts(new Map());
+      setByKey(new Map());
     }
   }, [deps]);
+
   useEffect(() => {
     void refresh();
   }, [refresh, entries]);
-  return { count: (key: string) => counts.get(key) ?? 0, refresh };
+
+  useEffect(() => {
+    if (!api || !online) return;
+    const uploader: PhotoUploader = {
+      upload: (bytes, mediaType) => api.uploadPhoto(bytes, mediaType),
+      link: async (helpRequestId, ids) => {
+        await api.linkHelpRequestPhotos(helpRequestId, ids);
+      },
+    };
+    for (const entry of entries) {
+      const helpId = entry.lifecycle === 'ACCEPTED' ? entry.result?.helpRequest?.id : undefined;
+      const photos = byKey.get(entry.key) ?? [];
+      if (!helpId || photos.length === 0 || running.current.has(entry.key)) continue;
+      if (photos.every((p) => p.uploadState === 'LINKED')) continue;
+      running.current.add(entry.key);
+      void sendPhotosForHelpRequest(deps.photoStore, uploader, entry.key, helpId)
+        .catch(() => undefined)
+        .finally(() => {
+          running.current.delete(entry.key);
+          void refresh();
+        });
+    }
+  }, [api, online, entries, byKey, deps, refresh]);
+
+  return {
+    count: (key: string) => byKey.get(key)?.length ?? 0,
+    status: (key: string): PhotoUploadStatus | null =>
+      api ? photoUploadStatus(byKey.get(key) ?? []) : null,
+    refresh,
+  };
 }
 
 export function StudentShell({ user }: { user: Me }) {
@@ -199,7 +247,7 @@ export function StudentShell({ user }: { user: Me }) {
   } = useActiveSession(deps.api, deps.now);
   const checkIns = useCheckIns(deps.queue, session, deps.now);
   const entries = checkIns.snapshot.entries;
-  const photos = usePhotoCounts(deps, entries);
+  const photos = usePhotos(deps, entries, api, online);
   const [helpOpen, setHelpOpen] = useState(false);
   const [welcome, setWelcome] = useState(() => {
     try {
@@ -304,6 +352,7 @@ export function StudentShell({ user }: { user: Me }) {
     offlineReady,
     persisted,
     photoCount: photos.count,
+    photoStatus: photos.status,
     deletePhotos: (key) =>
       void deletePhotosForCheckIn(deps.photoStore, key)
         .catch(() => undefined)
@@ -408,6 +457,7 @@ export function StudentShell({ user }: { user: Me }) {
               onSend={send}
               onClose={() => setHelpOpen(false)}
               sending={checkIns.submitting}
+              photosUploadable={!mock}
               attachmentDeps={{
                 store: deps.photoStore,
                 processor: deps.imageProcessor,

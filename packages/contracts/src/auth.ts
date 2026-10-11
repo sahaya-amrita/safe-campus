@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { roleSchema } from './enums.js';
-import { uuidSchema } from './schemas.js';
+import { uuidSchema } from './primitives.js';
 
 /*
  * Phase 2: email one-time-code (OTP) sign-in, account status and the

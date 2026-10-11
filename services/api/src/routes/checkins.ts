@@ -6,6 +6,9 @@ import { ApiError, badRequest, notFound } from '../errors.js';
 import { getIdempotentResponse, requestHash, saveIdempotentResponse } from '../idempotency.js';
 import { requireRoles, validateBody } from '../middleware.js';
 import { writeAudit } from '../audit.js';
+import { LOCATION_COLUMNS, locationValues } from '../reporting/location.js';
+import { matchResponders } from '../reporting/matching.js';
+import { NO_DETAILS_TEXT } from './sos.js';
 
 function idempotencyKey(value: string | undefined) {
   if (!value || value.length < 8 || value.length > 200)
@@ -28,6 +31,9 @@ export function checkinsRouter(pool: DatabasePool) {
       const result = await withTransaction(pool, async (client) => {
         const replay = await getIdempotentResponse(client, auth.id, 'checkin', key, hash);
         if (replay) return replay;
+        // A quick help request may carry no text (Phase 3); the record still says so.
+        const helpDetails =
+          body.helpDetails ?? (body.status === 'HELP_REQUESTED' ? NO_DETAILS_TEXT : null);
         const target = body.incidentId
           ? await client.query<{ zone_id: string | null }>(
               'SELECT zone_id FROM incidents WHERE id = $1',
@@ -43,8 +49,9 @@ export function checkinsRouter(pool: DatabasePool) {
           server_received_at: Date;
         }>(
           `INSERT INTO student_checkins
-          (student_id, incident_id, drill_id, status, help_details, client_action_id, client_created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+          (student_id, incident_id, drill_id, status, help_details, client_action_id, client_created_at,
+           ${LOCATION_COLUMNS})
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          ON CONFLICT (student_id, client_action_id) DO UPDATE SET student_id = EXCLUDED.student_id
          RETURNING id, server_received_at`,
           [
@@ -52,9 +59,10 @@ export function checkinsRouter(pool: DatabasePool) {
             body.incidentId ?? null,
             body.drillId ?? null,
             body.status,
-            body.helpDetails ?? null,
+            helpDetails,
             body.clientActionId,
             body.clientCreatedAt,
+            ...locationValues(body.location),
           ],
         );
         const row = inserted.rows[0]!;
@@ -71,8 +79,8 @@ export function checkinsRouter(pool: DatabasePool) {
           }
           const opened = await client.query<{ id: string; status: string }>(
             `INSERT INTO help_requests
-              (checkin_id, student_id, incident_id, drill_id, zone_id, details)
-             VALUES ($1,$2,$3,$4,$5,$6)
+              (checkin_id, student_id, incident_id, drill_id, zone_id, details, ${LOCATION_COLUMNS})
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
              ON CONFLICT (checkin_id) DO UPDATE SET checkin_id = EXCLUDED.checkin_id
              RETURNING id, status`,
             [
@@ -81,16 +89,23 @@ export function checkinsRouter(pool: DatabasePool) {
               body.incidentId ?? null,
               body.drillId ?? null,
               zoneId,
-              body.helpDetails,
+              helpDetails,
+              ...locationValues(body.location),
             ],
           );
           helpRequest = opened.rows[0]!;
+          const notified = await matchResponders(client, helpRequest.id, zoneId);
           await writeAudit(client, {
             actorId: auth.id,
             action: 'HELP_REQUEST_OPENED',
             entityType: 'HELP_REQUEST',
             entityId: helpRequest.id,
-            metadata: { checkinId: row.id, incidentId: body.incidentId, drillId: body.drillId },
+            metadata: {
+              checkinId: row.id,
+              incidentId: body.incidentId,
+              drillId: body.drillId,
+              respondersNotified: notified,
+            },
           });
         }
         await writeAudit(client, {

@@ -7,13 +7,19 @@
 import type { SendOutcome } from '../../../lib/offline';
 import {
   isPackLanguage,
+  toSosBody,
   toWireBody,
   type CheckInDraft,
   type CheckInReceipt,
   type CheckInSession,
   type StudentInstructionPack,
 } from '../contracts/studentContract';
-import { CLIENT_FAILURE, type PackListResult, type SessionResult, type StudentApi } from './studentApi';
+import {
+  CLIENT_FAILURE,
+  type PackListResult,
+  type SessionResult,
+  type StudentApi,
+} from './studentApi';
 
 /** A clearly-labelled demonstration drill so check-ins have the context the contract requires. */
 export const DEMO_SESSION: CheckInSession = {
@@ -52,13 +58,23 @@ export class MockStudentApi implements StudentApi {
     this.scripted = options.scriptedCheckInOutcomes ?? [];
   }
 
-  async submitCheckIn(draft: CheckInDraft, clientActionId: string, clientCreatedAt: string): Promise<SendOutcome<CheckInReceipt>> {
+  async submitCheckIn(
+    draft: CheckInDraft,
+    clientActionId: string,
+    clientCreatedAt: string,
+  ): Promise<SendOutcome<CheckInReceipt>> {
     this.checkInCalls++;
     await this.delay();
     const scripted = this.scripted.shift();
     if (scripted) return scripted;
     if (!this.isOnline()) return { kind: 'retryable', problem: 'OFFLINE' };
 
+    if (!draft.session && draft.status === 'HELP_REQUESTED') {
+      const sos = toSosBody(draft, clientActionId, clientCreatedAt);
+      if (!sos.ok) return { kind: 'failed', problem: 'REJECTED', detail: CLIENT_FAILURE.invalid };
+      this.sentBodies.push({ sos: sos.body });
+      return { kind: 'accepted', result: this.receipt(clientActionId, 'HELP_REQUESTED') };
+    }
     const wire = toWireBody(draft, clientActionId, clientCreatedAt);
     if (!wire.ok) {
       return {
@@ -68,19 +84,26 @@ export class MockStudentApi implements StudentApi {
       };
     }
     this.sentBodies.push(wire.body);
-    // Idempotent: a replay with the same key returns the original receipt.
+    return { kind: 'accepted', result: this.receipt(clientActionId, wire.body.status) };
+  }
+
+  /** Idempotent: a replay with the same key returns the original receipt. */
+  private receipt(clientActionId: string, status: CheckInReceipt['status']): CheckInReceipt {
     const existing = this.receipts.get(clientActionId);
-    if (existing) return { kind: 'accepted', result: existing };
+    if (existing) return existing;
     const receipt: CheckInReceipt = {
       id: `mock-${this.receipts.size + 1}`,
-      status: wire.body.status,
+      status,
       deliveryStatus: 'SERVER_RECEIVED',
       serverReceivedAt: this.now().toISOString(),
       clientActionId,
-      helpRequest: wire.body.status === 'HELP_REQUESTED' ? { id: `mock-help-${this.receipts.size + 1}`, status: 'OPEN' } : null,
+      helpRequest:
+        status === 'HELP_REQUESTED'
+          ? { id: `mock-help-${this.receipts.size + 1}`, status: 'OPEN' }
+          : null,
     };
     this.receipts.set(clientActionId, receipt);
-    return { kind: 'accepted', result: receipt };
+    return receipt;
   }
 
   async getActiveSession(): Promise<SessionResult> {
@@ -102,7 +125,9 @@ export class MockStudentApi implements StudentApi {
   }
 
   private delay(): Promise<void> {
-    return this.latencyMs > 0 ? new Promise((resolve) => setTimeout(resolve, this.latencyMs)) : Promise.resolve();
+    return this.latencyMs > 0
+      ? new Promise((resolve) => setTimeout(resolve, this.latencyMs))
+      : Promise.resolve();
   }
 }
 

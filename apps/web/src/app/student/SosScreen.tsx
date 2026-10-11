@@ -40,7 +40,8 @@ export function sosSteps(
 
 /**
  * Dedicated emergency screen. SOS reuses the authenticated check-in queue
- * (HELP_REQUESTED → persistent help request); it never calls emergency
+ * (HELP_REQUESTED → persistent help request). With no drill or incident open
+ * it is sent as a personal SOS (POST /sos). It never calls emergency
  * services. Activation needs a 1.5 s hold (pointer or Space/Enter) or an
  * explicit two-step confirmation, so it cannot be triggered by a stray tap.
  */
@@ -58,7 +59,7 @@ export function SosScreen({ onClose }: { onClose: () => void }) {
 
   useEffect(() => closeRef.current?.focus(), []);
 
-  const canSend = Boolean(s.session) && s.checkIns.snapshot.ready && !s.checkIns.submitting;
+  const canSend = s.checkIns.snapshot.ready && !s.checkIns.submitting;
   const fix =
     location.state.kind === 'attached'
       ? location.state.fix
@@ -155,15 +156,16 @@ export function SosScreen({ onClose }: { onClose: () => void }) {
           {s.mock ? 'MOCK' : s.user.mode} responders — it does not contact emergency services.
         </p>
 
-        {!s.session ? (
+        {!s.session && (
           <div className="as-sos__panel" role="status">
-            <strong>SOS can’t send a help request right now.</strong>
+            <strong>No drill or incident is open.</strong>
             <span className="as-sos__muted">
-              No incident or drill is open for you in the app, and the server needs one to file the
-              request. Use Call 112 below.
+              Your request is sent as a personal SOS. Staff see it as unverified until they review
+              it.
             </span>
           </div>
-        ) : (
+        )}
+        {
           <>
             <button
               type="button"
@@ -183,11 +185,19 @@ export function SosScreen({ onClose }: { onClose: () => void }) {
               <small>{sentKey ? 'Sent' : progress > 0 ? 'Keep holding…' : 'Hold 1.5 s'}</small>
             </button>
             <p id="as-sos-howto" className="as-sos__muted">
-              Press and hold (or hold Space/Enter) to send a help request for:{' '}
-              <strong>{s.session.name}</strong>.
+              Press and hold (or hold Space/Enter) to send a help request
+              {s.session ? (
+                <>
+                  {' '}
+                  for: <strong>{s.session.name}</strong>
+                </>
+              ) : (
+                ' as a personal SOS'
+              )}
+              .
             </p>
           </>
-        )}
+        }
 
         <div className="as-sos__panel" aria-live="polite">
           <strong>
@@ -256,7 +266,7 @@ export function SosScreen({ onClose }: { onClose: () => void }) {
         <a className="as-sos__call" href="tel:112">
           <AppIcon name="phone" size={22} /> Call 112 · National emergency
         </a>
-        {s.session && !sentKey && !confirming && (
+        {!sentKey && !confirming && (
           <button
             type="button"
             className="as-sos__alt"

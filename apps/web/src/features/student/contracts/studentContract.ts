@@ -7,7 +7,10 @@
  * RESPONSE SHAPE — ask Codex 1 to export them, then import instead.
  */
 import {
+  sosRequestSchema,
   submitCheckInSchema,
+  type ReportLocation,
+  type SosRequestInput,
   type HelpRequestStatus,
   type InstructionPackApprovalState,
   type MessageDeliveryStatus,
@@ -16,7 +19,13 @@ import {
 } from '@sahaya/contracts';
 
 export { submitCheckInSchema };
-export type { HelpRequestStatus, InstructionPackApprovalState, MessageDeliveryStatus, OperatingMode, SubmitCheckInInput };
+export type {
+  HelpRequestStatus,
+  InstructionPackApprovalState,
+  MessageDeliveryStatus,
+  OperatingMode,
+  SubmitCheckInInput,
+};
 
 /** What a student can actively submit. `UNCONFIRMED` is the absence of a check-in. */
 export type SubmittableStatus = SubmitCheckInInput['status'];
@@ -27,6 +36,8 @@ export const API_PATHS = {
   instructionPacks: '/api/v1/instruction-packs',
   alertInbox: '/api/v1/alerts/inbox',
   incidents: '/api/v1/incidents',
+  sos: '/api/v1/sos',
+  attachments: '/api/v1/attachments',
 } as const;
 
 /** `instructionPackListQuerySchema.language` accepts only these. Other UI languages fall back explicitly. */
@@ -96,7 +107,7 @@ export interface CheckInDraft {
   note?: string;
   landmark?: string;
   location?: CapturedLocation;
-  /** IDs of photos kept on this device (see attachments). Not uploaded — no contract yet. */
+  /** IDs of photos on this device. Uploaded after the server receives the request (Phase 3). */
   attachmentIds?: string[];
 }
 
@@ -104,48 +115,91 @@ export const HELP_DETAILS_MAX = 1000;
 export const NOTE_MAX_LENGTH = 500;
 export const LANDMARK_MAX_LENGTH = 120;
 
-/**
- * `helpDetails` is required (≥3 chars) for HELP_REQUESTED, but a student must
- * be able to send a help request without typing. This fixed, clearly
- * client-generated text is sent instead. Reported to Codex 1 as a contract issue.
- */
-export const NO_DETAILS_TEXT = 'No details given (sent with the quick help button).';
+/** What the server records when a quick help request carries no text (Phase 3). */
+export const NO_DETAILS_TEXT = 'No details given (quick help request).';
 
 /**
- * The contract has no location field. Until it does, a location the student
- * chose to share is appended to `helpDetails` as clearly labelled lines.
- * The note is shortened first so location lines are never cut off.
+ * The student's own words for `helpDetails`, or undefined for a quick help
+ * request (the server records "No details given"). Location is no longer
+ * folded into this text: it travels as the structured `location` field.
  */
-export function composeHelpDetails(draft: Pick<CheckInDraft, 'note' | 'landmark' | 'location'>): string {
-  const extra: string[] = [];
-  if (draft.landmark?.trim()) extra.push(`Location described by student: ${draft.landmark.trim()}`);
+export function composeHelpDetails(draft: Pick<CheckInDraft, 'note'>): string | undefined {
+  const note = draft.note?.trim();
+  if (!note) return undefined;
+  const text = note.length >= 3 ? note : `Note: ${note}`;
+  return text.slice(0, HELP_DETAILS_MAX);
+}
+
+/**
+ * The structured location the student chose (report contract v2): a device
+ * fix (with the typed landmark, if any) or a typed landmark alone.
+ */
+export function toWireLocation(
+  draft: Pick<CheckInDraft, 'landmark' | 'location'>,
+): ReportLocation | undefined {
+  const landmark = draft.landmark?.trim();
+  const usableLandmark = landmark && landmark.length >= 2 ? landmark.slice(0, 200) : undefined;
   if (draft.location) {
     const { latitude, longitude, accuracyMetres, capturedAt } = draft.location;
-    extra.push(
-      `Device location (±${Math.round(accuracyMetres)} m, captured ${capturedAt}): ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
-    );
+    return {
+      method: 'GPS',
+      latitude,
+      longitude,
+      accuracyM: Math.round(accuracyMetres * 10) / 10,
+      capturedAt,
+      ...(usableLandmark ? { landmark: usableLandmark } : {}),
+    };
   }
-  const suffix = extra.length ? `\n${extra.join('\n')}` : '';
-  const room = HELP_DETAILS_MAX - suffix.length;
-  const note = draft.note?.trim() || NO_DETAILS_TEXT;
-  return `${note.slice(0, Math.max(3, room))}${suffix}`;
+  return usableLandmark ? { method: 'MANUAL', landmark: usableLandmark } : undefined;
 }
 
 export type WireBodyResult =
-  | { ok: true; body: SubmitCheckInInput }
-  | { ok: false; reason: 'NO_SESSION' | 'INVALID' };
+  { ok: true; body: SubmitCheckInInput } | { ok: false; reason: 'NO_SESSION' | 'INVALID' };
 
 /** Builds and validates the `POST /checkins` body with the shared zod schema. */
-export function toWireBody(draft: CheckInDraft, clientActionId: string, clientCreatedAt: string): WireBodyResult {
+export function toWireBody(
+  draft: CheckInDraft,
+  clientActionId: string,
+  clientCreatedAt: string,
+): WireBodyResult {
   if (!draft.session) return { ok: false, reason: 'NO_SESSION' };
   const candidate = {
     status: draft.status,
     clientActionId,
     clientCreatedAt,
-    ...(draft.session.kind === 'incident' ? { incidentId: draft.session.id } : { drillId: draft.session.id }),
-    ...(draft.status === 'HELP_REQUESTED' ? { helpDetails: composeHelpDetails(draft) } : {}),
+    ...(draft.session.kind === 'incident'
+      ? { incidentId: draft.session.id }
+      : { drillId: draft.session.id }),
+    ...(draft.status === 'HELP_REQUESTED'
+      ? optional('helpDetails', composeHelpDetails(draft))
+      : {}),
+    ...optional('location', toWireLocation(draft)),
   };
   const parsed = submitCheckInSchema.safeParse(candidate);
+  return parsed.success ? { ok: true, body: parsed.data } : { ok: false, reason: 'INVALID' };
+}
+
+function optional<K extends string, V>(key: K, value: V | undefined): Partial<Record<K, V>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<K, V>);
+}
+
+export type SosBodyResult = { ok: true; body: SosRequestInput } | { ok: false; reason: 'INVALID' };
+
+/**
+ * `POST /sos`: a help request when no drill or incident is open. The server
+ * records it as an unverified SOS and an open help request.
+ */
+export function toSosBody(
+  draft: CheckInDraft,
+  clientActionId: string,
+  clientCreatedAt: string,
+): SosBodyResult {
+  const parsed = sosRequestSchema.safeParse({
+    clientActionId,
+    clientCreatedAt,
+    ...optional('details', composeHelpDetails(draft)),
+    ...optional('location', toWireLocation(draft)),
+  });
   return parsed.success ? { ok: true, body: parsed.data } : { ok: false, reason: 'INVALID' };
 }
 
@@ -156,15 +210,16 @@ export function toWireBody(draft: CheckInDraft, clientActionId: string, clientCr
 export function upgradeStoredDraft(value: unknown): CheckInDraft {
   const raw = (value ?? {}) as Record<string, unknown>;
   const status =
-    raw.status === 'SAFE' || raw.status === 'CONFIRMED_SAFE'
-      ? 'CONFIRMED_SAFE'
-      : 'HELP_REQUESTED';
+    raw.status === 'SAFE' || raw.status === 'CONFIRMED_SAFE' ? 'CONFIRMED_SAFE' : 'HELP_REQUESTED';
   const legacyNote = typeof raw.note === 'string' ? raw.note : undefined;
-  const legacyLocation = typeof raw.locationReference === 'string' ? ` (${raw.locationReference})` : '';
+  const legacyLocation =
+    typeof raw.locationReference === 'string' ? ` (${raw.locationReference})` : '';
   return {
     status,
     session: (raw.session as CheckInSession | null | undefined) ?? null,
-    ...(legacyNote || legacyLocation ? { note: `${legacyNote ?? ''}${legacyLocation}`.trim() } : {}),
+    ...(legacyNote || legacyLocation
+      ? { note: `${legacyNote ?? ''}${legacyLocation}`.trim() }
+      : {}),
     ...(typeof raw.landmark === 'string' ? { landmark: raw.landmark } : {}),
     ...(raw.location ? { location: raw.location as CapturedLocation } : {}),
     ...(Array.isArray(raw.attachmentIds) ? { attachmentIds: raw.attachmentIds as string[] } : {}),

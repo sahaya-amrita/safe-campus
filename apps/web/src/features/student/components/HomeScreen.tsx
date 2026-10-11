@@ -8,6 +8,7 @@ import { EmergencyCard } from './EmergencyCard';
 import { Icon } from './Icon';
 import { SessionBar } from './SessionBar';
 import { SubmissionCard } from './SubmissionCard';
+import type { PhotoUploadStatus } from '../attachments/photoUploads';
 
 interface Props {
   ready: boolean;
@@ -20,6 +21,8 @@ interface Props {
   onHelp: () => void;
   onRetry: (key: string) => void;
   photoCount: (key: string) => number;
+  /** Upload progress per check-in when photos can be sent; absent keeps them on the device. */
+  photoStatus?: (key: string) => PhotoUploadStatus | null;
   onDeletePhotos: (key: string) => void;
 }
 
@@ -48,7 +51,12 @@ export const HomeScreen = forwardRef<HTMLElement, Props>(function HomeScreen(pro
         )}
 
         <div className="sc-actions">
-          <button type="button" className="sc-action sc-action--safe" disabled={submitting || !ready} onClick={props.onSafe}>
+          <button
+            type="button"
+            className="sc-action sc-action--safe"
+            disabled={submitting || !ready}
+            onClick={props.onSafe}
+          >
             <span className="sc-action-disc">
               <Icon name="check" size={28} />
             </span>
@@ -57,7 +65,12 @@ export const HomeScreen = forwardRef<HTMLElement, Props>(function HomeScreen(pro
               <span className="sc-action-hint">{t.checkInSafeHint}</span>
             </span>
           </button>
-          <button type="button" className="sc-action sc-action--help" disabled={!ready} onClick={props.onHelp}>
+          <button
+            type="button"
+            className="sc-action sc-action--help"
+            disabled={!ready}
+            onClick={props.onHelp}
+          >
             <span className="sc-action-disc">
               <Icon name="hand" size={28} />
             </span>
@@ -77,7 +90,12 @@ export const HomeScreen = forwardRef<HTMLElement, Props>(function HomeScreen(pro
           </p>
         )}
         {storageFailed && (
-          <CriticalText k="storageFailed" role="alert" className="sc-callout sc-callout--danger" leading={<Icon name="x" size={18} />} />
+          <CriticalText
+            k="storageFailed"
+            role="alert"
+            className="sc-callout sc-callout--danger"
+            leading={<Icon name="x" size={18} />}
+          />
         )}
       </section>
 
@@ -91,6 +109,7 @@ export const HomeScreen = forwardRef<HTMLElement, Props>(function HomeScreen(pro
             entry={latest}
             onRetry={props.onRetry}
             photoCount={props.photoCount(latest.key)}
+            photoStatus={props.photoStatus?.(latest.key) ?? null}
             onDeletePhotos={props.onDeletePhotos}
           />
         ) : (
