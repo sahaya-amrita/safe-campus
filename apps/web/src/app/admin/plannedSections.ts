@@ -11,15 +11,4 @@ export interface PlannedSection {
   needs: string[];
 }
 
-export const PLANNED_ADMIN_SECTIONS: readonly PlannedSection[] = [
-  {
-    section: 'settings',
-    label: 'System settings',
-    phase: 'Phase 7 (administration, analytics and deployment)',
-    summary: 'Operating mode, acknowledgement timers and provider configuration.',
-    needs: [
-      'A server-side settings API with audit events',
-      'Approved acknowledgement timers (today they are DEMO placeholders)',
-    ],
-  },
-];
+export const PLANNED_ADMIN_SECTIONS: readonly PlannedSection[] = [];

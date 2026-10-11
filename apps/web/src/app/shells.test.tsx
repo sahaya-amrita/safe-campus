@@ -139,18 +139,17 @@ describe('route separation', () => {
       'Campus map data',
       'Safe-point approvals',
       'Tom help content',
+      'Analytics',
+      'System settings',
       'Incident verification',
       'Alert management',
       'Drill management',
       'Safety guides',
       'Campus contacts',
     ]);
-    // Unbuilt sections are not in the navigation…
-    expect(within(sections).queryByRole('button', { name: /System settings/ })).toBeNull();
-    // …and their routes say plainly that they do not work yet.
-    go('/admin/settings');
-    expect(await screen.findByText('In development · not functional')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'System settings' })).toBeInTheDocument();
+    // Every specified admin section is now built; an unknown section falls back to the dashboard.
+    go('/admin/no-such-section');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
 
     // Admins may also open the responder workspace.

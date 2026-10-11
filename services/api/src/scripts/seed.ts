@@ -97,12 +97,17 @@ try {
     }
 
     const ids = new Map<string, string>();
+    // In production the published DEMO passwords are never stored (and any
+    // stored earlier are cleared): DEMO password login is refused there anyway.
+    const production = config.NODE_ENV === 'production';
     for (const [email, displayName, password, roles] of users) {
       const result = await client.query<{ id: string }>(
         `INSERT INTO users (email, display_name, password_hash, mode)
          VALUES ($1, $2, $3, 'DEMO')
-         ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name RETURNING id`,
-        [email, displayName, await hashPassword(password)],
+         ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name,
+           password_hash = CASE WHEN $4 THEN NULL ELSE users.password_hash END
+         RETURNING id`,
+        [email, displayName, production ? null : await hashPassword(password), production],
       );
       const userId = result.rows[0]!.id;
       ids.set(email, userId);

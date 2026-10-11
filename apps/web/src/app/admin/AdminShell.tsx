@@ -19,6 +19,7 @@ import { AuditPage } from './AuditPage';
 import { RosterPage } from './RosterPage';
 import { MapDataPage, SafePointsPage } from './NavigationAdmin';
 import { TomContentPage } from './TomContentPage';
+import { AnalyticsPage, SettingsPage } from './OpsPages';
 import { UsersPage } from './UsersPage';
 import { PLANNED_ADMIN_SECTIONS } from './plannedSections';
 
@@ -94,6 +95,26 @@ export const ADMIN_NAV: StaffNavItem[] = [
     icon: 'book',
     description: "Review and approve Tom's help text. Approval covers the exact wording.",
     keywords: ['tom', 'assistant', 'help', 'content', 'review', 'approve'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.analytics',
+    section: 'analytics',
+    path: `${ROUTES.admin.root}/analytics`,
+    label: 'Analytics',
+    icon: 'grid',
+    description: 'Descriptive counts: reports, help requests, acknowledgement times, drills.',
+    keywords: ['analytics', 'statistics', 'counts', 'report', 'trend'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.settings',
+    section: 'settings',
+    path: `${ROUTES.admin.root}/settings`,
+    label: 'System settings',
+    icon: 'settings',
+    description: 'Acknowledgement timers, responder matching and photo retention. Audited.',
+    keywords: ['settings', 'timer', 'escalation', 'retention', 'configuration'],
     roles: [ADMIN],
   },
   {
@@ -185,6 +206,12 @@ function AdminWorkspace({ user }: { user: Me }) {
         break;
       case 'admin.users':
         view = <UsersPage api={api} user={user} />;
+        break;
+      case 'admin.analytics':
+        view = <AnalyticsPage api={api} />;
+        break;
+      case 'admin.settings':
+        view = <SettingsPage api={api} />;
         break;
       case 'admin.tom-content':
         view = <TomContentPage api={api} />;

@@ -24,8 +24,8 @@ import {
   useAsync,
 } from '../ui';
 import {
-  ACK_TARGET_SECONDS,
-  ESCALATE_AFTER_SECONDS,
+  DEFAULT_TIMERS,
+  type AckTimers,
   LEVEL_TEXT,
   ackState,
   formatDuration,
@@ -61,12 +61,23 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
   const incidents = useAsync(() => api.listIncidents(100), [api], 10_000);
   const help = useAsync(() => api.listHelpRequests(), [api], 10_000);
   const drills = useActiveDrills(api);
+  // Timers come from system settings (Phase 7); defaults are DEMO placeholders.
+  const settings = useAsync(() => api.settings(), [api], 60_000);
+  // Fall back to the defaults if the settings response is missing or malformed.
+  const values = settings.data?.values;
+  const timers: AckTimers =
+    values &&
+    typeof values.ackTargetSeconds === 'number' &&
+    typeof values.escalateAfterSeconds === 'number'
+      ? values
+      : DEFAULT_TIMERS;
+  const timerSource = settings.data?.meta?.ackTargetSeconds?.source ?? null;
 
   const helpQueue = useMemo(() => sortHelpQueue(help.data?.items ?? [], now), [help.data, now]);
   const hazards = useMemo(() => sortHazardQueue(incidents.data?.items ?? []), [incidents.data]);
   const waiting = helpQueue.filter((h) => !h.acknowledgedAt);
   const overdue = waiting.filter((h) => {
-    const state = ackState(h, now);
+    const state = ackState(h, now, timers);
     return state.kind === 'WAITING' && state.stage !== 'ON_TIME';
   });
   const suspected = hazards.filter((h) => h.level === 2).length;
@@ -91,7 +102,7 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
         />
         <Stat
           value={overdue.length}
-          label={`Over ${ACK_TARGET_SECONDS / 60} min without acknowledgement`}
+          label={`Over ${formatMinutes(timers.ackTargetSeconds)} without acknowledgement`}
         />
         <Stat
           value={suspected}
@@ -113,9 +124,12 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
         <div ref={helpTarget}>
           <Card title="Help requests" icon="hand" labelledBy="as-cr-help">
             <p className="as-muted as-small">
-              Oldest unacknowledged first. Timers: acknowledge within {ACK_TARGET_SECONDS / 60} min,
-              escalate by phone after {ESCALATE_AFTER_SECONDS / 60} min (DEMO values; the ERT sets
-              the real ones).
+              Oldest unacknowledged first. Timers: acknowledge within{' '}
+              {formatMinutes(timers.ackTargetSeconds)}, escalate by phone after{' '}
+              {formatMinutes(timers.escalateAfterSeconds)}{' '}
+              {timerSource
+                ? `(set by an administrator: ${timerSource}).`
+                : '(DEMO default values; an administrator sets the agreed ones in System settings).'}
             </p>
             {help.loading && !help.data && <Loading />}
             {help.data && helpQueue.length === 0 && (
@@ -123,7 +137,15 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
             )}
             <ul className="as-list">
               {helpQueue.map((h) => (
-                <HelpItem key={h.id} api={api} user={user} h={h} now={now} onDone={help.reload} />
+                <HelpItem
+                  key={h.id}
+                  api={api}
+                  user={user}
+                  h={h}
+                  now={now}
+                  timers={timers}
+                  onDone={help.reload}
+                />
               ))}
             </ul>
           </Card>
@@ -174,21 +196,27 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
   );
 }
 
+function formatMinutes(seconds: number): string {
+  return seconds % 60 === 0 ? `${seconds / 60} min` : `${Math.round(seconds / 6) / 10} min`;
+}
+
 function HelpItem({
   api,
   user,
   h,
   now,
+  timers,
   onDone,
 }: {
   api: SahayaApi;
   user: Me;
   h: HelpRequest;
   now: number;
+  timers: AckTimers;
   onDone: () => void;
 }) {
   const { run, busy, errors } = useActions();
-  const state = ackState(h, now);
+  const state = ackState(h, now, timers);
   const isResponder = hasRole(user, 'RESPONDER');
   const canAck = h.status === 'OPEN' && hasRole(user, 'RESPONDER', 'ADMIN');
   const canAssign = (h.status === 'OPEN' || h.status === 'ACKNOWLEDGED') && isResponder;

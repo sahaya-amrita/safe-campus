@@ -7,7 +7,10 @@
 import type {
   AdminUser,
   AttachmentView,
+  AnalyticsView,
   AssistantContentView,
+  SettingsView,
+  SystemSettings,
   DrillReviewView,
   NavigationStatus,
   ProgressView,
@@ -342,6 +345,11 @@ const enc = encodeURIComponent;
 export function sahayaApi(client: ApiClient) {
   return {
     me: () => client.get<Me>('/api/v1/users/me'),
+    // Administration (Phase 7)
+    settings: () => client.get<SettingsView>('/api/v1/settings'),
+    updateSettings: (input: { values: Partial<SystemSettings>; source: string; reason: string }) =>
+      client.put<SettingsView>('/api/v1/admin/settings', input),
+    analytics: (days: number) => client.get<AnalyticsView>(`/api/v1/admin/analytics?days=${days}`),
     // Learning (Phase 6)
     drillReview: (drillId: string) =>
       client.get<DrillReviewView>(`/api/v1/drills/${enc(drillId)}/review`),

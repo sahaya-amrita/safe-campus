@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Amrita Sahaya API
-  version: 0.6.0
+  version: 0.7.0
   description: >-
     Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
     behavior is simulated. No endpoint contacts real emergency services.
@@ -30,6 +30,7 @@ tags:
   - name: Roll call
   - name: Navigation
   - name: Learning
+  - name: Settings and analytics
 paths:
   /health:
     get:
@@ -1676,6 +1677,71 @@ paths:
       responses:
         '201': { description: Review recorded (audited) }
         '404': { $ref: '#/components/responses/NotFound' }
+  /settings:
+    get:
+      tags: [Settings and analytics]
+      operationId: getSettings
+      summary: Current system settings with their source (staff); missing keys use DEMO defaults
+      responses:
+        '200':
+          {
+            description: Settings,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } },
+          }
+  /admin/settings:
+    put:
+      tags: [Settings and analytics]
+      operationId: updateSettings
+      summary: Change settings (ADMIN). Needs a source and a reason; audited with before/after values.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [values, source, reason]
+              properties:
+                values:
+                  type: object
+                  properties:
+                    ackTargetSeconds: { type: integer, minimum: 30, maximum: 3600 }
+                    escalateAfterSeconds: { type: integer, minimum: 60, maximum: 7200 }
+                    maxMatchedResponders: { type: integer, minimum: 1, maximum: 10 }
+                    unattachedPhotoHours: { type: integer, minimum: 1, maximum: 168 }
+                source: { type: string, minLength: 3 }
+                reason: { type: string, minLength: 5 }
+      responses:
+        '200':
+          {
+            description: Saved,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } },
+          }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /admin/analytics:
+    get:
+      tags: [Settings and analytics]
+      operationId: getAnalytics
+      summary: Descriptive counts for the last N days (ADMIN, INCIDENT_VERIFIER); no predictions
+      parameters:
+        - {
+            name: days,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 365, default: 30 },
+          }
+      responses:
+        '200':
+          description: Counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  window: { type: object }
+                  dataNote: { type: string }
+                  reports: { type: object }
+                  helpRequests: { type: object }
+                  drills: { type: array, items: { type: object } }
+                  photos: { type: object }
 components:
   securitySchemes:
     bearerAuth:
@@ -1995,6 +2061,17 @@ components:
       description: >-
         Exactly one of incidentId/drillId. helpDetails is optional since 0.3.0; a help request
         without text is recorded as "No details given (quick help request)".
+    Settings:
+      type: object
+      properties:
+        values:
+          type: object
+          properties:
+            ackTargetSeconds: { type: integer }
+            escalateAfterSeconds: { type: integer }
+            maxMatchedResponders: { type: integer }
+            unattachedPhotoHours: { type: integer }
+        meta: { type: object, description: Per key, null while the DEMO default is in use }
     DrillReview:
       type: object
       properties:
