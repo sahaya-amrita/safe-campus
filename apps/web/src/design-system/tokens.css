@@ -1,27 +1,27 @@
 /*
  * Amrita Sahaya 2.0 design tokens: minimal, mobile-first, blue and white.
  *
- * Contrast (WCAG 2.1, measured): white on primary 5.27:1, primary on white
- * 5.27:1, primary on bg 4.98:1, muted on bg 5.16:1, ink on bg 14.35:1,
- * white on danger 6.57:1, white on deep 11.32:1, control border on white 3.03:1.
+ * Contrast (WCAG 2.1, measured): white on primary 5.98:1, primary on bg
+ * 5.50:1, muted on bg 5.21:1, ink on bg 14.46:1, white on danger
+ * 6.57:1, white on deep 14.64:1, control border on white 3.03:1.
  * Emergency and error surfaces stay red; blue is never used to mean "danger".
  */
 :root {
   /* Brand */
-  --ds-primary: #1769d2;
-  --ds-primary-700: #1257b0;
-  --ds-deep: #123b69;
-  --ds-primary-50: #eaf2fc;
-  --ds-primary-100: #d4e5fa;
+  --ds-primary: #1d5fc7;
+  --ds-primary-700: #154ba1;
+  --ds-deep: #102a43;
+  --ds-primary-50: #edf4ff;
+  --ds-primary-100: #d9e8ff;
 
   /* Neutrals */
-  --ds-bg: #f6f9fc;
+  --ds-bg: #f1f6fb;
   --ds-surface: #ffffff;
-  --ds-surface-2: #eef3f9;
-  --ds-ink: #15273b;
-  --ds-ink-2: #33465c;
-  --ds-muted: #5a6b80;
-  --ds-line: #dce4ee;
+  --ds-surface-2: #e9f0f8;
+  --ds-ink: #10243a;
+  --ds-ink-2: #30465f;
+  --ds-muted: #536982;
+  --ds-line: #d5e0ec;
   --ds-control: #8296ae;
 
   /* Status */
@@ -41,12 +41,12 @@
   --ds-focus: #1769d2;
 
   /* Shape and depth */
-  --ds-radius-lg: 20px;
-  --ds-radius: 14px;
-  --ds-radius-sm: 10px;
+  --ds-radius-lg: 24px;
+  --ds-radius: 16px;
+  --ds-radius-sm: 12px;
   --ds-radius-pill: 999px;
-  --ds-shadow: 0 1px 2px rgba(18, 59, 105, 0.05), 0 6px 18px -10px rgba(18, 59, 105, 0.22);
-  --ds-shadow-lg: 0 24px 48px -16px rgba(18, 59, 105, 0.35);
+  --ds-shadow: 0 1px 2px rgba(16, 42, 67, 0.05), 0 12px 30px -22px rgba(16, 42, 67, 0.48);
+  --ds-shadow-lg: 0 28px 64px -24px rgba(16, 42, 67, 0.42);
 
   /* Spacing scale (4 px base) */
   --ds-space-1: 4px;
