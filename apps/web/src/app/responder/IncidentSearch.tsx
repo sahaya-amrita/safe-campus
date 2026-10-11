@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { SahayaApi } from '../api/sahaya';
 import { useRoute } from '../router';
+import { useStaffLink } from '../staff/workspace';
 import {
   AppIcon,
   Card,
@@ -28,6 +29,7 @@ import {
  */
 export function IncidentSearch({ api }: { api: SahayaApi }) {
   const { navigate } = useRoute();
+  const link = useStaffLink();
   const incidents = useAsync(() => api.listIncidents(100), [api], 15_000);
   const buildings = useAsync(() => api.buildings(), [api]);
   // Floor names for every building (a handful in DEMO), for display and filtering.
@@ -244,7 +246,7 @@ export function IncidentSearch({ api }: { api: SahayaApi }) {
                     <button
                       type="button"
                       className="as-btn as-btn--ghost as-btn--sm"
-                      onClick={() => navigate(`/r/incidents/${i.id}`)}
+                      onClick={() => navigate(link('incidents', i.id))}
                     >
                       Open <AppIcon name="chevron" size={14} />
                     </button>

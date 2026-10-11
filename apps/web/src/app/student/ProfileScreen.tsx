@@ -16,6 +16,80 @@ import {
   useAsync,
 } from '../ui';
 import { useStudent } from './core';
+import { useSession } from '../auth/session';
+import { describeAuthError } from '../auth/AuthScreens';
+import { Button, FormError, StatusBanner, TextField } from '../../design-system';
+
+/** Name and sessions. Roles are shown but can only be changed by an administrator. */
+function AccountSettings() {
+  const s = useStudent();
+  const { updateUser, signOutEverywhere } = useSession();
+  const [name, setName] = useState(s.user.displayName);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [confirmAll, setConfirmAll] = useState(false);
+
+  if (!s.api) return <p className="as-muted">Needs a signed-in API session.</p>;
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaved(false);
+    setError(null);
+    if (name.trim().length < 2) {
+      setError('Enter at least 2 characters.');
+      return;
+    }
+    setBusy(true);
+    try {
+      updateUser(await s.api!.updateMe({ displayName: name.trim() }));
+      setSaved(true);
+    } catch (reason) {
+      setError(describeAuthError(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="as-stack">
+      <form className="as-form" onSubmit={(e) => void save(e)}>
+        <TextField
+          label="Display name"
+          value={name}
+          maxLength={80}
+          autoComplete="name"
+          onChange={(e) => setName(e.target.value)}
+        />
+        <FormError>{error}</FormError>
+        {saved && <StatusBanner tone="ok">Name saved.</StatusBanner>}
+        <Button type="submit" variant="secondary" loading={busy} loadingLabel="Saving…">
+          Save name
+        </Button>
+      </form>
+      <div className="as-stack">
+        <p className="as-small as-muted">
+          Lost a phone or used a shared computer? Sign out everywhere ends every session of your
+          account, including this one.
+        </p>
+        {confirmAll ? (
+          <div className="as-row">
+            <Button variant="danger" size="sm" onClick={() => void signOutEverywhere()}>
+              Yes, sign out everywhere
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmAll(false)}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button variant="ghost" size="sm" icon="logout" onClick={() => setConfirmAll(true)}>
+            Sign out of all devices
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function TrustedContacts() {
   const s = useStudent();
@@ -183,9 +257,15 @@ export function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
           <dd>{s.user.roles.join(', ')}</dd>
           <dt>Mode</dt>
           <dd>
-            {s.mock ? 'MOCK preview (nothing is sent)' : `${s.user.mode} — simulated, DEMO sign-in`}
+            {s.mock
+              ? 'MOCK preview (nothing is sent)'
+              : `${s.user.mode} — simulated data, prototype`}
           </dd>
         </dl>
+      </Card>
+
+      <Card title="Account" icon="settings" labelledBy="as-profile-account">
+        <AccountSettings />
       </Card>
 
       <Card title="Trusted contacts" icon="users" labelledBy="as-profile-contacts">

@@ -1,0 +1,75 @@
+/*
+ * Amrita Sahaya 2.0 design tokens: minimal, mobile-first, blue and white.
+ *
+ * Contrast (WCAG 2.1, measured): white on primary 5.27:1, primary on white
+ * 5.27:1, primary on bg 4.98:1, muted on bg 5.16:1, ink on bg 14.35:1,
+ * white on danger 6.57:1, white on deep 11.32:1, control border on white 3.03:1.
+ * Emergency and error surfaces stay red; blue is never used to mean "danger".
+ */
+:root {
+  /* Brand */
+  --ds-primary: #1769d2;
+  --ds-primary-700: #1257b0;
+  --ds-deep: #123b69;
+  --ds-primary-50: #eaf2fc;
+  --ds-primary-100: #d4e5fa;
+
+  /* Neutrals */
+  --ds-bg: #f6f9fc;
+  --ds-surface: #ffffff;
+  --ds-surface-2: #eef3f9;
+  --ds-ink: #15273b;
+  --ds-ink-2: #33465c;
+  --ds-muted: #5a6b80;
+  --ds-line: #dce4ee;
+  --ds-control: #8296ae;
+
+  /* Status */
+  --ds-danger: #b42318;
+  --ds-danger-700: #912018;
+  --ds-danger-50: #fdecea;
+  --ds-danger-line: #f5c2bc;
+  --ds-warn: #8a4b00;
+  --ds-warn-50: #fff4e0;
+  --ds-warn-line: #f0d199;
+  --ds-ok: #146c43;
+  --ds-ok-50: #e7f5ee;
+  --ds-ok-line: #b5dec8;
+  --ds-info: var(--ds-primary-700);
+  --ds-info-50: var(--ds-primary-50);
+  --ds-info-line: var(--ds-primary-100);
+  --ds-focus: #1769d2;
+
+  /* Shape and depth */
+  --ds-radius-lg: 20px;
+  --ds-radius: 14px;
+  --ds-radius-sm: 10px;
+  --ds-radius-pill: 999px;
+  --ds-shadow: 0 1px 2px rgba(18, 59, 105, 0.05), 0 6px 18px -10px rgba(18, 59, 105, 0.22);
+  --ds-shadow-lg: 0 24px 48px -16px rgba(18, 59, 105, 0.35);
+
+  /* Spacing scale (4 px base) */
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 24px;
+  --ds-space-6: 32px;
+  --ds-space-7: 48px;
+
+  /* Type */
+  --ds-font:
+    'Inter', 'Noto Sans Tamil', 'Noto Sans Devanagari', 'Noto Sans Malayalam', 'Noto Sans Telugu',
+    'Noto Sans Kannada', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ds-text-xs: 0.78rem;
+  --ds-text-sm: 0.875rem;
+  --ds-text-md: 1rem;
+  --ds-text-lg: 1.125rem;
+  --ds-text-xl: 1.375rem;
+  --ds-text-2xl: 1.75rem;
+
+  /* Layout */
+  --ds-touch: 44px;
+  --ds-topbar-h: 60px;
+  --ds-tabbar-h: 68px;
+}

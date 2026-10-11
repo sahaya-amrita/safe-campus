@@ -1,13 +1,11 @@
-import { BRAND } from '../../brand';
 import type { Role } from '@sahaya/contracts';
 import type { Me } from '../api/sahaya';
-import { hasRole, useApi, useSession } from '../auth/session';
-import { DrillBanner } from '../DrillBanner';
+import { hasRole, useApi } from '../auth/session';
 import { useRoute } from '../router';
+import { ROUTES, canEnter } from '../routes';
 import { TourTargetProvider, useTourTarget } from '../../components/tom';
-import { TomHost, type AppDestination } from '../TomHost';
+import { StaffLayout, activeItem, toDestinations, type StaffNavItem } from '../staff/StaffLayout';
 import { DrillsView } from './drillControl';
-import { AppIcon, ModeBanner, Pill, type AppIconName } from '../ui';
 import {
   AlertsView,
   ContactsPage,
@@ -20,23 +18,13 @@ import {
   PacksView,
 } from './views';
 
-interface NavItem {
-  id: string;
-  path: string;
-  label: string;
-  icon: AppIconName;
-  description: string;
-  keywords: string[];
-  /** Advisory: hides links the role cannot use. The API enforces access regardless. */
-  roles: Role[];
-}
-
 const ALL_STAFF: Role[] = ['RESPONDER', 'INCIDENT_VERIFIER', 'DRILL_MANAGER', 'ADMIN'];
 
-export const RESPONDER_NAV: NavItem[] = [
+export const RESPONDER_NAV: StaffNavItem[] = [
   {
     id: 'responder.overview',
-    path: '/r/overview',
+    section: 'overview',
+    path: ROUTES.responder.overview,
     label: 'Overview',
     icon: 'grid',
     description: 'Live counts and the simulated incident starter.',
@@ -45,7 +33,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.incidents',
-    path: '/r/incidents',
+    section: 'incidents',
+    path: ROUTES.responder.incidents,
     label: 'Incidents',
     icon: 'alert',
     description: 'Incident queue, details, verification and roll-call.',
@@ -54,7 +43,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.help-requests',
-    path: '/r/help',
+    section: 'help',
+    path: ROUTES.responder.help,
     label: 'Help requests',
     icon: 'hand',
     description: 'Persistent student help requests: acknowledge, assign, resolve.',
@@ -63,7 +53,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.dispatches',
-    path: '/r/dispatches',
+    section: 'dispatches',
+    path: ROUTES.responder.dispatches,
     label: 'Dispatches',
     icon: 'truck',
     description: 'Simulated responder dispatches.',
@@ -72,7 +63,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.alerts',
-    path: '/r/alerts',
+    section: 'alerts',
+    path: ROUTES.responder.alerts,
     label: 'Alerts',
     icon: 'bell',
     description: 'Zone alerts: drafts, authorisation and acknowledgements.',
@@ -81,7 +73,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.packs',
-    path: '/r/packs',
+    section: 'packs',
+    path: ROUTES.responder.packs,
     label: 'Instruction packs',
     icon: 'book',
     description: 'Review and publish instruction packs.',
@@ -90,7 +83,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.drills',
-    path: '/r/drills',
+    section: 'drills',
+    path: ROUTES.responder.drills,
     label: 'Drills',
     icon: 'clock',
     description: 'Drill console: preflight, start, stop and the STOP DRILL kill switch.',
@@ -99,7 +93,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.map',
-    path: '/r/map',
+    section: 'map',
+    path: ROUTES.responder.map,
     label: 'Campus map',
     icon: 'map',
     description: 'Risk areas, blocked paths and DEMO safe routes. Not approved navigation.',
@@ -108,7 +103,8 @@ export const RESPONDER_NAV: NavItem[] = [
   },
   {
     id: 'responder.contacts',
-    path: '/r/contacts',
+    section: 'contacts',
+    path: ROUTES.responder.contacts,
     label: 'Contacts',
     icon: 'phone',
     description: 'Campus contacts with verification state.',
@@ -129,22 +125,13 @@ export function ResponderShell({ user }: { user: Me }) {
 function ResponderWorkspace({ user }: { user: Me }) {
   const navTarget = useTourTarget('responder.nav');
   const bannerTarget = useTourTarget('responder.mode-banner');
-  const { signOut } = useSession();
   const api = useApi();
-  const { path, segments, navigate } = useRoute();
+  const { path, segments } = useRoute();
   const nav = RESPONDER_NAV.filter((item) => hasRole(user, ...item.roles));
-  const active = nav.find((n) => path === n.path || path.startsWith(`${n.path}/`)) ?? nav[0]!;
-  const destinations: AppDestination[] = nav.map((n) => ({
-    id: n.id,
-    path: n.path,
-    label: n.label,
-    description: n.description,
-    keywords: n.keywords,
-    roles: ['RESPONDER', 'ADMIN'],
-  }));
+  const active = activeItem(nav, path);
 
   let view;
-  switch (active.id) {
+  switch (active?.id) {
     case 'responder.incidents':
       view = segments[2] ? (
         <IncidentDetailView api={api} user={user} id={segments[2]} />
@@ -178,70 +165,24 @@ function ResponderWorkspace({ user }: { user: Me }) {
   }
 
   return (
-    <div className="as-staff">
-      <a className="as-skip" href="#as-staff-main">
-        Skip to content
-      </a>
-      <aside className="as-side" aria-label="Responder workspace">
-        <div className="as-brand">
-          <span className="as-topbar__emblem">
-            <img src={BRAND.emblemUrl} alt="" width={24} height={28} />
-          </span>
-          <div>
-            <p className="as-brand__name">{BRAND.name}</p>
-            <p className="as-brand__tag">Responder workspace</p>
-          </div>
-        </div>
-        <nav aria-label="Sections" ref={navTarget}>
-          {nav.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="as-side__link"
-              aria-current={active.id === item.id ? 'page' : undefined}
-              onClick={() => navigate(item.path)}
-            >
-              <AppIcon name={item.icon} size={18} />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="as-side__foot">
-          <span>
-            {user.displayName}
-            <br />
-            <small>{user.roles.join(' · ')}</small>
-          </span>
-          <button
-            type="button"
-            className="as-btn as-btn--ghost as-btn--sm"
-            onClick={() => signOut()}
-          >
-            <AppIcon name="logout" size={16} /> Sign out
-          </button>
-        </div>
-      </aside>
-      <div className="as-staff__main">
-        <div>
-          <div ref={bannerTarget}>
-            <ModeBanner mode={user.mode} />
-          </div>
-          <DrillBanner api={api} />
-          <header className="as-staff__head">
-            <h1 className="as-screen-title">{active.label}</h1>
-            <div className="as-row">
-              <Pill tone="neutral">DEMO sign-in · not SSO</Pill>
-              <a className="as-btn as-btn--light as-btn--sm" href="tel:112">
-                <AppIcon name="phone" size={16} /> 112
-              </a>
-            </div>
-          </header>
-        </div>
-        <main className="as-staff__content" id="as-staff-main">
-          {view}
-        </main>
-      </div>
-      <TomHost user={user} destinations={destinations} currentPath={path} />
-    </div>
+    <StaffLayout
+      user={user}
+      api={api}
+      base={ROUTES.responder.root}
+      workspaceLabel="Responder workspace"
+      nav={nav}
+      active={active}
+      title={active?.label ?? 'Responder workspace'}
+      destinations={toDestinations(nav)}
+      switchTo={
+        canEnter('admin', user.roles)
+          ? { label: 'Admin console', path: ROUTES.admin.dashboard }
+          : null
+      }
+      navRef={navTarget}
+      bannerRef={bannerTarget}
+    >
+      {view}
+    </StaffLayout>
   );
 }

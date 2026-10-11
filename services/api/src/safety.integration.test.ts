@@ -283,7 +283,9 @@ describe('safety-critical API behavior', () => {
       studentId,
       await hashPassword('SyntheticPassword!2026'),
     ]);
-    const login = await request(app).post('/api/v1/auth/demo-login').send({
+    // DEMO password login exists only when explicitly enabled (never in production).
+    const demoApp = createApp(pool, { ...config, DEMO_LOGIN_ENABLED: true });
+    const login = await request(demoApp).post('/api/v1/auth/demo-login').send({
       email: 'student@test.invalid',
       password: 'SyntheticPassword!2026',
     });

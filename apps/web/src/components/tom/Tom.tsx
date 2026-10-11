@@ -265,6 +265,13 @@ export function Tom({
   }
 
   const endTour = useCallback(() => {
+    // If the user moved focus onto the page during the tour (it stays usable),
+    // leave it there; only focus that was inside the closing tour card returns.
+    const active = document.activeElement;
+    const keepPageFocus =
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      !active.closest('.sc-tour__card');
     setTour(null);
     const { focus, destination } = tourReturn.current;
     const back =
@@ -272,6 +279,7 @@ export function Tom({
     const label = back ? (destinations.find((d) => d.id === back)?.label ?? back) : null;
     if (back) void navigateSafely(navigation, back);
     setAnnouncement(label ? `${m.tourEnded} ${m.navDone(label)}` : m.tourEnded);
+    if (keepPageFocus) return;
     requestAnimationFrame(() => {
       const target =
         focus instanceof HTMLElement && focus.isConnected && focus !== document.body

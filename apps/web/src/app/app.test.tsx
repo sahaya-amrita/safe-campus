@@ -147,6 +147,15 @@ const responder: Me = {
 function fakeServer(user: Me) {
   return vi.fn<typeof fetch>(async (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (url.endsWith('/auth/config'))
+      return json({
+        methods: ['EMAIL_OTP', 'DEMO_PASSWORD'],
+        allowedEmailDomains: ['campus.test'],
+        emailDelivery: true,
+        codeLength: 6,
+        codeTtlSeconds: 600,
+        resendAfterSeconds: 60,
+      });
     if (url.endsWith('/auth/demo-login')) {
       const body = JSON.parse(init!.body as string) as { password: string };
       if (body.password !== 'correct-password')
@@ -168,6 +177,12 @@ function fakeServer(user: Me) {
   });
 }
 
+async function openDemoSignIn() {
+  await userEvent.click(
+    await screen.findByText('Developer sign-in (DEMO password)', undefined, { timeout: 5000 }),
+  );
+}
+
 describe('App shell', () => {
   beforeEach(() => {
     sessionStorage.clear();
@@ -182,9 +197,13 @@ describe('App shell', () => {
     const fetchImpl = fakeServer(student);
     vi.stubGlobal('fetch', fetchImpl);
     render(<App apiBaseUrl="http://api.test" />);
-    await userEvent.type(screen.getByLabelText('Email'), 'student.demo@example.invalid');
-    await userEvent.type(screen.getByLabelText('Password'), 'correct-password');
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await openDemoSignIn();
+    await userEvent.type(
+      screen.getByLabelText('Demo account email'),
+      'student.demo@example.invalid',
+    );
+    await userEvent.type(screen.getByLabelText('Demo password'), 'correct-password');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with DEMO password' }));
 
     const nav = await screen.findByRole('navigation', { name: 'Main' }, { timeout: 5000 });
     expect(
@@ -209,14 +228,18 @@ describe('App shell', () => {
   it('routes staff to the responder workspace and rejects wrong passwords', async () => {
     vi.stubGlobal('fetch', fakeServer(responder));
     render(<App apiBaseUrl="http://api.test" />);
-    await userEvent.type(screen.getByLabelText('Email'), 'responder.demo@example.invalid');
-    await userEvent.type(screen.getByLabelText('Password'), 'wrong-password');
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await openDemoSignIn();
+    await userEvent.type(
+      screen.getByLabelText('Demo account email'),
+      'responder.demo@example.invalid',
+    );
+    await userEvent.type(screen.getByLabelText('Demo password'), 'wrong-password');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with DEMO password' }));
     expect(await screen.findByText('Email or password is incorrect.')).toBeInTheDocument();
 
-    await userEvent.clear(screen.getByLabelText('Password'));
-    await userEvent.type(screen.getByLabelText('Password'), 'correct-password');
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await userEvent.clear(screen.getByLabelText('Demo password'));
+    await userEvent.type(screen.getByLabelText('Demo password'), 'correct-password');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with DEMO password' }));
     const sections = await screen.findByRole('navigation', { name: 'Sections' }, { timeout: 5000 });
     expect(within(sections).getByRole('button', { name: /Help requests/ })).toBeInTheDocument();
     // Pack review is for verifiers/admins only.

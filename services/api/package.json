@@ -14,6 +14,8 @@
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:seed": "tsx src/scripts/seed.ts",
     "outbox:once": "tsx src/scripts/process-outbox.ts",
+    "admin:grant": "tsx src/scripts/grant-admin.ts",
+    "dev:memory": "tsx src/scripts/dev-memory.ts",
     "assistant:smoke": "tsx src/assistant/smoke.ts"
   },
   "dependencies": {
