@@ -35,6 +35,28 @@ describe('deterministic intent registry', () => {
     expect(dest(q)).toBe(id);
   });
 
+  it('leaves real questions that merely mention a screen to the assistant', () => {
+    const drills = {
+      id: 'responder.drills',
+      label: 'Drills',
+      description: 'Drill console',
+      keywords: ['drill', 'stop', 'kill switch'],
+      roles: ['RESPONDER' as const],
+    };
+    const here: AssistantContext = {
+      ...ctx,
+      destinations: [...ctx.destinations, drills],
+      currentDestination: 'responder.drills',
+    };
+    // A follow-up starting with "and" is still a question, not an action or navigation.
+    const reply = interpret('and who is allowed to press the stop button?', here);
+    expect(reply.kind).toBe('UNKNOWN');
+    expect(LOCAL_ONLY_REPLIES.has(reply.kind)).toBe(false);
+    // Just the name, or an explicit "go to", still navigates locally.
+    expect(interpret('drills', here).kind).toBe('ALREADY_HERE');
+    expect(interpret('go to drills', here).kind).toBe('ALREADY_HERE');
+  });
+
   it("knows when you're already there", () =>
     expect(kind('go to help requests')).toBe('ALREADY_HERE'));
   it('asks when two destinations match', () =>

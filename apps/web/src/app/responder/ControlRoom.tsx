@@ -7,6 +7,7 @@ import type {
   ReviewDecision,
   SahayaApi,
 } from '../api/sahaya';
+import { useTourTarget } from '../../components/tom';
 import { hasRole } from '../auth/session';
 import { IncidentForm } from '../IncidentForm';
 import { useRoute } from '../router';
@@ -51,6 +52,9 @@ const prettyType = (type: string) => type.toLowerCase().replace(/_/g, ' ');
  */
 export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
   const now = useNow();
+  const statsTarget = useTourTarget('control.stats');
+  const helpTarget = useTourTarget('control.help');
+  const hazardTarget = useTourTarget('control.hazards');
   const { navigate } = useRoute();
   const incidents = useAsync(() => api.listIncidents(100), [api], 10_000);
   const help = useAsync(() => api.listHelpRequests(), [api], 10_000);
@@ -77,7 +81,7 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
         </div>
       )}
 
-      <div className="as-grid2 as-control__stats">
+      <div className="as-grid2 as-control__stats" ref={statsTarget}>
         <Stat
           value={waiting.length}
           label="Waiting for acknowledgement"
@@ -100,47 +104,51 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
       )}
 
       <div className="as-control">
-        <Card title="Help requests" icon="hand" labelledBy="as-cr-help">
-          <p className="as-muted as-small">
-            Oldest unacknowledged first. Timers: acknowledge within {ACK_TARGET_SECONDS / 60} min,
-            escalate by phone after {ESCALATE_AFTER_SECONDS / 60} min (DEMO values; the ERT sets the
-            real ones).
-          </p>
-          {help.loading && !help.data && <Loading />}
-          {help.data && helpQueue.length === 0 && (
-            <EmptyState icon="check" title="No active help requests." />
-          )}
-          <ul className="as-list">
-            {helpQueue.map((h) => (
-              <HelpItem key={h.id} api={api} user={user} h={h} now={now} onDone={help.reload} />
-            ))}
-          </ul>
-        </Card>
+        <div ref={helpTarget}>
+          <Card title="Help requests" icon="hand" labelledBy="as-cr-help">
+            <p className="as-muted as-small">
+              Oldest unacknowledged first. Timers: acknowledge within {ACK_TARGET_SECONDS / 60} min,
+              escalate by phone after {ESCALATE_AFTER_SECONDS / 60} min (DEMO values; the ERT sets
+              the real ones).
+            </p>
+            {help.loading && !help.data && <Loading />}
+            {help.data && helpQueue.length === 0 && (
+              <EmptyState icon="check" title="No active help requests." />
+            )}
+            <ul className="as-list">
+              {helpQueue.map((h) => (
+                <HelpItem key={h.id} api={api} user={user} h={h} now={now} onDone={help.reload} />
+              ))}
+            </ul>
+          </Card>
+        </div>
 
         <CheckinCounts api={api} incidents={incidents.data?.items ?? []} />
 
-        <Card title="Hazard queue" icon="alert" labelledBy="as-cr-hazards">
-          <p className="as-muted as-small">
-            Levels come from report facts. Several reports mean “look now”, not “it is true”. Only a
-            person can verify (L3).
-          </p>
-          {incidents.loading && !incidents.data && <Loading />}
-          {incidents.data && hazards.length === 0 && (
-            <EmptyState icon="check" title="No open hazard reports." />
-          )}
-          <ul className="as-list">
-            {hazards.map((i) => (
-              <HazardItem
-                key={i.id}
-                api={api}
-                user={user}
-                incident={i}
-                onDone={incidents.reload}
-                onOpen={() => navigate(`/r/incidents/${i.id}`)}
-              />
-            ))}
-          </ul>
-        </Card>
+        <div ref={hazardTarget}>
+          <Card title="Hazard queue" icon="alert" labelledBy="as-cr-hazards">
+            <p className="as-muted as-small">
+              Levels come from report facts. Several reports mean “look now”, not “it is true”. Only
+              a person can verify (L3).
+            </p>
+            {incidents.loading && !incidents.data && <Loading />}
+            {incidents.data && hazards.length === 0 && (
+              <EmptyState icon="check" title="No open hazard reports." />
+            )}
+            <ul className="as-list">
+              {hazards.map((i) => (
+                <HazardItem
+                  key={i.id}
+                  api={api}
+                  user={user}
+                  incident={i}
+                  onDone={incidents.reload}
+                  onOpen={() => navigate(`/r/incidents/${i.id}`)}
+                />
+              ))}
+            </ul>
+          </Card>
+        </div>
       </div>
 
       <details className="as-card as-details">
