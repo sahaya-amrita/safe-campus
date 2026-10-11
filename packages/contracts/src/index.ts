@@ -8,3 +8,4 @@ export * from './navigation.js';
 export * from './learning.js';
 export * from './admin.js';
 export * from './push.js';
+export * from './insights.js';

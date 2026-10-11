@@ -22,6 +22,7 @@ import { TomContentPage } from './TomContentPage';
 import { AnalyticsPage, SettingsPage } from './OpsPages';
 import { UsersPage } from './UsersPage';
 import { PLANNED_ADMIN_SECTIONS } from './plannedSections';
+import { InsightsPanel } from '../insights/InsightsPanel';
 
 const ADMIN = 'ADMIN' as const;
 
@@ -105,6 +106,17 @@ export const ADMIN_NAV: StaffNavItem[] = [
     icon: 'book',
     description: "Review and approve Tom's help text. Approval covers the exact wording.",
     keywords: ['tom', 'assistant', 'help', 'content', 'review', 'approve'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.insights',
+    group: 'Operations',
+    section: 'insights',
+    path: `${ROUTES.admin.root}/insights`,
+    label: 'Insights',
+    icon: 'layers',
+    description: 'Patterns, an illustrative forecast and precautions from synthetic DEMO data.',
+    keywords: ['insights', 'ai', 'prediction', 'forecast', 'trend', 'pattern', 'precaution'],
     roles: [ADMIN],
   },
   {
@@ -227,6 +239,9 @@ function AdminWorkspace({ user }: { user: Me }) {
         break;
       case 'admin.users':
         view = <UsersPage api={api} user={user} />;
+        break;
+      case 'admin.insights':
+        view = <InsightsPanel api={api} initialView="admin" />;
         break;
       case 'admin.analytics':
         view = <AnalyticsPage api={api} />;

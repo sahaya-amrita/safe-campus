@@ -40,6 +40,7 @@ export const ROUTES = {
     packs: '/responder/packs',
     drills: '/responder/drills',
     map: '/responder/map',
+    insights: '/responder/insights',
     contacts: '/responder/contacts',
   },
   admin: {

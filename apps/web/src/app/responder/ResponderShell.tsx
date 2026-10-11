@@ -18,6 +18,7 @@ import {
   OverviewView,
   PacksView,
 } from './views';
+import { InsightsPanel } from '../insights/InsightsPanel';
 
 const ALL_STAFF: Role[] = ['RESPONDER', 'INCIDENT_VERIFIER', 'DRILL_MANAGER', 'ADMIN'];
 
@@ -109,6 +110,16 @@ export const RESPONDER_NAV: StaffNavItem[] = [
     roles: ALL_STAFF,
   },
   {
+    id: 'responder.insights',
+    section: 'insights',
+    path: ROUTES.responder.insights,
+    label: 'Insights',
+    icon: 'layers',
+    description: 'Patterns, an illustrative forecast and precautions from synthetic DEMO data.',
+    keywords: ['insights', 'ai', 'prediction', 'forecast', 'trend', 'pattern', 'precaution'],
+    roles: ['RESPONDER', 'INCIDENT_VERIFIER', 'ADMIN'],
+  },
+  {
     id: 'responder.contacts',
     section: 'contacts',
     path: ROUTES.responder.contacts,
@@ -160,6 +171,9 @@ function ResponderWorkspace({ user }: { user: Me }) {
       break;
     case 'responder.map':
       view = <MapView api={api} user={user} />;
+      break;
+    case 'responder.insights':
+      view = <InsightsPanel api={api} />;
       break;
     case 'responder.contacts':
       view = <ContactsPage />;

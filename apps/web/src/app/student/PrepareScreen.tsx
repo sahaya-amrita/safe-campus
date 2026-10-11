@@ -4,6 +4,7 @@ import { useInstructionPacks } from '../../features/student/instructions/useInst
 import { Card, EmptyState, ErrorNotice, Loading, Pill, formatWhen, useAsync } from '../ui';
 import { useStudent } from './core';
 import { DrillPractice } from './DrillPractice';
+import { InsightsPanel } from '../insights/InsightsPanel';
 
 const TOPICS = [
   { id: 'fire', label: 'Fire & smoke', keywords: ['fire', 'smoke'] },
@@ -29,7 +30,7 @@ export function PrepareScreen() {
     const article = document.getElementById(`pack-${match.pack.version}`);
     const fold = article?.querySelector('details');
     if (fold) fold.open = true;
-    article?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    article?.scrollIntoView({ block: 'start' });
   };
 
   return (
@@ -65,6 +66,24 @@ export function PrepareScreen() {
           })}
         </ul>
       </Card>
+
+      {s.api && (
+        <section className="as-insights-section" aria-labelledby="as-prep-insights">
+          <h2 id="as-prep-insights" className="as-section-title">
+            Patterns and precautions
+          </h2>
+          <InsightsPanel
+            api={s.api}
+            compact
+            onOpenGuide={(version) => {
+              const article = document.getElementById(`pack-${version}`);
+              const fold = article?.querySelector('details');
+              if (fold) fold.open = true;
+              article?.scrollIntoView({ block: 'start' });
+            }}
+          />
+        </section>
+      )}
 
       <div className="as-card">
         <InstructionPacksView view={packs} />

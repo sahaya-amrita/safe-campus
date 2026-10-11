@@ -134,6 +134,7 @@ describe('route separation', () => {
     // Grouped: Operations, People, Safety data, System.
     expect(navLabels).toEqual([
       'Dashboard',
+      'Insights',
       'Analytics',
       'Incident verification',
       'Alert management',

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Amrita Sahaya API
-  version: 0.8.0
+  version: 0.9.0
   description: >-
     Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
     behavior is simulated. No endpoint contacts real emergency services.
@@ -32,6 +32,7 @@ tags:
   - name: Learning
   - name: Settings and analytics
   - name: Push
+  - name: Insights
 paths:
   /health:
     get:
@@ -1453,7 +1454,12 @@ paths:
                   safePoint: { $ref: '#/components/schemas/SafePoint' }
                   blocksAvoided: { type: integer }
                   startSnapM: { type: integer }
-                  practice: { type: boolean, description: True for DEMO data (a practice route, never an evacuation route) }
+                  practice:
+                    {
+                      type: boolean,
+                      description: True for DEMO data (a practice route,
+                      never an evacuation route),
+                    }
                   note: { type: string }
         '409': { description: NAVIGATION_UNAVAILABLE or NO_ROUTE }
         '422': { description: START_OFF_NETWORK (more than 150 m from the approved routes) }
@@ -1821,6 +1827,37 @@ paths:
                 endpoint: { type: string, format: uri }
       responses:
         '200': { description: Removed }
+  /insights:
+    get:
+      tags: [Insights]
+      operationId: getInsights
+      summary: Statistics over a separate synthetic DEMO history (DEMO mode only). Places, times and categories; never individuals.
+      parameters:
+        - name: view
+          in: query
+          description: student | responder | verifier | admin. Defaults to the most detailed view the user's roles allow.
+          schema: { type: string, enum: [student, responder, verifier, admin] }
+      responses:
+        '200':
+          {
+            description: 'Insights: trends, busiest hours, hotspots and precautions; forecast and acknowledgement for responder and admin; verification for verifier and admin',
+          }
+        '403': { description: The user's roles do not include this view }
+        '404': { description: NOT_AVAILABLE outside DEMO mode }
+  /insights/summary:
+    get:
+      tags: [Insights]
+      operationId: getInsightsSummary
+      summary: Plain-language summary. AI-written only if it passes a fact check (every number must appear in the statistics); otherwise written by the app. Cached per view per day.
+      parameters:
+        - {
+            name: view,
+            in: query,
+            schema: { type: string, enum: [student, responder, verifier, admin] },
+          }
+      responses:
+        '200':
+          { description: 'Summary with source AI or APP, model, and the reason for any fallback' }
 components:
   securitySchemes:
     bearerAuth:

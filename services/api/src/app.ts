@@ -24,6 +24,7 @@ import { adminNavigationRouter, navigationRouter } from './routes/navigation.js'
 import { adminRespondersRouter, responderSelfRouter, rollCallRouter } from './routes/operations.js';
 import { authRouter, devMailboxRouter } from './routes/auth.js';
 import { pushRouter } from './routes/push.js';
+import { insightsRouter } from './routes/insights.js';
 import { alertsRouter } from './routes/alerts.js';
 import { checkinsRouter, incidentCheckinsRouter } from './routes/checkins.js';
 import { drillsRouter, trainingRouter } from './routes/drills.js';
@@ -42,6 +43,8 @@ export function createApp(
     assistant?: AssistantOptions;
     /** Overrides the configured sign-in email sender (null = none). Used by tests. */
     emailSender?: EmailSender | null;
+    /** Tests: inject the insights summarizer and clock. */
+    insights?: Parameters<typeof insightsRouter>[1];
   } = {},
 ) {
   const app = express();
@@ -108,6 +111,7 @@ export function createApp(
   app.use('/api/v1/help-requests', helpRequestsRouter(pool));
   app.use('/api/v1/sos', sosRouter(pool, config));
   app.use('/api/v1/push', pushRouter(pool, config));
+  app.use('/api/v1/insights', insightsRouter(config, options.insights));
   app.use('/api/v1/attachments', attachmentsRouter(pool));
   app.use('/api/v1/instruction-packs', instructionPacksRouter(pool, config));
   app.use('/api/v1/responders/me', responderSelfRouter(pool));

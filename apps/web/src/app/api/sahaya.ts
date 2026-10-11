@@ -20,6 +20,9 @@ import type {
   SafePointView,
   ResponderView,
   PushConfigView,
+  InsightsResponse,
+  InsightsSummary,
+  InsightsView,
   RollCallResponse,
   AuditEventView,
   LocationView,
@@ -416,6 +419,11 @@ export function sahayaApi(client: ApiClient) {
         decision,
         reason,
       }),
+    // Insights over synthetic DEMO data (statistics + checked AI summary).
+    insights: (view?: InsightsView) =>
+      client.get<InsightsResponse>(`/api/v1/insights${view ? `?view=${view}` : ''}`),
+    insightsSummary: (view?: InsightsView) =>
+      client.get<InsightsSummary>(`/api/v1/insights/summary${view ? `?view=${view}` : ''}`),
     // Phase 8: Web Push for matched-request notices (off unless the server has keys).
     pushConfig: () => client.get<PushConfigView>('/api/v1/push/config'),
     registerPushDevice: (subscription: {
