@@ -29,16 +29,20 @@ const ADMIN = 'ADMIN' as const;
 export const ADMIN_NAV: StaffNavItem[] = [
   {
     id: 'admin.dashboard',
+    short: 'Home',
+    primary: true,
     section: 'dashboard',
     path: ROUTES.admin.dashboard,
     label: 'Dashboard',
     icon: 'grid',
-    description: 'Admin overview: what can be managed today and what is still planned.',
+    description: 'What needs attention now, and every admin section.',
     keywords: ['admin', 'dashboard', 'overview'],
     roles: [ADMIN],
   },
   {
     id: 'admin.users',
+    group: 'People',
+    primary: true,
     section: 'users',
     path: `${ROUTES.admin.root}/users`,
     label: 'Users and roles',
@@ -49,6 +53,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.audit',
+    group: 'People',
     section: 'audit',
     path: `${ROUTES.admin.root}/audit`,
     label: 'Audit log',
@@ -59,6 +64,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.responders',
+    group: 'People',
     section: 'responders',
     path: `${ROUTES.admin.root}/responders`,
     label: 'Responder roster',
@@ -69,6 +75,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.map-data',
+    group: 'Safety data',
     section: 'map-data',
     path: `${ROUTES.admin.root}/map-data`,
     label: 'Campus map data',
@@ -79,6 +86,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.safe-points',
+    group: 'Safety data',
     section: 'safe-points',
     path: `${ROUTES.admin.root}/safe-points`,
     label: 'Safe-point approvals',
@@ -89,6 +97,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.tom-content',
+    group: 'Safety data',
     section: 'tom-content',
     path: `${ROUTES.admin.root}/tom-content`,
     label: 'Tom help content',
@@ -99,6 +108,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.analytics',
+    group: 'Operations',
     section: 'analytics',
     path: `${ROUTES.admin.root}/analytics`,
     label: 'Analytics',
@@ -109,6 +119,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.settings',
+    group: 'System',
     section: 'settings',
     path: `${ROUTES.admin.root}/settings`,
     label: 'System settings',
@@ -119,6 +130,8 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.incidents',
+    group: 'Operations',
+    primary: true,
     section: 'incidents',
     path: `${ROUTES.admin.root}/incidents`,
     label: 'Incident verification',
@@ -129,6 +142,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.alerts',
+    group: 'Operations',
     section: 'alerts',
     path: `${ROUTES.admin.root}/alerts`,
     label: 'Alert management',
@@ -139,6 +153,8 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.drills',
+    group: 'Operations',
+    primary: true,
     section: 'drills',
     path: `${ROUTES.admin.root}/drills`,
     label: 'Drill management',
@@ -149,6 +165,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.guides',
+    group: 'Safety data',
     section: 'guides',
     path: `${ROUTES.admin.root}/guides`,
     label: 'Safety guides',
@@ -159,6 +176,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.contacts',
+    group: 'Safety data',
     section: 'contacts',
     path: `${ROUTES.admin.root}/contacts`,
     label: 'Campus contacts',
@@ -241,7 +259,7 @@ function AdminWorkspace({ user }: { user: Me }) {
         view = <ContactsPage />;
         break;
       default:
-        view = <AdminDashboard user={user} nav={ADMIN_NAV} />;
+        view = <AdminDashboard user={user} nav={ADMIN_NAV} api={api} />;
     }
   }
 

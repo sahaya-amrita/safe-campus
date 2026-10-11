@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import type pg from 'pg';
+import { matchResponders } from '../reporting/matching.js';
+import { LOCATION_COLUMNS } from '../reporting/location.js';
 import { DEMO_ROUTE_EDGES, DEMO_ROUTE_NODES, DEMO_ROUTE_SOURCE } from './demoRouteGraph.js';
 
 /**
@@ -147,7 +149,43 @@ export interface DemoContentIds {
   verifierId: string;
   /** Zone whose members receive the DEMO drill alert. */
   zoneId: string;
+  /** Fictional student who "sent" the DEMO reports and help request, so staff queues have work. */
+  studentId?: string;
 }
+
+/** DEMO work for staff screens. Each description starts with "DEMO:". */
+export const DEMO_REPORTS = [
+  {
+    description: 'DEMO: Water on the stairs near the second-floor landing. Slippery, no one hurt.',
+    type: 'WATER_LEAK',
+    category: 'HAZARD',
+    kind: 'CONCERN',
+    priority: 'MEDIUM',
+    landmark: 'DEMO Building Alpha, main stairs, floor 2',
+    minutesAgo: 42,
+    helpRequest: false,
+  },
+  {
+    description: 'DEMO: Smell of burning near the canteen kitchen. No smoke seen yet.',
+    type: 'SMELL_OF_BURNING',
+    category: 'FIRE_SMOKE',
+    kind: 'EMERGENCY',
+    priority: 'HIGH',
+    landmark: 'DEMO Building Epsilon, canteen kitchen door',
+    minutesAgo: 18,
+    helpRequest: false,
+  },
+  {
+    description: 'DEMO: I feel faint and dizzy near the library entrance.',
+    type: 'SOS',
+    category: 'MEDICAL',
+    kind: 'SOS',
+    priority: 'CRITICAL',
+    landmark: 'DEMO Building Gamma, library entrance',
+    minutesAgo: 6,
+    helpRequest: true,
+  },
+] as const;
 
 export async function seedDemoContent(client: pg.PoolClient, ids: DemoContentIds): Promise<void> {
   // Published DEMO guides (Prepare screen, Tom's approved links).
@@ -215,6 +253,8 @@ export async function seedDemoContent(client: pg.PoolClient, ids: DemoContentIds
     );
   }
 
+  if (ids.studentId) await seedDemoWork(client, ids.studentId, ids.zoneId);
+
   // One simulated drill alert for everyone in the DEMO zone.
   const alert = await client.query<{ id: string }>(
     'SELECT id FROM emergency_alerts WHERE title = $1',
@@ -254,5 +294,72 @@ export async function seedDemoContent(client: pg.PoolClient, ids: DemoContentIds
        VALUES ($1, $2, 'SERVER_RECEIVED', now())`,
       [alertId, member.user_id],
     );
+  }
+}
+
+async function seedDemoWork(client: pg.PoolClient, studentId: string, zoneId: string) {
+  for (const report of DEMO_REPORTS) {
+    const existing = await client.query('SELECT 1 FROM incidents WHERE description = $1', [
+      report.description,
+    ]);
+    if (existing.rows.length > 0) continue;
+    const at = new Date(Date.now() - report.minutesAgo * 60_000).toISOString();
+    const location = ['MANUAL', null, null, null, at, report.landmark];
+    const incident = (
+      await client.query<{ id: string }>(
+        `INSERT INTO incidents
+           (type, description, priority, mode, reporter_id, zone_id, duplicate_group_key,
+            occurred_at, category, report_kind, ${LOCATION_COLUMNS})
+         VALUES ($1, $2, $3, 'DEMO', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         RETURNING id`,
+        [
+          report.type,
+          report.description,
+          report.priority,
+          studentId,
+          zoneId,
+          createHash('sha256').update(report.description).digest('hex'),
+          at,
+          report.category,
+          report.kind,
+          ...location,
+        ],
+      )
+    ).rows[0]!;
+    await client.query(
+      `INSERT INTO incident_reports (incident_id, reporter_id, description, zone_id, observed_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [incident.id, studentId, report.description, zoneId, at],
+    );
+    if (!report.helpRequest) continue;
+    const checkin = (
+      await client.query<{ id: string }>(
+        `INSERT INTO student_checkins
+           (student_id, incident_id, status, help_details, client_action_id, client_created_at,
+            ${LOCATION_COLUMNS})
+         VALUES ($1, $2, 'HELP_REQUESTED', $3, gen_random_uuid(), $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id`,
+        [studentId, incident.id, report.description, at, ...location],
+      )
+    ).rows[0]!;
+    const help = (
+      await client.query<{ id: string }>(
+        `INSERT INTO help_requests
+           (checkin_id, student_id, incident_id, zone_id, details, priority, source, category,
+            ${LOCATION_COLUMNS})
+         VALUES ($1, $2, $3, $4, $5, 'CRITICAL', 'SOS', $6, $7, $8, $9, $10, $11, $12)
+         RETURNING id`,
+        [
+          checkin.id,
+          studentId,
+          incident.id,
+          zoneId,
+          report.description,
+          report.category,
+          ...location,
+        ],
+      )
+    ).rows[0]!;
+    await matchResponders(client, help.id, zoneId);
   }
 }

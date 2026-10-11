@@ -163,6 +163,7 @@ try {
       adminId: ids.get('admin.demo@example.invalid')!,
       verifierId: ids.get('verifier.demo@example.invalid')!,
       zoneId,
+      studentId: ids.get('student.demo@example.invalid')!,
     });
   });
   process.stdout.write('Seeded fictional DEMO data only.\n');

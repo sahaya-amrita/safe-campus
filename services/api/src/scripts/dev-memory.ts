@@ -98,6 +98,7 @@ await withTransaction(pool, (client) =>
     adminId: ids['admin.demo@example.invalid']!,
     verifierId: ids['verifier.demo@example.invalid']!,
     zoneId: firstZone,
+    studentId: ids['student.demo@example.invalid']!,
   }),
 );
 

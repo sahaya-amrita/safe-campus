@@ -24,6 +24,7 @@ const ALL_STAFF: Role[] = ['RESPONDER', 'INCIDENT_VERIFIER', 'DRILL_MANAGER', 'A
 export const RESPONDER_NAV: StaffNavItem[] = [
   {
     id: 'responder.overview',
+    primary: true,
     section: 'overview',
     path: ROUTES.responder.overview,
     label: 'Overview',
@@ -34,6 +35,7 @@ export const RESPONDER_NAV: StaffNavItem[] = [
   },
   {
     id: 'responder.incidents',
+    primary: true,
     section: 'incidents',
     path: ROUTES.responder.incidents,
     label: 'Incidents',
@@ -44,6 +46,8 @@ export const RESPONDER_NAV: StaffNavItem[] = [
   },
   {
     id: 'responder.help-requests',
+    short: 'Help',
+    primary: true,
     section: 'help',
     path: ROUTES.responder.help,
     label: 'Help requests',
@@ -94,6 +98,8 @@ export const RESPONDER_NAV: StaffNavItem[] = [
   },
   {
     id: 'responder.map',
+    short: 'Map',
+    primary: true,
     section: 'map',
     path: ROUTES.responder.map,
     label: 'Campus map',

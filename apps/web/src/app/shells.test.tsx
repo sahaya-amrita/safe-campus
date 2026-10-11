@@ -131,22 +131,25 @@ describe('route separation', () => {
     const navLabels = within(sections)
       .getAllByRole('button')
       .map((b) => b.textContent);
+    // Grouped: Operations, People, Safety data, System.
     expect(navLabels).toEqual([
       'Dashboard',
+      'Analytics',
+      'Incident verification',
+      'Alert management',
+      'Drill management',
       'Users and roles',
       'Audit log',
       'Responder roster',
       'Campus map data',
       'Safe-point approvals',
       'Tom help content',
-      'Analytics',
-      'System settings',
-      'Incident verification',
-      'Alert management',
-      'Drill management',
       'Safety guides',
       'Campus contacts',
+      'System settings',
     ]);
+    for (const group of ['Operations', 'People', 'Safety data', 'System'])
+      expect(within(sections).getByText(group)).toBeInTheDocument();
     // Every specified admin section is now built; an unknown section falls back to the dashboard.
     go('/admin/no-such-section');
     expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
@@ -222,5 +225,44 @@ describe('public and auth routes', () => {
     expect(
       (await screen.findAllByText(/MOCK PREVIEW/, undefined, { timeout: 5000 })).length,
     ).toBeGreaterThan(0);
+  });
+});
+
+describe('staff layout on phones', () => {
+  it('shows a tab bar with the main sections and puts the rest, and sign out, under More', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) =>
+        ({
+          matches: query.includes('max-width'),
+          media: query,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }) as unknown as MediaQueryList,
+    );
+    vi.stubGlobal('fetch', fakeServer(RESPONDER));
+    render(<App apiBaseUrl="http://api.test" />);
+    await signIn();
+    const tabs = await screen.findByRole('navigation', { name: 'Sections' }, { timeout: 5000 });
+    expect(
+      within(tabs)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Overview', 'Incidents', 'Help', 'Map', 'More']);
+    // Only one navigation is rendered: no desktop sidebar.
+    expect(screen.queryByRole('complementary', { name: 'Responder workspace' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Call 112' })).toHaveAttribute('href', 'tel:112');
+
+    await userEvent.click(within(tabs).getByRole('button', { name: 'More' }));
+    const sheet = screen.getByRole('dialog', { name: 'All sections' });
+    expect(within(sheet).getByRole('button', { name: /Dispatches/ })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /Sign out$/ })).toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole('button', { name: /Contacts/ }));
+    await waitFor(() => expect(hash()).toBe('/responder/contacts'));
+    expect(screen.queryByRole('dialog', { name: 'All sections' })).toBeNull();
+    expect(within(tabs).getByRole('button', { name: 'More' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 });

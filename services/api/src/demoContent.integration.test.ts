@@ -4,7 +4,7 @@ import type { Role } from '@sahaya/contracts';
 import { createApp } from './app.js';
 import type { Config } from './config.js';
 import { withTransaction, type DatabasePool } from './db.js';
-import { DEMO_PACKS, DEMO_SAFE_POINTS, seedDemoContent } from './demo/demoContent.js';
+import { DEMO_PACKS, DEMO_REPORTS, DEMO_SAFE_POINTS, seedDemoContent } from './demo/demoContent.js';
 import { issueAccessToken } from './security.js';
 import { createTestPool, seedTestIdentity, seedTestZone } from './test-support/database.js';
 
@@ -52,7 +52,12 @@ beforeEach(async () => {
   // Twice: seeding must be idempotent.
   for (let i = 0; i < 2; i++)
     await withTransaction(pool, (client) =>
-      seedDemoContent(client, { adminId: ids.admin!, verifierId: ids.verifier!, zoneId }),
+      seedDemoContent(client, {
+        adminId: ids.admin!,
+        verifierId: ids.verifier!,
+        zoneId,
+        studentId: ids.student!,
+      }),
     );
 });
 afterEach(async () => {
@@ -106,6 +111,28 @@ describe('DEMO content for the hosted prototype', () => {
       title: 'DEMO drill: practise checking in',
       precautionary: true,
       mode: 'DEMO',
+    });
+  });
+
+  it('gives staff labelled DEMO work: unverified reports and one open help request', async () => {
+    const app = createApp(pool, config);
+    const incidents = await request(app).get('/api/v1/incidents').set(auth('verifier'));
+    expect(incidents.status).toBe(200);
+    const descriptions = (
+      incidents.body.items as { description: string; verificationStatus: string }[]
+    ).map((i) => i);
+    expect(descriptions).toHaveLength(DEMO_REPORTS.length);
+    for (const item of descriptions) {
+      expect(item.description).toMatch(/^DEMO: /);
+      expect(item.verificationStatus).toBe('REPORTED');
+    }
+    const help = await request(app).get('/api/v1/help-requests').set(auth('admin'));
+    expect(help.status).toBe(200);
+    expect(help.body.items).toHaveLength(1);
+    expect(help.body.items[0]).toMatchObject({
+      status: 'OPEN',
+      source: 'SOS',
+      category: 'MEDICAL',
     });
   });
 });

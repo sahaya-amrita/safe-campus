@@ -235,10 +235,10 @@ export function AnalyticsPage({ api }: { api: SahayaApi }) {
                   <tbody>
                     {a.drills.map((d) => (
                       <tr key={d.name}>
-                        <td>{d.name}</td>
-                        <td>{d.participants}</td>
-                        <td>{d.safe}</td>
-                        <td>{d.needHelp}</td>
+                        <td data-label="Drill">{d.name}</td>
+                        <td data-label="Checked in">{d.participants}</td>
+                        <td data-label="Safe">{d.safe}</td>
+                        <td data-label="Asked for help">{d.needHelp}</td>
                       </tr>
                     ))}
                   </tbody>

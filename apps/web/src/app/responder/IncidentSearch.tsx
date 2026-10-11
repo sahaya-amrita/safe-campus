@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { SahayaApi } from '../api/sahaya';
 import { useRoute } from '../router';
 import { useStaffLink } from '../staff/workspace';
+import { usePhoneLayout } from '../staff/StaffLayout';
 import {
   AppIcon,
   Card,
@@ -55,6 +56,121 @@ export function IncidentSearch({ api }: { api: SahayaApi }) {
   );
   const floorsOfBuilding = (maps.data ?? []).find((m) => m.id === f.buildingId)?.floors ?? [];
   const filtered = JSON.stringify(f) !== JSON.stringify(DEFAULT_FILTER);
+  const phone = usePhoneLayout();
+
+  const moreFilters = (
+    <>
+      <label className="as-field">
+        Status
+        <select
+          className="as-select"
+          value={f.status}
+          onChange={(e) => set({ status: e.target.value as IncidentFilter['status'] })}
+        >
+          <option value="OPEN">Open</option>
+          <option value="ALL">All</option>
+          <option value="REPORTED">Reported</option>
+          <option value="CORROBORATED">Corroborated</option>
+          <option value="VERIFIED">Verified</option>
+          <option value="RESOLVED">Resolved</option>
+          <option value="DISMISSED">Dismissed / duplicate</option>
+        </select>
+      </label>
+      <label className="as-field">
+        Level
+        <select
+          className="as-select"
+          value={f.level}
+          onChange={(e) => set({ level: e.target.value as IncidentFilter['level'] })}
+        >
+          <option value="ANY">Any</option>
+          <option value="3">L3 verified</option>
+          <option value="2">L2 suspected</option>
+          <option value="1">L1 unverified</option>
+        </select>
+      </label>
+      <label className="as-field">
+        Type
+        <select
+          className="as-select"
+          value={f.type}
+          onChange={(e) => set({ type: e.target.value })}
+        >
+          <option value="">Any</option>
+          {incidentTypes(all).map((t) => (
+            <option key={t} value={t}>
+              {prettyType(t)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="as-field">
+        Building
+        <select
+          className="as-select"
+          value={f.buildingId}
+          onChange={(e) => set({ buildingId: e.target.value, floorId: '' })}
+        >
+          <option value="">Any</option>
+          {(buildings.data?.items ?? []).map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="as-field">
+        Floor
+        <select
+          className="as-select"
+          value={f.floorId}
+          disabled={!f.buildingId}
+          onChange={(e) => set({ floorId: e.target.value })}
+        >
+          <option value="">{f.buildingId ? 'Any floor' : 'Choose a building'}</option>
+          {floorsOfBuilding.map((fl) => (
+            <option key={fl.id} value={fl.id}>
+              {fl.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="as-field">
+        Received
+        <select
+          className="as-select"
+          value={f.window}
+          onChange={(e) => set({ window: e.target.value as IncidentFilter['window'] })}
+        >
+          <option value="ALL">Any time</option>
+          <option value="1H">Last hour</option>
+          <option value="24H">Last 24 hours</option>
+          <option value="7D">Last 7 days</option>
+        </select>
+      </label>
+      <label className="as-field">
+        Sort
+        <select
+          className="as-select"
+          value={f.sort}
+          onChange={(e) => set({ sort: e.target.value as IncidentFilter['sort'] })}
+        >
+          <option value="LEVEL">Level, then newest</option>
+          <option value="NEWEST">Newest first</option>
+          <option value="OLDEST">Oldest first</option>
+        </select>
+      </label>
+      {filtered && (
+        <button
+          type="button"
+          className="as-btn as-btn--ghost as-btn--sm"
+          onClick={() => setF(DEFAULT_FILTER)}
+        >
+          Clear filters
+        </button>
+      )}
+    </>
+  );
 
   return (
     <Card title="Incident queue" icon="alert" labelledBy="as-inc-queue">
@@ -73,114 +189,13 @@ export function IncidentSearch({ api }: { api: SahayaApi }) {
             onChange={(e) => set({ text: e.target.value })}
           />
         </label>
-        <label className="as-field">
-          Status
-          <select
-            className="as-select"
-            value={f.status}
-            onChange={(e) => set({ status: e.target.value as IncidentFilter['status'] })}
-          >
-            <option value="OPEN">Open</option>
-            <option value="ALL">All</option>
-            <option value="REPORTED">Reported</option>
-            <option value="CORROBORATED">Corroborated</option>
-            <option value="VERIFIED">Verified</option>
-            <option value="RESOLVED">Resolved</option>
-            <option value="DISMISSED">Dismissed / duplicate</option>
-          </select>
-        </label>
-        <label className="as-field">
-          Level
-          <select
-            className="as-select"
-            value={f.level}
-            onChange={(e) => set({ level: e.target.value as IncidentFilter['level'] })}
-          >
-            <option value="ANY">Any</option>
-            <option value="3">L3 verified</option>
-            <option value="2">L2 suspected</option>
-            <option value="1">L1 unverified</option>
-          </select>
-        </label>
-        <label className="as-field">
-          Type
-          <select
-            className="as-select"
-            value={f.type}
-            onChange={(e) => set({ type: e.target.value })}
-          >
-            <option value="">Any</option>
-            {incidentTypes(all).map((t) => (
-              <option key={t} value={t}>
-                {prettyType(t)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="as-field">
-          Building
-          <select
-            className="as-select"
-            value={f.buildingId}
-            onChange={(e) => set({ buildingId: e.target.value, floorId: '' })}
-          >
-            <option value="">Any</option>
-            {(buildings.data?.items ?? []).map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="as-field">
-          Floor
-          <select
-            className="as-select"
-            value={f.floorId}
-            disabled={!f.buildingId}
-            onChange={(e) => set({ floorId: e.target.value })}
-          >
-            <option value="">{f.buildingId ? 'Any floor' : 'Choose a building'}</option>
-            {floorsOfBuilding.map((fl) => (
-              <option key={fl.id} value={fl.id}>
-                {fl.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="as-field">
-          Received
-          <select
-            className="as-select"
-            value={f.window}
-            onChange={(e) => set({ window: e.target.value as IncidentFilter['window'] })}
-          >
-            <option value="ALL">Any time</option>
-            <option value="1H">Last hour</option>
-            <option value="24H">Last 24 hours</option>
-            <option value="7D">Last 7 days</option>
-          </select>
-        </label>
-        <label className="as-field">
-          Sort
-          <select
-            className="as-select"
-            value={f.sort}
-            onChange={(e) => set({ sort: e.target.value as IncidentFilter['sort'] })}
-          >
-            <option value="LEVEL">Level, then newest</option>
-            <option value="NEWEST">Newest first</option>
-            <option value="OLDEST">Oldest first</option>
-          </select>
-        </label>
-        {filtered && (
-          <button
-            type="button"
-            className="as-btn as-btn--ghost as-btn--sm"
-            onClick={() => setF(DEFAULT_FILTER)}
-          >
-            Clear filters
-          </button>
+        {phone ? (
+          <details className="as-filters__more">
+            <summary>More filters{filtered ? ' · active' : ''}</summary>
+            <div className="as-filters">{moreFilters}</div>
+          </details>
+        ) : (
+          moreFilters
         )}
       </form>
 
@@ -212,13 +227,13 @@ export function IncidentSearch({ api }: { api: SahayaApi }) {
             <tbody>
               {items.map((i) => (
                 <tr key={i.id}>
-                  <td>
+                  <td data-label="Report">
                     <strong>{prettyType(i.type)}</strong>{' '}
                     <span className="as-muted as-small as-mono">#{i.id.slice(0, 8)}</span>
                     <br />
                     <span className="as-muted as-small">{i.description.slice(0, 90)}</span>
                   </td>
-                  <td>
+                  <td data-label="Level · status">
                     {i.level && (
                       <span
                         className={`as-level as-level--${i.level}`}
@@ -229,7 +244,7 @@ export function IncidentSearch({ api }: { api: SahayaApi }) {
                     )}{' '}
                     <VerificationPill status={i.verificationStatus} />
                   </td>
-                  <td className="as-small">
+                  <td data-label="Location" className="as-small">
                     {i.buildingId
                       ? (buildingName.get(i.buildingId) ?? 'Unknown building')
                       : 'No building given'}
@@ -241,7 +256,7 @@ export function IncidentSearch({ api }: { api: SahayaApi }) {
                       {i.zoneId && ' · zone recorded'}
                     </span>
                   </td>
-                  <td className="as-small">{formatWhen(i.serverReceivedAt)}</td>
+                  <td data-label="Received" className="as-small">{formatWhen(i.serverReceivedAt)}</td>
                   <td>
                     <button
                       type="button"

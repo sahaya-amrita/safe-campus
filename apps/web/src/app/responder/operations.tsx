@@ -316,12 +316,12 @@ export function RollCallCard({
               <tbody>
                 {roll.data.items.map((p) => (
                   <tr key={p.studentId}>
-                    <td>{p.displayName}</td>
-                    <td>
+                    <td data-label="Name">{p.displayName}</td>
+                    <td data-label="Status">
                       <Pill tone={ROLL_TONE[p.status]}>{ROLL_LABEL[p.status]}</Pill>
                     </td>
-                    <td>{p.lastCheckInAt ? formatWhen(p.lastCheckInAt) : '—'}</td>
-                    <td>{p.helpRequestStatus ? p.helpRequestStatus.toLowerCase() : '—'}</td>
+                    <td data-label="Last check-in">{p.lastCheckInAt ? formatWhen(p.lastCheckInAt) : '—'}</td>
+                    <td data-label="Help request">{p.helpRequestStatus ? p.helpRequestStatus.toLowerCase() : '—'}</td>
                   </tr>
                 ))}
               </tbody>
