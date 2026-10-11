@@ -85,6 +85,8 @@ export interface StudentInstructionPack {
   expiresAt: string | null;
   /** Client-only flag set by the mock adapter. Never sent by the real API. */
   demoSample?: boolean;
+  /** Operating mode of the record, as sent by the API. DEMO packs are samples. */
+  mode?: string;
 }
 
 // ---------------------------------------------------------------------------

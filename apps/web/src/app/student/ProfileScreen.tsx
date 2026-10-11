@@ -9,10 +9,11 @@ import {
   Card,
   EmptyState,
   ErrorNotice,
+  Fold,
+  formatWhen,
   HelpStatusPill,
   Loading,
   Pill,
-  formatWhen,
   useAsync,
 } from '../ui';
 import { useStudent } from './core';
@@ -264,15 +265,31 @@ export function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
         </dl>
       </Card>
 
-      <Card title="Account" icon="settings" labelledBy="as-profile-account">
-        <AccountSettings />
+      <Card title="Language" icon="info" labelledBy="as-profile-language">
+        <div className="as-seg" role="group" aria-label="Language">
+          {LOCALES.map((l) => (
+            <button
+              key={l.code}
+              type="button"
+              lang={l.code}
+              aria-pressed={s.language === l.code}
+              onClick={() => s.setLanguage(l.code)}
+            >
+              {l.nativeName}
+            </button>
+          ))}
+        </div>
+        <p className="as-muted as-small">
+          English is the source. Other languages are unreviewed drafts; safety-critical text also
+          shows the English original.
+        </p>
       </Card>
 
-      <Card title="Trusted contacts" icon="users" labelledBy="as-profile-contacts">
-        <TrustedContacts />
-      </Card>
-
-      <Card title="My help requests" icon="hand" labelledBy="as-profile-help">
+      <Fold
+        title="My help requests"
+        icon="hand"
+        meta={s.myHelp?.data ? `${s.myHelp.data.items.length}` : undefined}
+      >
         {!s.myHelp ? (
           <p className="as-muted">Needs a signed-in API session.</p>
         ) : s.myHelp.loading && !s.myHelp.data ? (
@@ -294,33 +311,25 @@ export function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
         ) : (
           <EmptyState title="No help requests on the server." />
         )}
-      </Card>
+      </Fold>
 
-      <Card title="My check-ins on this device" icon="clock" labelledBy="as-profile-checkins">
+      <Fold
+        title="My check-ins on this device"
+        icon="clock"
+        meta={waiting > 0 ? `${waiting} waiting` : undefined}
+      >
         <RecentActivity entries={s.entries} onRetry={s.checkIns.retry} />
-      </Card>
+      </Fold>
 
-      <Card title="Language" icon="info" labelledBy="as-profile-language">
-        <div className="as-seg" role="group" aria-label="Language">
-          {LOCALES.map((l) => (
-            <button
-              key={l.code}
-              type="button"
-              lang={l.code}
-              aria-pressed={s.language === l.code}
-              onClick={() => s.setLanguage(l.code)}
-            >
-              {l.nativeName}
-            </button>
-          ))}
-        </div>
-        <p className="as-muted as-small">
-          English is the source. Other languages are unreviewed drafts; safety-critical text also
-          shows the English original.
-        </p>
-      </Card>
+      <Fold title="Trusted contacts" icon="users">
+        <TrustedContacts />
+      </Fold>
 
-      <Card title="Accessibility" icon="info" labelledBy="as-profile-a11y">
+      <Fold title="Account" icon="settings">
+        <AccountSettings />
+      </Fold>
+
+      <Fold title="Accessibility" icon="info">
         <label className="as-check">
           <input
             type="checkbox"
@@ -351,20 +360,24 @@ export function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
           />
           Reduce motion
         </label>
-      </Card>
+      </Fold>
 
-      <div className="as-card">
+      <Fold
+        title="Offline and sync"
+        icon="clock"
+        meta={s.connection === 'offline' ? 'Offline' : 'Online'}
+      >
         <SyncStatus
           connection={s.connection}
           entries={s.entries}
           offlineReady={s.offlineReady}
           storagePersisted={s.persisted}
         />
-      </div>
+      </Fold>
 
-      <Card title="Privacy & permissions" icon="shield" labelledBy="as-profile-privacy">
+      <Fold title="Privacy & permissions" icon="shield">
         <PermissionStatus />
-      </Card>
+      </Fold>
 
       <button type="button" className="as-btn as-btn--ghost as-btn--block" onClick={onSignOut}>
         <AppIcon name="logout" size={18} /> Sign out

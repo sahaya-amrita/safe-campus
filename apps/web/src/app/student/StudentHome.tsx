@@ -24,57 +24,63 @@ export function StudentHome() {
   const helpers = useAsync(s.api ? () => s.api!.appropriateResponders() : null, [s.api]);
   const latestHelp = s.myHelp?.data?.items[0];
 
+  const first = s.user.displayName.split(' ')[0];
+
   return (
     <>
-      <section className="as-hero" aria-labelledby="as-home-title">
-        <h1 id="as-home-title">Hi, {s.user.displayName.split(' ')[0]}</h1>
+      <section className="as-greet" aria-labelledby="as-home-title">
+        <h1 id="as-home-title">Hi, {first}</h1>
         {s.mock ? (
           <p>Mock preview: alerts and incidents need a signed-in API session.</p>
         ) : s.inbox?.loading && !s.inbox.data ? (
           <p>Checking alerts…</p>
-        ) : active.length > 0 ? (
+        ) : active.length === 0 ? (
           <p>
-            <strong>
-              {active.length === 1 ? '1 alert needs' : `${active.length} alerts need`} your
-              attention.
-            </strong>{' '}
-            Open Alerts to read and acknowledge.
+            No alerts for you right now. That does not mean campus is safe: follow alarms and staff.
           </p>
-        ) : (
-          <p>
-            No unacknowledged alerts sent to you in this app. That does not mean campus is safe —
-            follow alarms, staff and official channels.
-          </p>
-        )}
-        {active[0] && (
-          <button
-            type="button"
-            className="as-btn as-btn--light as-btn--sm"
-            onClick={() => navigate(ROUTES.student.alerts)}
-          >
-            <AppIcon name="bell" size={16} /> {active[0].title}
-            {active[0].incidentVerificationStatus && (
-              <VerificationPill status={active[0].incidentVerificationStatus} />
-            )}
-          </button>
-        )}
+        ) : null}
       </section>
 
-      <Card title="Checking in for" icon="clock" labelledBy="as-home-context">
+      {active[0] && (
+        <button
+          type="button"
+          className="as-alertcard"
+          onClick={() => navigate(ROUTES.student.alerts)}
+        >
+          <span className="as-alertcard__icon" aria-hidden="true">
+            <AppIcon name="bell" size={20} />
+          </span>
+          <span className="as-alertcard__text">
+            <strong>{active[0].title}</strong>
+            <small>
+              {active.length === 1 ? '1 alert needs' : `${active.length} alerts need`} your
+              attention · tap to read
+            </small>
+          </span>
+          {active[0].incidentVerificationStatus && (
+            <VerificationPill status={active[0].incidentVerificationStatus} />
+          )}
+        </button>
+      )}
+
+      <section className="as-context" aria-labelledby="as-home-context">
+        <h2 id="as-home-context" className="as-context__label">
+          Checking in for
+        </h2>
         {s.mock ? (
-          <p className="as-muted">Mock preview uses a simulated drill.</p>
+          <p className="as-muted as-small">Mock preview uses a simulated drill.</p>
         ) : s.sessions === null ? (
           <Loading label="Finding incidents and drills you can check in to…" />
         ) : s.sessions.length === 0 ? (
-          <p className="as-muted">
-            No incident or drill is open for you in the app. “I’m safe” needs one; “I need help” is
-            still sent to the server as a personal SOS. You can also report a problem or call 112.
+          <p className="as-muted as-small">
+            Nothing is open for you right now. “I’m safe” needs an incident or drill; “I need help”
+            still reaches the server as a personal SOS.
           </p>
         ) : (
-          <label className="as-field">
+          <label className="as-field as-context__field">
             <span className="as-sr-only">Event</span>
             <select
-              className="as-select"
+              className="as-select as-context__select"
               value={s.session?.id ?? ''}
               onChange={(e) => s.chooseSession(e.target.value)}
             >
@@ -85,13 +91,9 @@ export function StudentHome() {
                 </option>
               ))}
             </select>
-            <small>
-              You do not need to report an incident first. Check-ins are not proof of safety;
-              “Unconfirmed” never means missing.
-            </small>
           </label>
         )}
-      </Card>
+      </section>
 
       <div className="as-checkin-host">
         <HomeScreen
@@ -124,24 +126,40 @@ export function StudentHome() {
         </Card>
       )}
 
-      <div className="as-quick">
+      <p className="as-small as-muted as-home-note">
+        Check-ins are not proof of safety. “Unconfirmed” never means missing.
+      </p>
+
+      <nav className="as-shortcuts" aria-label="Shortcuts">
         <button type="button" onClick={() => navigate(ROUTES.student.report)}>
-          <AppIcon name="report" size={22} /> Report incident{' '}
+          <AppIcon name="report" size={22} />
+          <span>Report incident</span>
           <small>Unverified until reviewed</small>
         </button>
-        <button type="button" onClick={() => navigate(ROUTES.student.sos)}>
-          <AppIcon name="alert" size={22} /> Emergency SOS{' '}
-          <small>Call 112 · send help request</small>
-        </button>
         <button type="button" onClick={() => navigate(ROUTES.student.prepare)}>
-          <AppIcon name="book" size={22} /> Prepare <small>Instructions & drills</small>
+          <AppIcon name="book" size={22} />
+          <span>Prepare</span>
+          <small>Guides and practice</small>
         </button>
         <button type="button" onClick={() => navigate(ROUTES.student.map)}>
-          <AppIcon name="map" size={22} /> Campus map <small>Demo · not for navigation</small>
+          <AppIcon name="map" size={22} />
+          <span>Campus map</span>
+          <small>DEMO practice routes</small>
         </button>
-      </div>
+        <button type="button" onClick={() => navigate(ROUTES.student.alerts)}>
+          <AppIcon name="bell" size={22} />
+          <span>Alerts</span>
+          <small>{active.length > 0 ? `${active.length} to read` : 'Nothing new'}</small>
+        </button>
+      </nav>
 
-      <Card title="Verified helpers" icon="users" labelledBy="as-home-helpers">
+      <details className="as-card as-details as-fold">
+        <summary>
+          <AppIcon name="users" size={20} /> Who can respond{' '}
+          <small className="as-muted">
+            {helpers.data ? `${helpers.data.items.length} listed` : ''}
+          </small>
+        </summary>
         {!s.api ? (
           <p className="as-muted">Available after signing in to the API.</p>
         ) : helpers.loading && !helpers.data ? (
@@ -170,7 +188,7 @@ export function StudentHome() {
         <p className="as-muted as-small">
           Responder records are fictional DEMO data, not real campus staff.
         </p>
-      </Card>
+      </details>
 
       <div className="as-card">
         <CampusContacts />

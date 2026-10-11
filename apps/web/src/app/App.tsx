@@ -18,6 +18,7 @@ import {
 } from './routes';
 import { Loading } from './ui';
 import './theme.css';
+import './ux-refresh.css';
 import { AppUpdateNotice } from './AppUpdateNotice';
 
 const StudentShell = lazy(() =>

@@ -6,7 +6,8 @@
  *   here only; it is refused in production) or with an email code from the
  *   dev mailbox (GET /api/v1/dev/mailbox);
  * - one DEMO building with two floors and zones;
- * - a verified, available synthetic responder, so help requests are matched.
+ * - a verified, available synthetic responder, so help requests are matched;
+ * - DEMO guides, practice points and route network, and a drill alert.
  *
  * All data is lost when the process stops. Never use this for a deployment.
  *
@@ -15,6 +16,8 @@
 import { randomBytes } from 'node:crypto';
 import { createApp } from '../app.js';
 import { loadConfig } from '../config.js';
+import { withTransaction } from '../db.js';
+import { seedDemoContent } from '../demo/demoContent.js';
 import { hashPassword } from '../security.js';
 import { createTestPool } from '../test-support/database.js';
 
@@ -81,6 +84,21 @@ await pool.query(
 await pool.query(
   `INSERT INTO zone_memberships (user_id, zone_id, source) VALUES ($1, $2, 'DEMO')`,
   [ids['student.demo@example.invalid'], firstZone],
+);
+
+await pool.query(
+  `INSERT INTO drills (name, building_id, scenario_ref, scenario_version, mode, status, assumptions,
+                       created_by)
+   VALUES ('DEMO familiarisation drill', $1, 'demo-familiarisation', '1', 'SIMULATION', 'ACTIVE',
+           '{"synthetic":true}'::jsonb, $2)`,
+  [building.rows[0]!.id, ids['admin.demo@example.invalid']],
+);
+await withTransaction(pool, (client) =>
+  seedDemoContent(client, {
+    adminId: ids['admin.demo@example.invalid']!,
+    verifierId: ids['verifier.demo@example.invalid']!,
+    zoneId: firstZone,
+  }),
 );
 
 createApp(pool, config).listen(config.PORT, () => {

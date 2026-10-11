@@ -225,6 +225,33 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
   );
 }
 
+/** A card that opens on tap, for secondary sections on long phone screens. */
+export function Fold({
+  title,
+  icon,
+  meta,
+  children,
+  defaultOpen = false,
+}: {
+  title: ReactNode;
+  icon?: AppIconName;
+  /** Short status shown on the closed card, e.g. "2 saved". */
+  meta?: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details className="as-card as-details as-fold" open={defaultOpen || undefined}>
+      <summary>
+        {icon && <AppIcon name={icon} size={18} />}
+        <span className="as-fold__title">{title}</span>
+        {meta !== undefined && meta !== null && <small className="as-muted">{meta}</small>}
+      </summary>
+      <div className="as-fold__body">{children}</div>
+    </details>
+  );
+}
+
 export function Card({
   title,
   icon,

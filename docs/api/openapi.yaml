@@ -1453,6 +1453,7 @@ paths:
                   safePoint: { $ref: '#/components/schemas/SafePoint' }
                   blocksAvoided: { type: integer }
                   startSnapM: { type: integer }
+                  practice: { type: boolean, description: True for DEMO data (a practice route, never an evacuation route) }
                   note: { type: string }
         '409': { description: NAVIGATION_UNAVAILABLE or NO_ROUTE }
         '422': { description: START_OFF_NETWORK (more than 150 m from the approved routes) }

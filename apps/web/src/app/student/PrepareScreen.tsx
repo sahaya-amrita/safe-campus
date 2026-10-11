@@ -21,32 +21,45 @@ export function PrepareScreen() {
   const drills = useAsync(s.api ? () => s.api!.drills() : null, [s.api]);
   const [practice, setPractice] = useState(false);
   const titles = (packs?.packs ?? []).map((p) => p.pack.title.toLowerCase());
+  const openGuide = (keywords: readonly string[]) => {
+    const match = (packs?.packs ?? []).find((p) =>
+      keywords.some((k) => p.pack.title.toLowerCase().includes(k)),
+    );
+    if (!match) return;
+    const article = document.getElementById(`pack-${match.pack.version}`);
+    const fold = article?.querySelector('details');
+    if (fold) fold.open = true;
+    article?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <>
       <h1 className="as-screen-title">Prepare</h1>
       <p className="as-muted">
-        Only instruction packs approved and published by authorised reviewers appear here. They are
-        cached for offline use.
+        Short guides for emergencies, saved on this phone for offline use. In this DEMO they are
+        samples, not official campus instructions.
       </p>
 
       <Card title="Safety topics" icon="book" labelledBy="as-prep-topics">
         <p className="as-muted as-small">
-          Questions? Ask Tom (the guide button) — it answers only from approved content.
+          Questions? Ask Tom (the guide button). Tom answers only from these guides.
         </p>
-        <ul className="as-list">
+        <ul className="as-topics">
           {TOPICS.map((topic) => {
             const count = titles.filter((t) => topic.keywords.some((k) => t.includes(k))).length;
             return (
-              <li key={topic.id} className="as-item">
-                <div className="as-row as-row--between">
-                  <span className="as-item__title">{topic.label}</span>
-                  <Pill tone={count ? 'ok' : 'neutral'}>
-                    {count
-                      ? `${count} approved pack${count === 1 ? '' : 's'}`
-                      : 'No approved pack yet'}
-                  </Pill>
-                </div>
+              <li key={topic.id}>
+                <button
+                  type="button"
+                  className="as-topic"
+                  disabled={count === 0}
+                  onClick={() => openGuide(topic.keywords)}
+                >
+                  <span className="as-topic__label">{topic.label}</span>
+                  <span className="as-topic__meta">
+                    {count ? `${count} guide${count === 1 ? '' : 's'} · open` : 'No guide yet'}
+                  </span>
+                </button>
               </li>
             );
           })}

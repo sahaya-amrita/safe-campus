@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { authSettings, loadConfig } from '../config.js';
 import { createPool, withTransaction } from '../db.js';
+import { seedDemoContent } from '../demo/demoContent.js';
 import { hashPassword } from '../security.js';
 
 const users = [
@@ -156,6 +157,13 @@ try {
         ids.get('admin.demo@example.invalid'),
       ],
     );
+
+    // Published DEMO guides, practice points and route network, and a drill alert.
+    await seedDemoContent(client, {
+      adminId: ids.get('admin.demo@example.invalid')!,
+      verifierId: ids.get('verifier.demo@example.invalid')!,
+      zoneId,
+    });
   });
   process.stdout.write('Seeded fictional DEMO data only.\n');
 } finally {

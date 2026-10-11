@@ -44,6 +44,12 @@ describe('classifyPack', () => {
   it('always labels mock samples as samples, whatever their state', () => {
     expect(classifyPack({ approvalState: 'PUBLISHED', demoSample: true })).toBe('DEMO_SAMPLE');
   });
+
+  it('labels DEMO-mode packs from the API as samples, never official', () => {
+    expect(classifyPack({ approvalState: 'PUBLISHED', mode: 'DEMO' })).toBe('DEMO_SAMPLE');
+    expect(classifyPack({ approvalState: 'DRAFT', mode: 'DEMO' })).toBeNull();
+    expect(classifyPack({ approvalState: 'PUBLISHED', mode: 'LIVE' })).toBe('OFFICIAL');
+  });
 });
 
 describe('packSections', () => {

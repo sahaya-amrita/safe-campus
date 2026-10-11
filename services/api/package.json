@@ -18,6 +18,7 @@
     "dev:memory": "tsx src/scripts/dev-memory.ts",
     "purge:photos": "tsx src/scripts/purge-photos.ts",
     "push:keys": "tsx src/scripts/push-keys.ts",
+    "demo:route-graph": "tsx src/scripts/build-demo-route-graph.ts",
     "assistant:smoke": "tsx src/assistant/smoke.ts"
   },
   "dependencies": {

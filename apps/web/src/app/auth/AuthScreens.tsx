@@ -206,22 +206,41 @@ function EmailStep({
     }
   };
 
+  const demo = config.methods.includes('DEMO_PASSWORD') && mode === 'login';
+
   return (
     <AuthCard>
       <ModeBanner mode="DEMO" compact />
-      <h1 className="as-auth__title">{mode === 'register' ? 'Create your account' : 'Sign in'}</h1>
+      {notice && <StatusBanner tone="warn">{notice}</StatusBanner>}
+      {demo && <DemoQuickStart />}
+      <h1 className={demo ? 'as-auth__subtitle' : 'as-auth__title'}>
+        {mode === 'register'
+          ? 'Create your account'
+          : demo
+            ? 'Or sign in with your email'
+            : 'Sign in'}
+      </h1>
       <p className="as-muted">
         {mode === 'register'
           ? 'We email you a 6-digit code. No password needed.'
-          : 'Enter your email and we send you a 6-digit code. No password needed.'}{' '}
-        In an emergency, call <a href="tel:112">112</a> first.
+          : 'We email you a 6-digit code. No password needed.'}{' '}
+        In an emergency, call{' '}
+        <a className="as-link-strong" href="tel:112">
+          112
+        </a>{' '}
+        first.
       </p>
-      {notice && <StatusBanner tone="warn">{notice}</StatusBanner>}
-      {!config.emailDelivery && (
-        <StatusBanner tone="warn" title="Email codes are not available yet">
-          This server has no email sender configured, so codes cannot be sent.
-        </StatusBanner>
-      )}
+      {!config.emailDelivery &&
+        (demo ? (
+          <p className="as-small as-note" role="note">
+            <strong>Email codes are not available yet</strong> on this prototype. Use a DEMO account
+            above.
+          </p>
+        ) : (
+          <StatusBanner tone="warn" title="Email codes are not available yet">
+            This server has no email sender configured, so codes cannot be sent.
+          </StatusBanner>
+        ))}
       <form className="as-form" onSubmit={(e) => void submit(e)} noValidate>
         {mode === 'register' && (
           <TextField
@@ -393,14 +412,80 @@ function CodeStep({ config }: { config: AuthConfigResponse }) {
 
 /**
  * Fictional accounts created by `pnpm db:seed`. Shown only when the server
- * enables DEMO password login (local development; never production).
+ * enables DEMO password login (local development, or a hosted prototype in
+ * DEMO mode).
  */
 const DEMO_ACCOUNTS = [
-  { label: 'Student', email: 'student.demo@example.invalid', password: 'DemoStudent!2026' },
-  { label: 'Responder', email: 'responder.demo@example.invalid', password: 'DemoResponder!2026' },
-  { label: 'Verifier', email: 'verifier.demo@example.invalid', password: 'DemoVerifier!2026' },
-  { label: 'Admin', email: 'admin.demo@example.invalid', password: 'DemoAdmin!2026' },
+  {
+    label: 'Student',
+    email: 'student.demo@example.invalid',
+    password: 'DemoStudent!2026',
+    does: 'Check in, ask for help, learn what to do',
+  },
+  {
+    label: 'Responder',
+    email: 'responder.demo@example.invalid',
+    password: 'DemoResponder!2026',
+    does: 'See and acknowledge help requests',
+  },
+  {
+    label: 'Verifier',
+    email: 'verifier.demo@example.invalid',
+    password: 'DemoVerifier!2026',
+    does: 'Review reported incidents',
+  },
+  {
+    label: 'Admin',
+    email: 'admin.demo@example.invalid',
+    password: 'DemoAdmin!2026',
+    does: 'Run drills, approve data, manage people',
+  },
 ] as const;
+
+/** One-tap sign-in as a fictional DEMO person, for trying the prototype. */
+function DemoQuickStart() {
+  const { signIn } = useSession();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const go = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
+    setBusy(account.label);
+    setError(null);
+    try {
+      await signIn(account.email, account.password);
+    } catch (reason) {
+      setError(describeProblem(reason));
+      setBusy(null);
+    }
+  };
+  return (
+    <section className="as-quickstart" aria-labelledby="as-quickstart-title">
+      <h1 id="as-quickstart-title" className="as-auth__title">
+        Try the prototype
+      </h1>
+      <p className="as-muted">
+        Choose who you want to be. Every person and record here is fictional.
+      </p>
+      <div className="as-quickstart__grid">
+        {DEMO_ACCOUNTS.map((a) => (
+          <button
+            key={a.label}
+            type="button"
+            className="as-rolecard"
+            data-role={a.label.toLowerCase()}
+            disabled={busy !== null}
+            aria-busy={busy === a.label}
+            aria-label={`Continue as ${a.label}: ${a.does}`}
+            onClick={() => void go(a)}
+          >
+            <span className="as-rolecard__name">{busy === a.label ? 'Signing in…' : a.label}</span>
+            <span className="as-rolecard__does">{a.does}</span>
+          </button>
+        ))}
+      </div>
+      <FormError>{error}</FormError>
+    </section>
+  );
+}
 
 function DemoPasswordSignIn() {
   const { signIn } = useSession();
@@ -430,7 +515,7 @@ function DemoPasswordSignIn() {
     <details className="as-details as-demo-signin">
       <summary>Developer sign-in (DEMO password)</summary>
       <p className="as-small as-muted">
-        Local development only. The server refuses this in production.
+        Fictional DEMO accounts. Available only while this server runs in DEMO mode.
       </p>
       <form className="as-form" onSubmit={(e) => void submit(e)}>
         <TextField

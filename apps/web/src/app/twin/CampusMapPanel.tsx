@@ -207,9 +207,9 @@ export function CampusMapPanel({
   return (
     <div className="as-stack">
       <p className="as-notice as-notice--warn" role="note">
-        <strong>DEMO map — community-mapped, not verified.</strong> Routes appear only when an
-        administrator-approved route network and safe points exist. Follow alarms, staff and
-        official instructions first.
+        <strong>DEMO map and practice routes.</strong> Paths are community-mapped and not verified;
+        practice points are not official assembly points. Follow alarms, staff and official
+        instructions first.
       </p>
 
       <div ref={mapTarget}>
@@ -278,8 +278,9 @@ export function CampusMapPanel({
                 )}
                 {available && (
                   <label className="as-field">
-                    <span className="as-label">Which floor are you on?</span>
+                    Which floor are you on?
                     <select
+                      className="as-select"
                       value={floor === null ? '' : String(floor)}
                       onChange={(e) =>
                         setFloor(e.target.value === '' ? null : Number(e.target.value))
@@ -393,7 +394,8 @@ export function CampusMapPanel({
 
               <ul className="as-saferoute__legend" aria-label="Map legend">
                 <li>
-                  <i className="as-key as-key--route" /> Approved route
+                  <i className="as-key as-key--route" />{' '}
+                  {route?.practice ? 'DEMO practice route' : 'Approved route'}
                 </li>
                 {(Object.keys(RISK_STYLE) as (keyof typeof RISK_STYLE)[]).map((k) => (
                   <li key={k}>
@@ -566,7 +568,9 @@ function RouteSummary({
       <header className="as-routecard__head">
         <div>
           <p className="as-routecard__kicker">
-            {route.safePoint.kind.replace(/_/g, ' ').toLowerCase()}
+            {route.practice
+              ? 'practice point'
+              : route.safePoint.kind.replace(/_/g, ' ').toLowerCase()}
           </p>
           <h3 className="as-routecard__title">{route.safePoint.name}</h3>
         </div>
@@ -576,7 +580,11 @@ function RouteSummary({
         </div>
       </header>
       <div className="as-row">
-        <Pill tone="ok">Approved route data · version {route.graphVersion}</Pill>
+        {route.practice ? (
+          <Pill tone="warn">DEMO practice route · not verified</Pill>
+        ) : (
+          <Pill tone="ok">Approved route data · version {route.graphVersion}</Pill>
+        )}
         {route.blocksAvoided > 0 && (
           <Pill tone="info">
             Avoids {route.blocksAvoided} blocked spot{route.blocksAvoided === 1 ? '' : 's'}

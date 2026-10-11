@@ -67,6 +67,8 @@ function otpServer(options: Options = {}) {
         options.created ? 201 : 200,
       );
     }
+    if (url.endsWith('/auth/demo-login'))
+      return json({ accessToken: 'demo-token', expiresInSeconds: 7200, user, warning: 'DEMO' });
     if (url.endsWith('/users/me')) return json(user);
     if (url.includes('/assistant/health'))
       return json({ status: 'ok', provider: 'mock', model: null, modelCheck: 'skipped' });
@@ -198,6 +200,30 @@ describe('email code sign-in', () => {
     expect(
       await screen.findByText('Developer sign-in (DEMO password)', undefined, { timeout: 5000 }),
     ).toBeInTheDocument();
+  });
+
+  it('offers one-tap DEMO roles first, and keeps email sign-in below', async () => {
+    const server = otpServer({ methods: ['EMAIL_OTP', 'DEMO_PASSWORD'], emailDelivery: false });
+    vi.stubGlobal('fetch', server.fetchImpl);
+    const user = userEvent.setup();
+    render(<App apiBaseUrl="http://api.test" />);
+    expect(
+      await screen.findByRole('heading', { name: 'Try the prototype' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    for (const role of ['Student', 'Responder', 'Verifier', 'Admin'])
+      expect(
+        screen.getByRole('button', { name: new RegExp(`^Continue as ${role}:`) }),
+      ).toBeEnabled();
+    expect(screen.getByRole('heading', { name: 'Or sign in with your email' })).toBeInTheDocument();
+    // No email sender: a short note, not a warning banner, when DEMO roles are offered.
+    expect(screen.getByText(/Use a DEMO account above/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Email codes are not available yet' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /^Continue as Student:/ }));
+    await screen.findByRole('navigation', { name: 'Main' }, { timeout: 5000 });
+    expect(server.calls.find((c) => c.url.endsWith('/auth/demo-login'))?.body).toEqual({
+      email: 'student.demo@example.invalid',
+      password: 'DemoStudent!2026',
+    });
   });
 
   it('sends a user who opens the code page directly back to sign in', async () => {

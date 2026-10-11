@@ -10,11 +10,14 @@ export const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 /**
  * Students may only treat `PUBLISHED` packs as official (API_CONTRACT_RECONCILIATION:
  * "student-facing instruction access returns only PUBLISHED, unexpired packs").
- * Mock samples carry `demoSample` and are always labelled as samples.
+ * Mock samples carry `demoSample`, and DEMO-mode packs from the API carry
+ * `mode: 'DEMO'`; both are always labelled as samples, never as official.
  * Anything else is neither cached nor displayed.
  */
-export function classifyPack(pack: Pick<StudentInstructionPack, 'approvalState' | 'demoSample'>): PackKind | null {
-  if (pack.demoSample) return 'DEMO_SAMPLE';
+export function classifyPack(
+  pack: Pick<StudentInstructionPack, 'approvalState' | 'demoSample' | 'mode'>,
+): PackKind | null {
+  if (pack.demoSample || pack.mode === 'DEMO') return pack.approvalState === 'PUBLISHED' || pack.demoSample ? 'DEMO_SAMPLE' : null;
   if (pack.approvalState === 'PUBLISHED') return 'OFFICIAL';
   return null;
 }

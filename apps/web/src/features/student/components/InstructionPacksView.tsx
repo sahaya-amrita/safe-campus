@@ -60,16 +60,23 @@ function PackCard({ item }: { item: DisplayPack }) {
   const { pack } = item;
   const official = item.kind === 'OFFICIAL';
   return (
-    <article className={`sc-pack ${official ? 'sc-pack--official' : 'sc-pack--sample'}`} data-testid="pack">
-      <p className={official ? 'sc-badge sc-badge--official' : 'sc-badge sc-badge--sample'}>
-        <Icon name={official ? 'shield' : 'info'} size={16} />
-        {official ? t.packOfficial(pack.sourceLabel) : t.packSample}
-      </p>
+    <article
+      id={`pack-${pack.version}`}
+      className={`sc-pack ${official ? 'sc-pack--official' : 'sc-pack--sample'}`}
+      data-testid="pack"
+    >
+      <details className="sc-pack-fold">
+        <summary className="sc-pack-summary">
+          <span className="sc-pack-summary-title">{pack.title}</span>
+          <span className={official ? 'sc-badge sc-badge--official' : 'sc-badge sc-badge--sample'}>
+            <Icon name={official ? 'shield' : 'info'} size={16} />
+            {official ? t.packOfficial(pack.sourceLabel) : t.packSample}
+          </span>
+        </summary>
       {!official && <p className="sc-meta-line">{pack.sourceLabel}</p>}
       {item.expired && <CriticalText k="packExpired" role="alert" className="sc-callout sc-callout--danger" />}
       {!item.expired && item.stale && <p className="sc-callout sc-callout--warn">{t.packStale}</p>}
       <div className="sc-pack-body" lang={pack.language}>
-        <h3 className="sc-pack-title">{pack.title}</h3>
         {item.sections ? (
           item.sections.map((section, index) => (
             <div key={`${pack.id}-${index}`} className="sc-pack-section">
@@ -88,6 +95,7 @@ function PackCard({ item }: { item: DisplayPack }) {
         {pack.expiresAt && <li>{t.packExpires(formatDate(pack.expiresAt))}</li>}
         <li>{t.packSavedOnPhone(`${formatDate(item.fetchedAt)} ${formatTime(item.fetchedAt)}`)}</li>
       </ul>
+      </details>
     </article>
   );
 }

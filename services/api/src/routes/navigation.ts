@@ -55,6 +55,7 @@ interface GraphRow {
   approved_by: string | null;
   approved_at: Date | null;
   created_at: Date;
+  mode: string;
 }
 
 const iso = (v: Date | string | null) => (v ? new Date(v).toISOString() : null);
@@ -90,7 +91,7 @@ const graphView = (r: GraphRow): RouteGraphView => ({
 const SAFE_POINT_COLUMNS = `id, name, kind, latitude, longitude, building_id, notes, status, proposed_by,
   reviewed_by, reviewed_at, created_at`;
 const GRAPH_COLUMNS = `id, version, source, status, node_count, edge_count, uploaded_by, approved_by,
-  approved_at, created_at`;
+  approved_at, created_at, mode`;
 
 async function approvedGraph(pool: DatabasePool): Promise<GraphRow | null> {
   return (
@@ -219,7 +220,11 @@ export function navigationRouter(pool: DatabasePool) {
       safePoint: safePoint(target),
       blocksAvoided: blocked.length,
       startSnapM: Math.round(start.distanceM),
-      note: 'Approved route data. Conditions can change: follow alarms, staff and signs first.',
+      practice: graphRow.mode === 'DEMO',
+      note:
+        graphRow.mode === 'DEMO'
+          ? 'DEMO practice route on community-mapped paths. Not an evacuation route: follow alarms, staff and signs first.'
+          : 'Approved route data. Conditions can change: follow alarms, staff and signs first.',
     };
     response.json(body);
   });

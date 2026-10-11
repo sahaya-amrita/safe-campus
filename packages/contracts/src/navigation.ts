@@ -126,5 +126,7 @@ export interface RouteResponse {
   safePoint: SafePointView;
   blocksAvoided: number;
   startSnapM: number;
+  /** True for DEMO data: a practice route, never an evacuation route. */
+  practice: boolean;
   note: string;
 }

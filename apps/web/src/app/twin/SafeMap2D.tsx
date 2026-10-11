@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -72,6 +73,21 @@ export function SafeMap2D({
   }, [data]);
 
   const [box, setBox] = useState<Box>(shapes.fit);
+
+  // Zoom to a new route so it is readable on a phone; the whole-campus button still resets.
+  const routeKey = route?.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(';') ?? '';
+  useEffect(() => {
+    if (!route || route.length < 2) return;
+    const xs = route.map((p) => p[0]);
+    const ys = route.map((p) => p[1]);
+    const w = Math.max(160, Math.max(...xs) - Math.min(...xs));
+    const h = Math.max(160, Math.max(...ys) - Math.min(...ys));
+    const pad = Math.max(w, h) * 0.35;
+    const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
+    const cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+    setBox({ x: cx - w / 2 - pad, y: cy - h / 2 - pad, w: w + pad * 2, h: h + pad * 2 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- routeKey identifies the route
+  }, [routeKey]);
   const svgRef = useRef<SVGSVGElement>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const moved = useRef(0);
