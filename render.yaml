@@ -58,9 +58,10 @@ services:
         sync: false
       - key: GROQ_MODEL
         sync: false
-      # Hosted Tom never serves unreviewed DRAFT guidance.
+      # Prototype: Tom may use its DRAFT app help (labelled "draft, not yet
+      # reviewed" in answers). Honoured only with OPERATING_MODE=DEMO.
       - key: ASSISTANT_ALLOW_DRAFT_CONTENT
-        value: 'false'
+        value: 'true'
       - key: OUTBOX_POLL_MS
         value: '5000'
       - key: ASSISTANT_TIMEOUT_MS
