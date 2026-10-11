@@ -8,6 +8,7 @@ import type { HelpAction, HelpRequest, Me, ReviewDecision, SahayaApi } from '../
 import { hasRole } from '../auth/session';
 import { useRoute } from '../router';
 import { ControlRoom } from './ControlRoom';
+import { IncidentSearch } from './IncidentSearch';
 import { Stat, useActions } from './shared';
 import { CampusMapPanel, type MapAlert } from '../twin/CampusMapPanel';
 import { isActiveAlert } from '../twin/safeMapModel';
@@ -32,81 +33,7 @@ export function OverviewView({ api, user }: { api: SahayaApi; user: Me }) {
 
 // ---------------------------------------------------------------------------
 export function IncidentsView({ api }: { api: SahayaApi }) {
-  const { navigate } = useRoute();
-  const incidents = useAsync(() => api.listIncidents(100), [api], 15_000);
-  const [filter, setFilter] = useState<'open' | 'all'>('open');
-  const items = (incidents.data?.items ?? []).filter(
-    (i) =>
-      filter === 'all' ||
-      (i.verificationStatus !== 'RESOLVED' && i.verificationStatus !== 'DISMISSED'),
-  );
-  return (
-    <Card
-      title="Incident queue"
-      icon="alert"
-      labelledBy="as-inc-queue"
-      action={
-        <div className="as-seg" role="group" aria-label="Filter">
-          <button type="button" aria-pressed={filter === 'open'} onClick={() => setFilter('open')}>
-            Open
-          </button>
-          <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
-            All
-          </button>
-        </div>
-      }
-    >
-      <p className="as-muted as-small">
-        Reports are unverified until an authorised verifier records a decision. Many reports never
-        verify an incident.
-      </p>
-      {incidents.loading && !incidents.data && <Loading />}
-      {Boolean(incidents.error) && (
-        <ErrorNotice error={incidents.error} onRetry={incidents.reload} />
-      )}
-      {incidents.data && items.length === 0 && <EmptyState title="No incidents in this view." />}
-      {items.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="as-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Received</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((i) => (
-                <tr key={i.id}>
-                  <td>
-                    <strong>{i.type}</strong>
-                    <br />
-                    <span className="as-muted as-small">{i.description.slice(0, 90)}</span>
-                  </td>
-                  <td>
-                    <VerificationPill status={i.verificationStatus} />
-                  </td>
-                  <td>{i.priority}</td>
-                  <td>{formatWhen(i.serverReceivedAt)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="as-btn as-btn--ghost as-btn--sm"
-                      onClick={() => navigate(`/r/incidents/${i.id}`)}
-                    >
-                      Open <AppIcon name="chevron" size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Card>
-  );
+  return <IncidentSearch api={api} />;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { Drill, Me, SahayaApi } from '../api/sahaya';
+import { useTourTarget } from '../../components/tom';
 import { hasRole } from '../auth/session';
 import { Card, EmptyState, ErrorNotice, Loading, Pill, formatWhen, useAsync } from '../ui';
 import { announceDrillsChanged } from '../DrillBanner';
@@ -79,6 +80,7 @@ const SCENARIOS = [
  */
 export function DrillsView({ api, user }: { api: SahayaApi; user: Me }) {
   const drills = useActiveDrills(api);
+  const preflightTarget = useTourTarget('drills.preflight');
   const preflight = useAsync(() => api.drillPreflight(), [api, drills.data], 15_000);
   const buildings = useAsync(() => api.buildings(), [api]);
   const canControl = hasRole(user, 'DRILL_MANAGER', 'ADMIN');
@@ -93,50 +95,52 @@ export function DrillsView({ api, user }: { api: SahayaApi; user: Me }) {
 
   return (
     <div className="as-stack">
-      <Card
-        title="Before you start"
-        icon="check"
-        labelledBy="as-drill-preflight"
-        action={
-          drills.active.length > 0 ? (
-            <StopAllDrills
-              api={api}
-              onStopped={(count) => {
-                setStopped(count);
-                reload();
-              }}
-            />
-          ) : undefined
-        }
-      >
-        {stopped !== null && (
-          <p className="as-notice as-notice--ok" role="status">
-            Stopped {stopped} drill{stopped === 1 ? '' : 's'}.
-          </p>
-        )}
-        {preflight.loading && !preflight.data && <Loading />}
-        {Boolean(preflight.error) && (
-          <ErrorNotice error={preflight.error} onRetry={preflight.reload} />
-        )}
-        {preflight.data && (
-          <ul className="as-checklist">
-            <li className={preflight.data.verifiedIncidentsOpen === 0 ? 'is-ok' : 'is-fail'}>
-              {preflight.data.verifiedIncidentsOpen === 0
-                ? 'No verified incident is open.'
-                : `${preflight.data.verifiedIncidentsOpen} verified incident(s) open: drills are blocked.`}
-            </li>
-            <li className="is-ok">
-              {preflight.data.activeDrills === 0
-                ? 'No drill is running.'
-                : `${preflight.data.activeDrills} drill(s) running. STOP DRILL ends them all.`}
-            </li>
-            <li className="is-note">
-              Digital drills only. Physical drills need the Security Officer's approval and
-              qualified supervision.
-            </li>
-          </ul>
-        )}
-      </Card>
+      <div ref={preflightTarget}>
+        <Card
+          title="Before you start"
+          icon="check"
+          labelledBy="as-drill-preflight"
+          action={
+            drills.active.length > 0 ? (
+              <StopAllDrills
+                api={api}
+                onStopped={(count) => {
+                  setStopped(count);
+                  reload();
+                }}
+              />
+            ) : undefined
+          }
+        >
+          {stopped !== null && (
+            <p className="as-notice as-notice--ok" role="status">
+              Stopped {stopped} drill{stopped === 1 ? '' : 's'}.
+            </p>
+          )}
+          {preflight.loading && !preflight.data && <Loading />}
+          {Boolean(preflight.error) && (
+            <ErrorNotice error={preflight.error} onRetry={preflight.reload} />
+          )}
+          {preflight.data && (
+            <ul className="as-checklist">
+              <li className={preflight.data.verifiedIncidentsOpen === 0 ? 'is-ok' : 'is-fail'}>
+                {preflight.data.verifiedIncidentsOpen === 0
+                  ? 'No verified incident is open.'
+                  : `${preflight.data.verifiedIncidentsOpen} verified incident(s) open: drills are blocked.`}
+              </li>
+              <li className="is-ok">
+                {preflight.data.activeDrills === 0
+                  ? 'No drill is running.'
+                  : `${preflight.data.activeDrills} drill(s) running. STOP DRILL ends them all.`}
+              </li>
+              <li className="is-note">
+                Digital drills only. Physical drills need the Security Officer's approval and
+                qualified supervision.
+              </li>
+            </ul>
+          )}
+        </Card>
+      </div>
 
       {canControl && (
         <NewDrill api={api} buildings={buildings.data?.items ?? []} onCreated={reload} />

@@ -63,3 +63,17 @@ Open PRs: [#9](https://github.com/sahaya-amrita/safe-campus/pull/9) is already o
 - Tom's knowledge is DRAFT app help. It is usable in DEMO only and labelled as such.
 - No real incident history exists, so analytics will be descriptive and labelled synthetic until real data arrives.
 - Nothing is deployed yet, and no second device has accessed the app.
+
+## 6. Progress log
+
+- **2026-10-11, M0 done (Claude Code 2):**
+  - Tom answers live on Groq (`openai/gpt-oss-20b`), with follow-up context.
+  - Questions that only mention a screen now reach the model.
+- **2026-10-11, Tom guided tour works in the integrated app (Claude Code 2):**
+  - 9 steps over the real screens: menu, demo banner, control-room stats, help timers, hazard queue, drills, map, contacts, Tom.
+  - Targets are registered via `useTourTarget`, and the tour returns to the starting screen.
+  - Tom's built-in tips now use the real screen ids.
+- **2026-10-11, M5 partly done (Claude Code 2):**
+  - Incident search: text search plus status, level, type, building, floor and time-window filters, with level or time sorting.
+  - Building and floor are shown separately, so a one-floor report never reads as "whole building".
+  - **Still blocked:** the photo-evidence viewer needs M1 Storage plus signed URLs.

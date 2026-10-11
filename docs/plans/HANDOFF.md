@@ -5,7 +5,7 @@
 | What                                                                          | Where                                                                                                                     |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Phases 1–3 (safe-route map, control room, drills, kill switch, blocked areas) | Already on `main` (`1dd12ed`)                                                                                             |
-| Tom verified live on Groq + follow-up fix + master plan                       | Branch `feat/tom-live-and-master-plan`, draft [PR #10](https://github.com/sahaya-amrita/safe-campus/pull/10) (not merged) |
+| Tom live on Groq, working guided tour, incident search/filters, master plan   | Branch `feat/tom-live-and-master-plan`, draft [PR #10](https://github.com/sahaya-amrita/safe-campus/pull/10) (not merged) |
 | Plan and milestones M0–M8                                                     | [`master-implementation-plan.md`](./master-implementation-plan.md)                                                        |
 
 [PR #9](https://github.com/sahaya-amrita/safe-campus/pull/9) is already on `main`: close it on GitHub.

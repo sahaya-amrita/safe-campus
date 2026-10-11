@@ -18,6 +18,7 @@ import {
 import { useKeyForBody } from '../responder/shared';
 import type { SahayaApi } from '../api/sahaya';
 import { Card, EmptyState, ErrorNotice, Loading, Pill, useAsync, VerificationPill } from '../ui';
+import { useTourTarget } from '../../components/tom';
 import { SafeMap2D } from './SafeMap2D';
 import { buildRiskAreas, RISK_STYLE, type MapAlert, type MapIncident } from './safeMapModel';
 
@@ -65,6 +66,7 @@ export function CampusMapPanel({
   /** Responders/admins can mark areas impassable; everyone's routes avoid them. */
   canMarkBlocked?: boolean;
 }) {
+  const mapTarget = useTourTarget('map.panel');
   const campus = useAsync(() => loadCampus(), []);
   const buildings = useAsync(() => api.buildings(), [api]);
   const blocks = useAsync(() => api.routeBlocks(), [api], 20_000);
@@ -201,73 +203,47 @@ export function CampusMapPanel({
         staff and official instructions first.
       </p>
 
-      <Card title="Safe route" icon="map" labelledBy="as-map-route">
-        {campus.loading && !data && <Loading label="Loading campus map…" />}
-        {Boolean(campus.error) && <ErrorNotice error={campus.error} onRetry={campus.reload} />}
-        {data && graph && (
-          <div className="as-saferoute">
-            <div className="as-seg" role="group" aria-label="What do you need?">
-              <button
-                type="button"
-                aria-pressed={goal === 'SAFETY'}
-                onClick={() => setGoal('SAFETY')}
-              >
-                Get to open ground
-              </button>
-              <button
-                type="button"
-                aria-pressed={goal === 'DIRECTIONS'}
-                onClick={() => setGoal('DIRECTIONS')}
-              >
-                Directions
-              </button>
-            </div>
-
-            <div className="as-saferoute__fields">
-              <label className="as-field">
-                From
-                <select
-                  className="as-select"
-                  value={start?.kind === 'BUILDING' ? start.featureId : start ? 'gps' : ''}
-                  onChange={(e) =>
-                    e.target.value &&
-                    e.target.value !== 'gps' &&
-                    setStart({ kind: 'BUILDING', featureId: e.target.value })
-                  }
+      <div ref={mapTarget}>
+        <Card title="Safe route" icon="map" labelledBy="as-map-route">
+          {campus.loading && !data && <Loading label="Loading campus map…" />}
+          {Boolean(campus.error) && <ErrorNotice error={campus.error} onRetry={campus.reload} />}
+          {data && graph && (
+            <div className="as-saferoute">
+              <div className="as-seg" role="group" aria-label="What do you need?">
+                <button
+                  type="button"
+                  aria-pressed={goal === 'SAFETY'}
+                  onClick={() => setGoal('SAFETY')}
                 >
-                  <option value="">Choose where you are…</option>
-                  {start?.kind === 'GPS' && (
-                    <option value="gps">My location (±{Math.round(start.accuracy)} m)</option>
-                  )}
-                  {start?.kind === 'BUILDING' && !named.some((f) => f.id === start.featureId) && (
-                    <option value={start.featureId}>Selected on map</option>
-                  )}
-                  {named.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {featureName(f)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                className="as-btn as-btn--ghost"
-                onClick={locate}
-                disabled={locating}
-              >
-                {locating ? 'Locating…' : 'Use my location'}
-              </button>
-              {goal === 'DIRECTIONS' && (
+                  Get to open ground
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={goal === 'DIRECTIONS'}
+                  onClick={() => setGoal('DIRECTIONS')}
+                >
+                  Directions
+                </button>
+              </div>
+
+              <div className="as-saferoute__fields">
                 <label className="as-field">
-                  To
+                  From
                   <select
                     className="as-select"
-                    value={target ?? ''}
-                    onChange={(e) => setTarget(e.target.value || null)}
+                    value={start?.kind === 'BUILDING' ? start.featureId : start ? 'gps' : ''}
+                    onChange={(e) =>
+                      e.target.value &&
+                      e.target.value !== 'gps' &&
+                      setStart({ kind: 'BUILDING', featureId: e.target.value })
+                    }
                   >
-                    <option value="">Choose a building…</option>
-                    {target && !named.some((f) => f.id === target) && (
-                      <option value={target}>Selected on map</option>
+                    <option value="">Choose where you are…</option>
+                    {start?.kind === 'GPS' && (
+                      <option value="gps">My location (±{Math.round(start.accuracy)} m)</option>
+                    )}
+                    {start?.kind === 'BUILDING' && !named.some((f) => f.id === start.featureId) && (
+                      <option value={start.featureId}>Selected on map</option>
                     )}
                     {named.map((f) => (
                       <option key={f.id} value={f.id}>
@@ -276,134 +252,162 @@ export function CampusMapPanel({
                     ))}
                   </select>
                 </label>
-              )}
-            </div>
-            {gpsError && (
-              <p className="as-small as-muted" role="status">
-                {gpsError}
-              </p>
-            )}
-            {start?.kind === 'GPS' && (
-              <p className="as-small as-muted">
-                Your location stays on this phone. It is not sent to anyone.
-              </p>
-            )}
-
-            <div className="as-row as-row--between as-saferoute__bar">
-              <div className="as-seg as-seg--sm" role="group" aria-label="Tapping the map sets">
                 <button
                   type="button"
-                  aria-pressed={tap === 'START'}
-                  onClick={() => setTap('START')}
+                  className="as-btn as-btn--ghost"
+                  onClick={locate}
+                  disabled={locating}
                 >
-                  Tap: start
+                  {locating ? 'Locating…' : 'Use my location'}
                 </button>
                 {goal === 'DIRECTIONS' && (
-                  <button
-                    type="button"
-                    aria-pressed={tap === 'DESTINATION'}
-                    onClick={() => setTap('DESTINATION')}
-                  >
-                    Tap: destination
-                  </button>
-                )}
-                <button
-                  type="button"
-                  aria-pressed={tap === 'PRACTICE'}
-                  onClick={() => setTap('PRACTICE')}
-                >
-                  Tap: practice hazard
-                </button>
-                {canMarkBlocked && (
-                  <button
-                    type="button"
-                    aria-pressed={tap === 'BLOCK'}
-                    onClick={() => setTap('BLOCK')}
-                  >
-                    Tap: mark blocked
-                  </button>
+                  <label className="as-field">
+                    To
+                    <select
+                      className="as-select"
+                      value={target ?? ''}
+                      onChange={(e) => setTarget(e.target.value || null)}
+                    >
+                      <option value="">Choose a building…</option>
+                      {target && !named.some((f) => f.id === target) && (
+                        <option value={target}>Selected on map</option>
+                      )}
+                      {named.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {featureName(f)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
               </div>
-              <div className="as-seg as-seg--sm" role="group" aria-label="Map view">
-                <button type="button" aria-pressed={view === '2D'} onClick={() => setView('2D')}>
-                  2D
-                </button>
-                <button type="button" aria-pressed={view === '3D'} onClick={() => setView('3D')}>
-                  3D
-                </button>
-              </div>
-            </div>
+              {gpsError && (
+                <p className="as-small as-muted" role="status">
+                  {gpsError}
+                </p>
+              )}
+              {start?.kind === 'GPS' && (
+                <p className="as-small as-muted">
+                  Your location stays on this phone. It is not sent to anyone.
+                </p>
+              )}
 
-            {view === '2D' ? (
-              <SafeMap2D
-                data={data}
-                risks={risks}
-                route={route?.path ?? null}
-                start={startPoint}
-                destination={route?.destination ?? null}
-                grounds={goal === 'SAFETY' ? grounds : []}
-                highlight={highlight}
-                onPick={onPick}
-                pickHint={pickHint}
-              />
-            ) : (
-              <Suspense fallback={<Loading label="Loading 3D view…" />}>
-                <SafeMap3D
+              <div className="as-row as-row--between as-saferoute__bar">
+                <div className="as-seg as-seg--sm" role="group" aria-label="Tapping the map sets">
+                  <button
+                    type="button"
+                    aria-pressed={tap === 'START'}
+                    onClick={() => setTap('START')}
+                  >
+                    Tap: start
+                  </button>
+                  {goal === 'DIRECTIONS' && (
+                    <button
+                      type="button"
+                      aria-pressed={tap === 'DESTINATION'}
+                      onClick={() => setTap('DESTINATION')}
+                    >
+                      Tap: destination
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-pressed={tap === 'PRACTICE'}
+                    onClick={() => setTap('PRACTICE')}
+                  >
+                    Tap: practice hazard
+                  </button>
+                  {canMarkBlocked && (
+                    <button
+                      type="button"
+                      aria-pressed={tap === 'BLOCK'}
+                      onClick={() => setTap('BLOCK')}
+                    >
+                      Tap: mark blocked
+                    </button>
+                  )}
+                </div>
+                <div className="as-seg as-seg--sm" role="group" aria-label="Map view">
+                  <button type="button" aria-pressed={view === '2D'} onClick={() => setView('2D')}>
+                    2D
+                  </button>
+                  <button type="button" aria-pressed={view === '3D'} onClick={() => setView('3D')}>
+                    3D
+                  </button>
+                </div>
+              </div>
+
+              {view === '2D' ? (
+                <SafeMap2D
                   data={data}
                   risks={risks}
                   route={route?.path ?? null}
                   start={startPoint}
                   destination={route?.destination ?? null}
-                  highlight={highlight[0] ?? null}
+                  grounds={goal === 'SAFETY' ? grounds : []}
+                  highlight={highlight}
                   onPick={onPick}
+                  pickHint={pickHint}
                 />
-              </Suspense>
-            )}
-
-            {pendingBlock && data && (
-              <BlockForm
-                api={api}
-                point={pendingBlock}
-                bounds={data.bounds}
-                onCancel={() => setPendingBlock(null)}
-                onSaved={() => {
-                  setPendingBlock(null);
-                  blocks.reload();
-                }}
-              />
-            )}
-
-            <ul className="as-saferoute__legend" aria-label="Map legend">
-              <li>
-                <i className="as-key as-key--route" /> Suggested route
-              </li>
-              {goal === 'SAFETY' && (
-                <li>
-                  <i className="as-key as-key--ground" /> Open ground (not a designated assembly
-                  point)
-                </li>
+              ) : (
+                <Suspense fallback={<Loading label="Loading 3D view…" />}>
+                  <SafeMap3D
+                    data={data}
+                    risks={risks}
+                    route={route?.path ?? null}
+                    start={startPoint}
+                    destination={route?.destination ?? null}
+                    highlight={highlight[0] ?? null}
+                    onPick={onPick}
+                  />
+                </Suspense>
               )}
-              {(Object.keys(RISK_STYLE) as (keyof typeof RISK_STYLE)[]).map((k) => (
-                <li key={k}>
-                  <i
-                    className={`as-key as-key--risk${k === 'VERIFIED_INCIDENT' ? '' : ' as-key--dashed'}`}
-                    style={{ color: RISK_STYLE[k].colour }}
-                  />{' '}
-                  {RISK_STYLE[k].label}
-                </li>
-              ))}
-            </ul>
 
-            <RouteSummary
-              hasStart={Boolean(startPoint)}
-              needsTarget={goal === 'DIRECTIONS' && !target}
-              result={result}
-              goal={goal}
-              riskCount={risks.length}
-            />
-          </div>
-        )}
-      </Card>
+              {pendingBlock && data && (
+                <BlockForm
+                  api={api}
+                  point={pendingBlock}
+                  bounds={data.bounds}
+                  onCancel={() => setPendingBlock(null)}
+                  onSaved={() => {
+                    setPendingBlock(null);
+                    blocks.reload();
+                  }}
+                />
+              )}
+
+              <ul className="as-saferoute__legend" aria-label="Map legend">
+                <li>
+                  <i className="as-key as-key--route" /> Suggested route
+                </li>
+                {goal === 'SAFETY' && (
+                  <li>
+                    <i className="as-key as-key--ground" /> Open ground (not a designated assembly
+                    point)
+                  </li>
+                )}
+                {(Object.keys(RISK_STYLE) as (keyof typeof RISK_STYLE)[]).map((k) => (
+                  <li key={k}>
+                    <i
+                      className={`as-key as-key--risk${k === 'VERIFIED_INCIDENT' ? '' : ' as-key--dashed'}`}
+                      style={{ color: RISK_STYLE[k].colour }}
+                    />{' '}
+                    {RISK_STYLE[k].label}
+                  </li>
+                ))}
+              </ul>
+
+              <RouteSummary
+                hasStart={Boolean(startPoint)}
+                needsTarget={goal === 'DIRECTIONS' && !target}
+                result={result}
+                goal={goal}
+                riskCount={risks.length}
+              />
+            </div>
+          )}
+        </Card>
+      </div>
 
       <Card title={`Risk areas (${risks.length})`} icon="alert" labelledBy="as-map-risks">
         {risks.length === 0 ? (

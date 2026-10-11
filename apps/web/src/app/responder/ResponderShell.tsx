@@ -4,6 +4,7 @@ import type { Me } from '../api/sahaya';
 import { hasRole, useApi, useSession } from '../auth/session';
 import { DrillBanner } from '../DrillBanner';
 import { useRoute } from '../router';
+import { TourTargetProvider, useTourTarget } from '../../components/tom';
 import { TomHost, type AppDestination } from '../TomHost';
 import { DrillsView } from './drillControl';
 import { AppIcon, ModeBanner, Pill, type AppIconName } from '../ui';
@@ -116,7 +117,18 @@ export const RESPONDER_NAV: NavItem[] = [
   },
 ];
 
+/** Tour targets (Tom's guided tour) are registered anywhere inside the workspace. */
 export function ResponderShell({ user }: { user: Me }) {
+  return (
+    <TourTargetProvider>
+      <ResponderWorkspace user={user} />
+    </TourTargetProvider>
+  );
+}
+
+function ResponderWorkspace({ user }: { user: Me }) {
+  const navTarget = useTourTarget('responder.nav');
+  const bannerTarget = useTourTarget('responder.mode-banner');
   const { signOut } = useSession();
   const api = useApi();
   const { path, segments, navigate } = useRoute();
@@ -180,7 +192,7 @@ export function ResponderShell({ user }: { user: Me }) {
             <p className="as-brand__tag">Responder workspace</p>
           </div>
         </div>
-        <nav aria-label="Sections">
+        <nav aria-label="Sections" ref={navTarget}>
           {nav.map((item) => (
             <button
               key={item.id}
@@ -211,7 +223,9 @@ export function ResponderShell({ user }: { user: Me }) {
       </aside>
       <div className="as-staff__main">
         <div>
-          <ModeBanner mode={user.mode} />
+          <div ref={bannerTarget}>
+            <ModeBanner mode={user.mode} />
+          </div>
           <DrillBanner api={api} />
           <header className="as-staff__head">
             <h1 className="as-screen-title">{active.label}</h1>

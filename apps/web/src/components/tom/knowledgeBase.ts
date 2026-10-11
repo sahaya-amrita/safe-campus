@@ -4,13 +4,21 @@ import type { TomEntry } from './types';
  * Static app-usage help. This is NOT emergency guidance: it only explains how
  * to use screens in this prototype. Entries are drafts (review.reviewed=false)
  * until a named team member reviews them, so LIVE mode hides them.
+ *
+ * Contexts and destinations are the screen ids the app shell registers with
+ * Tom (apps/web/src/app/responder/ResponderShell.tsx).
  */
 const draft = { reviewed: false } as const;
 
 const RESPONDER_CONTEXTS = [
+  'responder.overview',
+  'responder.incidents',
   'responder.help-requests',
-  'responder.hazard-review',
-  'responder.roll-call',
+  'responder.dispatches',
+  'responder.alerts',
+  'responder.packs',
+  'responder.drills',
+  'responder.map',
   'responder.contacts',
 ] as const;
 
@@ -43,56 +51,75 @@ function tourStep(
   };
 }
 
+const help = (
+  id: string,
+  kind: 'HINT' | 'FAQ',
+  contexts: readonly string[],
+  title: string,
+  body: string,
+  keywords?: string[],
+): TomEntry => ({
+  id,
+  kind,
+  roles: RESPONDERS,
+  contexts,
+  title,
+  body,
+  ...(keywords ? { keywords } : {}),
+  contentType: 'APP_HELP',
+  review: draft,
+});
+
 export const DEFAULT_TOM_KNOWLEDGE: readonly TomEntry[] = [
   // ---- Responder workspace tour (app navigation only)
   tourStep(
     1,
     'sections',
     'Sections',
-    'Use these to switch between Help requests, Hazard review, Roll-call summary and Contacts & resources. You can also ask Tom to take you to any of them.',
+    'Use this menu to switch between the Overview, Incidents, Help requests, Drills, the Campus map and Contacts. You can also ask Tom to take you to any of them.',
     { targetId: 'responder.nav' },
   ),
   tourStep(
     2,
-    'summary',
-    'Queue summary',
-    'Counts of open help requests and hazards waiting for review, as returned by the server. “N+” means more pages exist.',
-    { targetId: 'responder.summary' },
-  ),
-  tourStep(
-    3,
     'demo',
     'Demo label',
     'This banner appears whenever the records are synthetic. Nothing you do in DEMO mode reaches anyone.',
     { targetId: 'responder.mode-banner', optional: true },
   ),
   tourStep(
+    3,
+    'summary',
+    'At a glance',
+    'How many help requests are waiting, how many are past the acknowledgement target, and how many suspected (L2) and verified (L3) hazards are open.',
+    { targetId: 'control.stats', destination: 'responder.overview' },
+  ),
+  tourStep(
     4,
-    'filter',
-    'Filter by status',
-    'Choose which help requests to list: Open, Acknowledged, Assigned, Resolved or Cancelled.',
-    { targetId: 'responder.status-filter', destination: 'responder.help-requests' },
+    'requests',
+    'Help requests and timers',
+    'Oldest unacknowledged first. Each request shows how long it has waited; the timer turns amber, then red with a prompt to escalate by phone. You acknowledge yourself. Tom never does it for you.',
+    { targetId: 'control.help', destination: 'responder.overview' },
   ),
   tourStep(
     5,
-    'requests',
-    'Open a request',
-    'Select “Open” on a row to see its timestamps. You acknowledge a request yourself, and the status changes only when the server confirms. Tom never does it for you.',
-    { targetId: 'responder.request-list', destination: 'responder.help-requests' },
+    'hazards',
+    'Hazard queue by level',
+    'L1 is an unverified report, L2 means several people reported the same thing, L3 means a person verified it. Several reports mean “look now”, not “it is true”, and never raise an alert by themselves.',
+    { targetId: 'control.hazards', destination: 'responder.overview' },
   ),
   tourStep(
     6,
-    'hazards',
-    'Human review',
-    'Every hazard report stays “Pending review” until a reviewer records a decision. Report counts never raise an alert.',
-    { targetId: 'responder.hazard-filter', destination: 'responder.hazard-review' },
+    'drills',
+    'Drills and STOP DRILL',
+    'Check the list before starting a drill. Any staff member can press STOP DRILL to end every running drill; verifying a real incident stops drills automatically.',
+    { targetId: 'drills.preflight', destination: 'responder.drills', optional: true },
   ),
   tourStep(
     7,
-    'rollcall',
-    'Roll-call scope',
-    'The summary covers only the group named in “Scope”. It never declares a campus-wide roll call complete.',
-    { targetId: 'responder.rollcall-scope', destination: 'responder.roll-call', optional: true },
+    'map',
+    'Campus map',
+    'Risk areas from incidents and alerts, and spots responders marked as blocked. Routes here are DEMO suggestions on unverified paths, never approved evacuation routes.',
+    { targetId: 'map.panel', destination: 'responder.map', optional: true },
   ),
   tourStep(
     8,
@@ -110,93 +137,83 @@ export const DEFAULT_TOM_KNOWLEDGE: readonly TomEntry[] = [
   ),
 
   // ---- Responder: help requests
-  {
-    id: 'resp-hr-hint-oldest-first',
-    kind: 'HINT',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.help-requests'],
-    title: 'Oldest requests are listed first',
-    body: 'Within each status, the request that has waited longest appears at the top. Use the status filter to switch between Open, Acknowledged, Assigned, Resolved and Cancelled.',
-    contentType: 'APP_HELP',
-    review: draft,
-  },
-  {
-    id: 'resp-hr-faq-acknowledge',
-    kind: 'FAQ',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.help-requests'],
-    title: 'What does “Acknowledge” do?',
-    body: 'It asks the server to record that you have seen the request. The status changes only after the server confirms. In this prototype it does not notify the student or dispatch anyone.',
-    keywords: ['acknowledge', 'ack', 'seen', 'confirm', 'request'],
-    contentType: 'APP_HELP',
-    review: draft,
-  },
-  {
-    id: 'resp-hr-faq-ack-failed',
-    kind: 'FAQ',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.help-requests'],
-    title: 'My acknowledgement failed. What now?',
-    body: 'The request stays in its previous status. Use “Retry acknowledgement”; the retry reuses the same request key so it cannot be recorded twice.',
-    keywords: ['failed', 'error', 'retry', 'acknowledge'],
-    contentType: 'APP_HELP',
-    review: draft,
-  },
-  // ---- Responder: hazard review
-  {
-    id: 'resp-hz-hint-counts',
-    kind: 'HINT',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.hazard-review'],
-    title: 'Counts are not alerts',
-    body: 'Several reports about the same thing do not confirm a hazard. Each report stays “Pending review” until a reviewer records a decision.',
-    contentType: 'APP_HELP',
-    review: draft,
-  },
-  {
-    id: 'resp-hz-faq-verify',
-    kind: 'FAQ',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.hazard-review'],
-    title: 'Does verifying a report alert the campus?',
-    body: 'No. Verifying records your review on the server. Official campus notices are a separate action by authorized staff and are not sent from this screen.',
-    keywords: ['verify', 'verified', 'alert', 'notify', 'broadcast', 'hazard'],
-    contentType: 'APP_HELP',
-    review: draft,
-  },
-  {
-    id: 'resp-hz-faq-duplicate',
-    kind: 'FAQ',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.hazard-review'],
-    title: 'How do I mark a duplicate?',
-    body: "Choose “Duplicate of another report” and enter the other report's ID, then submit the review.",
-    keywords: ['duplicate', 'same', 'merge', 'hazard'],
-    contentType: 'APP_HELP',
-    review: draft,
-  },
-  // ---- Responder: roll call
-  {
-    id: 'resp-rc-hint-scope',
-    kind: 'HINT',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.roll-call'],
-    title: 'Check the scope',
-    body: 'The summary only covers the group named in “Scope”. It is never a campus-wide roll call.',
-    contentType: 'APP_HELP',
-    review: draft,
-  },
+  help(
+    'resp-hr-hint-oldest-first',
+    'HINT',
+    ['responder.help-requests', 'responder.overview'],
+    'Oldest requests are listed first',
+    'Unacknowledged requests that have waited longest appear at the top. The timer values are DEMO placeholders; the ERT sets the real ones.',
+  ),
+  help(
+    'resp-hr-faq-acknowledge',
+    'FAQ',
+    ['responder.help-requests', 'responder.overview'],
+    'What does “Acknowledge” do?',
+    'It asks the server to record that you have seen the request. The status changes only after the server confirms. It does not notify the student or dispatch anyone.',
+    ['acknowledge', 'ack', 'seen', 'confirm', 'request'],
+  ),
+  help(
+    'resp-hr-faq-ack-failed',
+    'FAQ',
+    ['responder.help-requests', 'responder.overview'],
+    'My acknowledgement failed. What now?',
+    'The request stays in its previous status and the error is shown. Select the action again: the retry reuses the same request key, so it cannot be recorded twice.',
+    ['failed', 'error', 'retry', 'acknowledge'],
+  ),
+  // ---- Responder: incidents and hazard queue
+  help(
+    'resp-hz-hint-counts',
+    'HINT',
+    ['responder.incidents', 'responder.overview'],
+    'Counts are not alerts',
+    'Several reports about the same thing raise the level to L2 so someone looks now. They do not confirm a hazard; only a person can verify (L3).',
+  ),
+  help(
+    'resp-hz-faq-verify',
+    'FAQ',
+    ['responder.incidents', 'responder.overview'],
+    'Does confirming a report alert the campus?',
+    'No. Confirming records your decision on the server and stops any running drill. Campus alerts are a separate two-step action by authorised staff.',
+    ['verify', 'verified', 'confirm', 'alert', 'notify', 'broadcast', 'hazard'],
+  ),
+  help(
+    'resp-hz-faq-duplicate',
+    'FAQ',
+    ['responder.incidents', 'responder.overview'],
+    'How do I mark a duplicate?',
+    'When similar open reports exist, the hazard queue shows a Duplicate button. Choose it, check the prefilled reason, and record the decision.',
+    ['duplicate', 'same', 'merge', 'hazard'],
+  ),
+  // ---- Responder: check-ins, drills, map
+  help(
+    'resp-rc-hint-scope',
+    'HINT',
+    ['responder.overview'],
+    'Unconfirmed is not missing',
+    'Check-in counts cover one incident. Unconfirmed never means missing or injured: follow up by phone, a warden check or a physical roll call.',
+  ),
+  help(
+    'resp-dr-hint-stop',
+    'HINT',
+    ['responder.drills'],
+    'Stopping is always allowed',
+    'Any staff member can stop drills. Starting needs a drill manager or admin and no verified incident open.',
+  ),
+  help(
+    'resp-map-hint-blocked',
+    'HINT',
+    ['responder.map'],
+    'Mark blocked spots',
+    'Choose “Tap: mark blocked”, tap the spot and give a reason. Everyone’s routes avoid it until a responder clears it.',
+  ),
   // ---- Responder: contacts
-  {
-    id: 'resp-ct-hint-verification',
-    kind: 'HINT',
-    roles: ['RESPONDER', 'ADMIN'],
-    contexts: ['responder.contacts'],
-    title: "Check each number's status",
-    body: 'Each contact shows its source, when it was last checked, and whether the institution has confirmed it. LIVE mode hides any number the institution has not confirmed.',
-    contentType: 'APP_HELP',
-    review: draft,
-  },
+  help(
+    'resp-ct-hint-verification',
+    'HINT',
+    ['responder.contacts'],
+    "Check each number's status",
+    'Each contact shows its source, when it was last checked, and whether the institution has confirmed it. LIVE mode hides any number the institution has not confirmed.',
+  ),
   // ---- Student (navigation only)
   {
     id: 'student-faq-status',

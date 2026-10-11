@@ -54,6 +54,20 @@ const quiet = { onboarding: false } as const;
 // ---------------------------------------------------------------------------
 const DESTS: TomDestination[] = [
   {
+    id: 'responder.overview',
+    label: 'Overview',
+    description: 'Control room.',
+    keywords: ['overview', 'control room'],
+    roles: ['RESPONDER', 'ADMIN'],
+  },
+  {
+    id: 'responder.drills',
+    label: 'Drills',
+    description: 'Drill console.',
+    keywords: ['drills'],
+    roles: ['RESPONDER', 'ADMIN'],
+  },
+  {
     id: 'responder.help-requests',
     label: 'Help requests',
     description: 'Requests by status.',
@@ -122,7 +136,10 @@ function Host({
       <p data-testid="view">{view}</p>
       <button type="button">Page action</button>
       <Target id="responder.nav">Sections</Target>
-      <Target id="responder.summary">Summary</Target>
+      {view === 'responder.overview' && <Target id="control.stats">Stats</Target>}
+      {view === 'responder.overview' && <Target id="control.help">Help queue</Target>}
+      {view === 'responder.overview' && <Target id="control.hazards">Hazard queue</Target>}
+      {view === 'responder.drills' && <Target id="drills.preflight">Preflight</Target>}
       {view === 'responder.help-requests' && <Target id="responder.status-filter">Filter</Target>}
       {view === 'responder.help-requests' && <Target id="responder.request-list">List</Target>}
       {view === 'responder.hazard-review' && (
@@ -189,14 +206,14 @@ describe('Tom launcher and panel', () => {
   it('dismissed tips stay dismissed for the session and can be restored', async () => {
     const user = userEvent.setup();
     const { unmount } = render(
-      <Tom role="RESPONDER" context="responder.hazard-review" mode="DEMO" {...quiet} />,
+      <Tom role="RESPONDER" context="responder.incidents" mode="DEMO" {...quiet} />,
     );
     await openTom(user);
     await user.click(screen.getByRole('button', { name: 'Dismiss tip: Counts are not alerts' }));
     expect(screen.queryByText('Counts are not alerts.')).not.toBeInTheDocument();
     unmount();
 
-    render(<Tom role="RESPONDER" context="responder.hazard-review" mode="DEMO" {...quiet} />);
+    render(<Tom role="RESPONDER" context="responder.incidents" mode="DEMO" {...quiet} />);
     await openTom(user);
     expect(screen.queryByText('Counts are not alerts.')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Show dismissed tips' }));
@@ -239,7 +256,7 @@ describe('Tom launcher and panel', () => {
     render(
       <Tom
         role="RESPONDER"
-        context="responder.hazard-review"
+        context="responder.incidents"
         mode="DEMO"
         store={broken}
         persistentStore={broken}
@@ -479,17 +496,17 @@ describe('interactive guided tour', () => {
     expect(screen.getByTestId('tour-highlight')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sections' })).toHaveFocus());
 
-    await user.click(screen.getByRole('button', { name: 'Next' })); // summary
-    await user.click(screen.getByRole('button', { name: 'Next' })); // demo banner (optional, absent → skipped)
+    // Demo banner is optional and absent here, so the tour moves on to the overview.
+    await user.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() =>
-      expect(screen.getByRole('dialog', { name: 'Filter by status' })).toBeInTheDocument(),
+      expect(screen.getByRole('dialog', { name: 'At a glance' })).toBeInTheDocument(),
     );
-    await user.click(screen.getByRole('button', { name: 'Next' })); // requests
-    await user.click(screen.getByRole('button', { name: 'Next' })); // hazards → navigates
-    await waitFor(() =>
-      expect(screen.getByTestId('view')).toHaveTextContent('responder.hazard-review'),
-    );
-    expect(screen.getByText('Now showing Hazard review.')).toBeInTheDocument();
+    expect(screen.getByTestId('view')).toHaveTextContent('responder.overview');
+    await user.click(screen.getByRole('button', { name: 'Next' })); // help queue
+    await user.click(screen.getByRole('button', { name: 'Next' })); // hazard queue
+    await user.click(screen.getByRole('button', { name: 'Next' })); // drills → navigates
+    await waitFor(() => expect(screen.getByTestId('view')).toHaveTextContent('responder.drills'));
+    expect(screen.getByText('Now showing Drills.')).toBeInTheDocument();
   });
 
   it('can be completed with the keyboard and restores the starting view and focus', async () => {
@@ -524,9 +541,11 @@ describe('interactive guided tour', () => {
     await startTour(user);
     expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByRole('dialog', { name: 'Queue summary' })).toBeInTheDocument();
+    // The optional demo-banner step is absent, so Next lands on the overview step.
+    expect(await screen.findByRole('dialog', { name: 'At a glance' })).toBeInTheDocument();
+    // Back skips the absent optional step in the direction of travel.
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByRole('dialog', { name: 'Sections' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Sections' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Skip tour' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -585,10 +604,10 @@ describe('role and context awareness', () => {
   it('shows responder help only to responders', async () => {
     const user = userEvent.setup();
     const { unmount } = render(
-      <Tom role="STUDENT" context="responder.hazard-review" mode="DEMO" {...quiet} />,
+      <Tom role="STUDENT" context="responder.incidents" mode="DEMO" {...quiet} />,
     );
     await openTom(user);
-    expect(screen.queryByText(/Does verifying a report alert the campus/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Does confirming a report alert the campus/)).not.toBeInTheDocument();
     expect(
       within(screen.getByRole('region', { name: 'Common questions' })).getByText(
         'How do I know my check-in was received?',
@@ -596,11 +615,11 @@ describe('role and context awareness', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Take the tour/ })).not.toBeInTheDocument();
     unmount();
-    render(<Tom role="RESPONDER" context="responder.hazard-review" mode="DEMO" {...quiet} />);
+    render(<Tom role="RESPONDER" context="responder.incidents" mode="DEMO" {...quiet} />);
     await openTom(user);
     expect(
       within(screen.getByRole('region', { name: 'Common questions' })).getByText(
-        /Does verifying a report alert the campus/,
+        /Does confirming a report alert the campus/,
       ),
     ).toBeInTheDocument();
   });
@@ -612,9 +631,9 @@ describe('role and context awareness', () => {
     );
     await openTom(user);
     expect(screen.getByText('Oldest requests are listed first.')).toBeInTheDocument();
-    rerender(<Tom role="RESPONDER" context="responder.roll-call" mode="DEMO" {...quiet} />);
+    rerender(<Tom role="RESPONDER" context="responder.drills" mode="DEMO" {...quiet} />);
     expect(screen.queryByText('Oldest requests are listed first.')).not.toBeInTheDocument();
-    expect(screen.getByText('Check the scope.')).toBeInTheDocument();
+    expect(screen.getByText('Stopping is always allowed.')).toBeInTheDocument();
   });
 
   it('in LIVE mode hides unreviewed drafts and says so when nothing reviewed exists', async () => {
