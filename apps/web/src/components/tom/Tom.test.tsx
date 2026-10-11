@@ -501,7 +501,7 @@ describe('interactive guided tour', () => {
     await waitFor(() =>
       expect(screen.getByRole('dialog', { name: 'At a glance' })).toBeInTheDocument(),
     );
-    expect(screen.getByTestId('view')).toHaveTextContent('responder.overview');
+    await waitFor(() => expect(screen.getByTestId('view')).toHaveTextContent('responder.overview'));
     await user.click(screen.getByRole('button', { name: 'Next' })); // help queue
     await user.click(screen.getByRole('button', { name: 'Next' })); // hazard queue
     await user.click(screen.getByRole('button', { name: 'Next' })); // drills → navigates
