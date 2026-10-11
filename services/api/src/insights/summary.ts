@@ -145,7 +145,9 @@ export function groqSummarizer(
           body: JSON.stringify({
             model,
             temperature: 0.1,
-            max_completion_tokens: 400,
+            // gpt-oss models spend part of the budget on reasoning; 400 cut the JSON off.
+            max_completion_tokens: 1500,
+            reasoning_effort: 'low',
             messages: [
               { role: 'system', content: SYSTEM },
               { role: 'user', content: JSON.stringify(facts) },

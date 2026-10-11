@@ -186,19 +186,29 @@ describe('insights API', () => {
   });
 
   it('serves a cached summary per view and day, and is unavailable outside DEMO', async () => {
-    const summarize = vi.fn(async () => null);
+    const summarize = vi.fn<() => Promise<string | null>>(async () => null);
     const app = createApp(pool, config, {
       insights: { summarizer: { model: 'm', summarize }, now: () => ASOF },
     });
     const first = await request(app).get('/api/v1/insights/summary').set(auth('student'));
     expect(first.body).toMatchObject({ view: 'student', source: 'APP' });
     expect(first.body.fallbackReason).toMatch(/did not answer/);
+    // A failed AI call is not cached: the next request tries again.
+    const facts = first.body.text as string;
+    summarize.mockResolvedValue(`Synthetic data only. ${facts}`);
+    const second = await request(app).get('/api/v1/insights/summary').set(auth('student'));
+    expect(second.body.source).toBe('AI');
+    // An AI summary is cached for the day.
     await request(app).get('/api/v1/insights/summary').set(auth('student'));
-    expect(summarize).toHaveBeenCalledTimes(1);
+    expect(summarize).toHaveBeenCalledTimes(2);
 
-    const live = createApp(pool, { ...config, OPERATING_MODE: 'DRILL' }, {
-      insights: { summarizer: null, now: () => ASOF },
-    });
+    const live = createApp(
+      pool,
+      { ...config, OPERATING_MODE: 'DRILL' },
+      {
+        insights: { summarizer: null, now: () => ASOF },
+      },
+    );
     expect((await request(live).get('/api/v1/insights').set(auth('admin'))).status).toBe(404);
   });
 });

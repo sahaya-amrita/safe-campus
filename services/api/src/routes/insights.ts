@@ -61,7 +61,8 @@ export function insightsRouter(
       return;
     }
     const summary = await buildSummary(insights, summarizer, asOf);
-    cache.set(key, summary);
+    // Cache AI summaries only, so a failed call is retried instead of sticking all day.
+    if (summary.source === 'AI') cache.set(key, summary);
     response.json(summary);
   });
 
