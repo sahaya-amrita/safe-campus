@@ -34,6 +34,9 @@ services:
       # Sign-in by email code (DEMO password login is refused in production).
       # Set EMAIL_PROVIDER=resend with RESEND_API_KEY and EMAIL_FROM, or leave it
       # unset and the app reports that codes cannot be emailed.
+      # Hosted prototype: fictional seeded DEMO accounts sign in with passwords.
+      - key: DEMO_LOGIN_ENABLED
+        value: 'true'
       - key: AUTH_ALLOWED_EMAIL_DOMAINS
         sync: false
       - key: EMAIL_PROVIDER

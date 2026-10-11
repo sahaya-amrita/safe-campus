@@ -42,11 +42,12 @@ const envSchema = z
     OTP_MAX_PER_HOUR: z.coerce.number().int().min(1).max(30).optional(),
   })
   .superRefine((env, context) => {
-    if (env.NODE_ENV === 'production' && env.DEMO_LOGIN_ENABLED)
+    // A hosted prototype may opt in, but only while every record is DEMO data.
+    if (env.NODE_ENV === 'production' && env.DEMO_LOGIN_ENABLED && env.OPERATING_MODE !== 'DEMO')
       context.addIssue({
         code: 'custom',
         path: ['DEMO_LOGIN_ENABLED'],
-        message: 'DEMO password login cannot be enabled in production',
+        message: 'DEMO password login in production requires OPERATING_MODE=DEMO',
       });
     if (env.NODE_ENV === 'production' && env.EMAIL_PROVIDER === 'dev')
       context.addIssue({
@@ -83,7 +84,8 @@ export function authSettings(config: Config): AuthSettings {
   const production = config.NODE_ENV === 'production';
   const provider = config.EMAIL_PROVIDER ?? 'disabled';
   return {
-    demoLoginEnabled: !production && config.DEMO_LOGIN_ENABLED === true,
+    demoLoginEnabled:
+      config.DEMO_LOGIN_ENABLED === true && (!production || config.OPERATING_MODE === 'DEMO'),
     allowedEmailDomains: (config.AUTH_ALLOWED_EMAIL_DOMAINS ?? '')
       .split(',')
       .map((domain) => domain.trim().toLowerCase().replace(/^@/, ''))
