@@ -73,7 +73,24 @@ describe('configuration', () => {
     expect(demo.status).toBe(404);
   });
 
-  it('never allows DEMO login or the dev mailbox in production', () => {
+  it('allows DEMO login in production only for an all-DEMO hosted prototype', () => {
+    const demoProd = {
+      ...config,
+      NODE_ENV: 'production' as const,
+      OPERATING_MODE: 'DEMO' as const,
+    };
+    expect(authSettings({ ...demoProd, DEMO_LOGIN_ENABLED: true }).demoLoginEnabled).toBe(true);
+    expect(authSettings({ ...demoProd, DEMO_LOGIN_ENABLED: false }).demoLoginEnabled).toBe(false);
+    expect(() =>
+      loadConfig({
+        ...demoProd,
+        DEMO_LOGIN_ENABLED: 'true',
+        EMAIL_PROVIDER: 'disabled',
+      } as Record<string, unknown>),
+    ).not.toThrow();
+  });
+
+  it('never allows DEMO login (outside DEMO mode) or the dev mailbox in production', () => {
     const base = { ...config, NODE_ENV: 'production' } as Record<string, unknown>;
     expect(() => loadConfig({ ...base, DEMO_LOGIN_ENABLED: 'true' })).toThrow(/DEMO password/);
     expect(() => loadConfig({ ...base, EMAIL_PROVIDER: 'dev' })).toThrow(/dev mailbox/);
