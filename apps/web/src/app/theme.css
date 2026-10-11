@@ -1924,3 +1924,9 @@ a[href^='tel:']:not([class]) {
 .as-duty__seg button {
   min-height: var(--ds-touch);
 }
+
+.as-graph-input {
+  min-height: 160px;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: var(--ds-text-sm);
+}

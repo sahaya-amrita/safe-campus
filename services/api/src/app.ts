@@ -18,6 +18,7 @@ import { createEmailSender, DevMailbox, type EmailSender } from './auth/email.js
 import { adminRouter } from './routes/admin.js';
 import { attachmentsRouter } from './routes/attachments.js';
 import { sosRouter } from './routes/sos.js';
+import { adminNavigationRouter, navigationRouter } from './routes/navigation.js';
 import { adminRespondersRouter, responderSelfRouter, rollCallRouter } from './routes/operations.js';
 import { authRouter, devMailboxRouter } from './routes/auth.js';
 import { alertsRouter } from './routes/alerts.js';
@@ -88,6 +89,7 @@ export function createApp(
   app.use('/api/v1/assistant', assistant.router);
   app.use('/api/v1/users', usersRouter(pool));
   app.use('/api/v1/admin/responders', adminRespondersRouter(pool, config));
+  app.use('/api/v1/admin/navigation', adminNavigationRouter(pool, config));
   app.use('/api/v1/admin', adminRouter(pool));
   app.use('/api/v1/incidents', incidentsRouter(pool, config));
   app.use(
@@ -108,6 +110,7 @@ export function createApp(
   app.use('/api/v1/trusted-contacts', trustedContactsRouter(pool, config));
   app.use('/api/v1/drills', drillsRouter(pool));
   app.use('/api/v1/training', trainingRouter(pool));
+  app.use('/api/v1/maps', navigationRouter(pool));
   app.use('/api/v1/maps', mapsRouter(pool, config));
   app.use(notFoundHandler);
   app.use(errorHandler);

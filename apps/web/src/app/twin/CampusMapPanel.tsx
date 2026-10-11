@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useMemo, useState, type FormEvent } from 'react';
 import {
   featureName,
   parseCampusData,
@@ -6,15 +6,15 @@ import {
   type CampusData,
 } from '../../features/maps/campus-model.ts';
 import {
-  buildWalkGraph,
   featureCentre,
-  findSafeRoute,
   formatWalk,
-  openGrounds,
   unprojectPoint,
   type Point,
   type SafeDestination,
 } from '../../features/maps/safe-route.ts';
+import type { RouteResponse } from '@sahaya/contracts';
+import { ApiError } from '../api/client';
+import { StatusBanner } from '../../design-system';
 import { useKeyForBody } from '../responder/shared';
 import type { SahayaApi } from '../api/sahaya';
 import { Card, EmptyState, ErrorNotice, Loading, Pill, useAsync, VerificationPill } from '../ui';
@@ -42,17 +42,18 @@ function loadCampus(): Promise<CampusData> {
   return campusRequest;
 }
 
-type Goal = 'SAFETY' | 'DIRECTIONS';
-type TapAction = 'START' | 'DESTINATION' | 'PRACTICE' | 'BLOCK';
+type TapAction = 'START' | 'PRACTICE' | 'BLOCK';
 type Start =
   { kind: 'BUILDING'; featureId: string } | { kind: 'GPS'; point: Point; accuracy: number };
 
 /**
- * Campus map shared by students and responders. Its job is to answer "where is
- * the risk, and how do I keep away from it?": risk areas from open incidents
- * and active alerts, and the fastest walking route that avoids them. All
- * geometry is community-mapped DEMO data, so every route is labelled as a
- * demonstration and never as an approved evacuation route.
+ * Campus map shared by students and responders: risk areas from open
+ * incidents and active alerts, and responder-marked blocked spots.
+ *
+ * Routes (Phase 5) come only from the server, computed over an APPROVED route
+ * graph to an APPROVED safe point (two-person approval), avoiding blocked
+ * spots. With no approved data the map says "Navigation unavailable" and draws
+ * no route: community-mapped paths are never used for guidance.
  */
 export function CampusMapPanel({
   api,
@@ -71,9 +72,10 @@ export function CampusMapPanel({
   const buildings = useAsync(() => api.buildings(), [api]);
   const blocks = useAsync(() => api.routeBlocks(), [api], 20_000);
   const [pendingBlock, setPendingBlock] = useState<Point | null>(null);
-  const [goal, setGoal] = useState<Goal>('SAFETY');
   const [start, setStart] = useState<Start | null>(null);
-  const [target, setTarget] = useState<string | null>(null);
+  const [safePointId, setSafePointId] = useState<string | null>(null);
+  const [stepFree, setStepFree] = useState(false);
+  const nav = useAsync(() => api.navigationStatus(), [api], 60_000);
   const [practice, setPractice] = useState<string[]>([]);
   const [tap, setTap] = useState<TapAction>('START');
   const [view, setView] = useState<'2D' | '3D'>('2D');
@@ -81,8 +83,6 @@ export function CampusMapPanel({
   const [locating, setLocating] = useState(false);
 
   const data = campus.data ?? null;
-  const graph = useMemo(() => (data ? buildWalkGraph(data) : null), [data]);
-  const grounds = useMemo(() => (data ? openGrounds(data) : []), [data]);
   const named = useMemo(
     () =>
       data
@@ -114,27 +114,39 @@ export function CampusMapPanel({
     return f ? featureCentre(f, data) : null;
   }, [data, start]);
 
-  const destinations = useMemo<SafeDestination[]>(() => {
-    if (goal === 'SAFETY') return grounds;
-    const f = data && target ? data.features.find((x) => x.id === target) : null;
-    return f && data
-      ? [{ id: f.id, label: featureName(f), centre: featureCentre(f, data), areaM2: 0 }]
-      : [];
-  }, [goal, grounds, data, target]);
-
-  const result = useMemo(
-    () =>
-      graph && startPoint && destinations.length
-        ? findSafeRoute(graph, startPoint, risks, destinations)
-        : null,
-    [graph, startPoint, destinations, risks],
+  const available = nav.data?.available === true;
+  const safePoint = nav.data?.safePoints.find((p) => p.id === safePointId) ?? null;
+  const startLngLat = data && startPoint ? unprojectPoint(startPoint, data.bounds) : null;
+  const routeQuery = useAsync<RouteResponse>(
+    available && startLngLat && safePointId
+      ? () =>
+          api.navigationRoute({
+            fromLat: startLngLat[1],
+            fromLng: startLngLat[0],
+            safePointId,
+            accessible: stepFree,
+          })
+      : null,
+    [api, available, startLngLat?.[0], startLngLat?.[1], safePointId, stepFree, blocks.data],
   );
-  const route = result?.status === 'ROUTE' ? result : null;
-
-  // A new goal keeps the start; a stale "destination" tap mode would confuse.
-  useEffect(() => {
-    if (goal === 'SAFETY' && tap === 'DESTINATION') setTap('START');
-  }, [goal, tap]);
+  const route = routeQuery.data && available && startLngLat && safePointId ? routeQuery.data : null;
+  const routePath = useMemo<Point[] | null>(
+    () =>
+      route && data ? route.path.map((p) => projectCoordinate([p.lng, p.lat], data.bounds)) : null,
+    [route, data],
+  );
+  const destination = useMemo<SafeDestination | null>(
+    () =>
+      safePoint && data
+        ? {
+            id: safePoint.id,
+            label: safePoint.name,
+            centre: projectCoordinate([safePoint.longitude, safePoint.latitude], data.bounds),
+            areaM2: 0,
+          }
+        : null,
+    [safePoint, data],
+  );
 
   const onPick = (featureId: string | null, point?: Point) => {
     if (tap === 'BLOCK') {
@@ -149,7 +161,6 @@ export function CampusMapPanel({
       setPractice((p) =>
         p.includes(featureId) ? p.filter((x) => x !== featureId) : [...p, featureId],
       );
-    else if (tap === 'DESTINATION') setTarget(featureId);
     else setStart({ kind: 'BUILDING', featureId });
   };
 
@@ -182,50 +193,35 @@ export function CampusMapPanel({
     );
   };
 
-  const highlight = [
-    ...(start?.kind === 'BUILDING' ? [start.featureId] : []),
-    ...(goal === 'DIRECTIONS' && target ? [target] : []),
-  ];
+  const highlight = start?.kind === 'BUILDING' ? [start.featureId] : [];
   const pickHint =
     tap === 'BLOCK'
       ? 'Tap the blocked spot: a path, gate or building.'
       : tap === 'PRACTICE'
         ? 'Tap a building to add or remove a practice hazard.'
-        : tap === 'DESTINATION'
-          ? 'Tap a building to go there.'
-          : 'Tap a building to start from it.';
+        : 'Tap a building to start from it.';
 
   return (
     <div className="as-stack">
       <p className="as-notice as-notice--warn" role="note">
-        <strong>DEMO map — not for live navigation.</strong> Paths are community-mapped and routes
-        are suggestions that avoid known risk areas, not approved evacuation routes. Follow alarms,
-        staff and official instructions first.
+        <strong>DEMO map — community-mapped, not verified.</strong> Routes appear only when an
+        administrator-approved route network and safe points exist. Follow alarms, staff and
+        official instructions first.
       </p>
 
       <div ref={mapTarget}>
-        <Card title="Safe route" icon="map" labelledBy="as-map-route">
+        <Card title="Route to a safe point" icon="map" labelledBy="as-map-route">
           {campus.loading && !data && <Loading label="Loading campus map…" />}
           {Boolean(campus.error) && <ErrorNotice error={campus.error} onRetry={campus.reload} />}
-          {data && graph && (
+          {data && (
             <div className="as-saferoute">
-              <div className="as-seg" role="group" aria-label="What do you need?">
-                <button
-                  type="button"
-                  aria-pressed={goal === 'SAFETY'}
-                  onClick={() => setGoal('SAFETY')}
-                >
-                  Get to open ground
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={goal === 'DIRECTIONS'}
-                  onClick={() => setGoal('DIRECTIONS')}
-                >
-                  Directions
-                </button>
-              </div>
-
+              {nav.data && !available && (
+                <StatusBanner tone="warn" title="Navigation unavailable">
+                  {nav.data.reason ? `Reason: ${nav.data.reason} ` : ''}No route is drawn without
+                  approved route data. Follow alarms, staff and signs. The map still shows risk
+                  areas and blocked spots.
+                </StatusBanner>
+              )}
               <div className="as-saferoute__fields">
                 <label className="as-field">
                   From
@@ -260,24 +256,31 @@ export function CampusMapPanel({
                 >
                   {locating ? 'Locating…' : 'Use my location'}
                 </button>
-                {goal === 'DIRECTIONS' && (
+                {available && (
                   <label className="as-field">
-                    To
+                    To an approved safe point
                     <select
                       className="as-select"
-                      value={target ?? ''}
-                      onChange={(e) => setTarget(e.target.value || null)}
+                      value={safePointId ?? ''}
+                      onChange={(e) => setSafePointId(e.target.value || null)}
                     >
-                      <option value="">Choose a building…</option>
-                      {target && !named.some((f) => f.id === target) && (
-                        <option value={target}>Selected on map</option>
-                      )}
-                      {named.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {featureName(f)}
+                      <option value="">Choose a safe point…</option>
+                      {nav.data?.safePoints.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.kind.replace(/_/g, ' ').toLowerCase()})
                         </option>
                       ))}
                     </select>
+                  </label>
+                )}
+                {available && (
+                  <label className="as-check">
+                    <input
+                      type="checkbox"
+                      checked={stepFree}
+                      onChange={(e) => setStepFree(e.target.checked)}
+                    />
+                    Step-free route only
                   </label>
                 )}
               </div>
@@ -301,15 +304,6 @@ export function CampusMapPanel({
                   >
                     Tap: start
                   </button>
-                  {goal === 'DIRECTIONS' && (
-                    <button
-                      type="button"
-                      aria-pressed={tap === 'DESTINATION'}
-                      onClick={() => setTap('DESTINATION')}
-                    >
-                      Tap: destination
-                    </button>
-                  )}
                   <button
                     type="button"
                     aria-pressed={tap === 'PRACTICE'}
@@ -341,10 +335,10 @@ export function CampusMapPanel({
                 <SafeMap2D
                   data={data}
                   risks={risks}
-                  route={route?.path ?? null}
+                  route={routePath}
                   start={startPoint}
-                  destination={route?.destination ?? null}
-                  grounds={goal === 'SAFETY' ? grounds : []}
+                  destination={destination}
+                  grounds={[]}
                   highlight={highlight}
                   onPick={onPick}
                   pickHint={pickHint}
@@ -354,9 +348,9 @@ export function CampusMapPanel({
                   <SafeMap3D
                     data={data}
                     risks={risks}
-                    route={route?.path ?? null}
+                    route={routePath}
                     start={startPoint}
-                    destination={route?.destination ?? null}
+                    destination={destination}
                     highlight={highlight[0] ?? null}
                     onPick={onPick}
                   />
@@ -378,14 +372,8 @@ export function CampusMapPanel({
 
               <ul className="as-saferoute__legend" aria-label="Map legend">
                 <li>
-                  <i className="as-key as-key--route" /> Suggested route
+                  <i className="as-key as-key--route" /> Approved route
                 </li>
-                {goal === 'SAFETY' && (
-                  <li>
-                    <i className="as-key as-key--ground" /> Open ground (not a designated assembly
-                    point)
-                  </li>
-                )}
                 {(Object.keys(RISK_STYLE) as (keyof typeof RISK_STYLE)[]).map((k) => (
                   <li key={k}>
                     <i
@@ -397,13 +385,15 @@ export function CampusMapPanel({
                 ))}
               </ul>
 
-              <RouteSummary
-                hasStart={Boolean(startPoint)}
-                needsTarget={goal === 'DIRECTIONS' && !target}
-                result={result}
-                goal={goal}
-                riskCount={risks.length}
-              />
+              {available && (
+                <RouteSummary
+                  hasStart={Boolean(startPoint)}
+                  hasTarget={Boolean(safePointId)}
+                  loading={routeQuery.loading}
+                  error={routeQuery.error}
+                  route={route}
+                />
+              )}
             </div>
           )}
         </Card>
@@ -473,16 +463,16 @@ export function CampusMapPanel({
 
 function RouteSummary({
   hasStart,
-  needsTarget,
-  result,
-  goal,
-  riskCount,
+  hasTarget,
+  loading,
+  error,
+  route,
 }: {
   hasStart: boolean;
-  needsTarget: boolean;
-  result: ReturnType<typeof findSafeRoute> | null;
-  goal: Goal;
-  riskCount: number;
+  hasTarget: boolean;
+  loading: boolean;
+  error: unknown;
+  route: RouteResponse | null;
 }) {
   if (!hasStart)
     return (
@@ -490,58 +480,50 @@ function RouteSummary({
         Choose where you are, use your location, or tap a building on the map.
       </p>
     );
-  if (needsTarget) return <p className="as-muted">Choose a building to go to.</p>;
-  if (!result) return null;
-  if (result.status === 'NO_ROUTE')
+  if (!hasTarget) return <p className="as-muted">Choose an approved safe point.</p>;
+  if (loading && !route) return <Loading label="Finding the approved route…" />;
+  if (error && !route) {
+    const code = error instanceof ApiError ? error.code : '';
     return (
       <div className="as-notice as-notice--danger" role="alert">
         <strong>
-          {result.reason === 'NO_PATH_NETWORK'
-            ? 'No mapped paths are available.'
-            : goal === 'DIRECTIONS'
-              ? 'That building is inside or beside a risk area, or cannot be reached without passing through one.'
-              : 'No route avoids every risk area.'}
+          {code === 'NO_ROUTE'
+            ? 'No approved route avoids the blocked areas.'
+            : code === 'START_OFF_NETWORK'
+              ? 'You are too far from any approved route.'
+              : code === 'NAVIGATION_UNAVAILABLE'
+                ? 'Navigation is unavailable for this safe point.'
+                : 'The route could not be loaded.'}
         </strong>{' '}
-        Move away from the hazard, follow staff instructions, and call security or{' '}
-        <a href="tel:112">112</a> if anyone is in danger.
+        Follow staff and signs, and call security or <a href="tel:112">112</a> if anyone is in
+        danger.
       </div>
     );
+  }
+  if (!route) return null;
   return (
-    <section className="as-routecard" aria-live="polite" aria-label="Suggested route">
+    <section className="as-routecard" aria-live="polite" aria-label="Approved route">
       <header className="as-routecard__head">
         <div>
           <p className="as-routecard__kicker">
-            {goal === 'SAFETY' ? 'Nearest open ground' : 'Directions'}
+            {route.safePoint.kind.replace(/_/g, ' ').toLowerCase()}
           </p>
-          <h3 className="as-routecard__title">{result.destination.label}</h3>
+          <h3 className="as-routecard__title">{route.safePoint.name}</h3>
         </div>
         <div className="as-routecard__eta">
-          <strong>{Math.round(result.distanceM)} m</strong>
-          <span>{formatWalk(result.walkSeconds)}</span>
+          <strong>{route.distanceM} m</strong>
+          <span>{formatWalk(route.walkSeconds)}</span>
         </div>
       </header>
       <div className="as-row">
-        <Pill tone="warn">DEMO route · not approved</Pill>
-        {riskCount > 0 && (
-          <Pill tone="ok">
-            Avoids {riskCount} risk area{riskCount === 1 ? '' : 's'}
+        <Pill tone="ok">Approved route data · version {route.graphVersion}</Pill>
+        {route.blocksAvoided > 0 && (
+          <Pill tone="info">
+            Avoids {route.blocksAvoided} blocked spot{route.blocksAvoided === 1 ? '' : 's'}
           </Pill>
         )}
-        {result.nearRisk && <Pill tone="warn">Passes near a risk area</Pill>}
       </div>
-      {result.startsInRisk && (
-        <p className="as-notice as-notice--danger" role="alert">
-          You are inside a risk area. Leave by the nearest safe exit first and follow staff.
-        </p>
-      )}
-      <ol className="as-routecard__steps">
-        {result.steps.map((s, i) => (
-          <li key={i}>
-            <span>{s.instruction}</span>
-            {s.distanceM > 0 && <span className="as-muted">{s.distanceM} m</span>}
-          </li>
-        ))}
-      </ol>
+      <p className="as-small as-muted">{route.note}</p>
     </section>
   );
 }

@@ -13,26 +13,6 @@ export interface PlannedSection {
 
 export const PLANNED_ADMIN_SECTIONS: readonly PlannedSection[] = [
   {
-    section: 'map-data',
-    label: 'Campus map data',
-    phase: 'Phase 5 (maps and safe points)',
-    summary: 'Manage buildings, floors and approved route geometry.',
-    needs: [
-      'Verified campus geometry and floor plans from the institution',
-      'A versioned map-data model with an approval workflow',
-    ],
-  },
-  {
-    section: 'safe-points',
-    label: 'Safe-point approvals',
-    phase: 'Phase 5 (maps and safe points)',
-    summary: 'Approve assembly points and safe destinations before any route uses them.',
-    needs: [
-      'An approved safe-point model and review endpoint',
-      'Institutional sign-off; the app must never invent safe destinations',
-    ],
-  },
-  {
     section: 'settings',
     label: 'System settings',
     phase: 'Phase 7 (administration, analytics and deployment)',

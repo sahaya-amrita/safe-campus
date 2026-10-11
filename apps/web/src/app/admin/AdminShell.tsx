@@ -17,6 +17,7 @@ import { StaffLayout, activeItem, toDestinations, type StaffNavItem } from '../s
 import { AdminDashboard } from './AdminDashboard';
 import { AuditPage } from './AuditPage';
 import { RosterPage } from './RosterPage';
+import { MapDataPage, SafePointsPage } from './NavigationAdmin';
 import { UsersPage } from './UsersPage';
 import { PLANNED_ADMIN_SECTIONS } from './plannedSections';
 
@@ -62,6 +63,26 @@ export const ADMIN_NAV: StaffNavItem[] = [
     icon: 'hand',
     description: 'Add responders, assign zones and verify them. Every change is audited.',
     keywords: ['responder', 'roster', 'zone', 'verify', 'duty'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.map-data',
+    section: 'map-data',
+    path: `${ROUTES.admin.root}/map-data`,
+    label: 'Campus map data',
+    icon: 'map',
+    description: 'Upload route data and approve it (two-person rule).',
+    keywords: ['map', 'route', 'graph', 'navigation', 'path'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.safe-points',
+    section: 'safe-points',
+    path: `${ROUTES.admin.root}/safe-points`,
+    label: 'Safe-point approvals',
+    icon: 'pin',
+    description: 'Propose and approve assembly points, shelters and exits (two-person rule).',
+    keywords: ['safe point', 'assembly', 'shelter', 'exit', 'approve'],
     roles: [ADMIN],
   },
   {
@@ -153,6 +174,12 @@ function AdminWorkspace({ user }: { user: Me }) {
         break;
       case 'admin.users':
         view = <UsersPage api={api} user={user} />;
+        break;
+      case 'admin.map-data':
+        view = <MapDataPage api={api} user={user} />;
+        break;
+      case 'admin.safe-points':
+        view = <SafePointsPage api={api} user={user} />;
         break;
       case 'admin.responders':
         view = <RosterPage api={api} user={user} />;

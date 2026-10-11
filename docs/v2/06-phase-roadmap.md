@@ -46,13 +46,13 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Evidence viewer                                     | **Built in Phase 3** (audited photo views)                                                   |
 | Roll call                                           | **Built** (per person, incident and drill)                                                   |
 
-## Phase 5: maps, digital twin and safe points (M6)
+## Phase 5: maps, digital twin and safe points (built; see [11](./11-phase5-maps-navigation.md))
 
-| Item                                                                        | Integration boundary                                                                                                                |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Digital twin representation                                                 | 2D floor-plan viewer; 3D only if approved                                                                                           |
-| Verified safe-point routing                                                 | A* with a Dijkstra baseline over an approved graph. Without verified data the app says "Navigation unavailable" and draws no route. |
-| Map data and safe-point approvals (`/admin/map-data`, `/admin/safe-points`) | Versioned geometry with an approval workflow                                                                                        |
+| Item                              | Status                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| Digital twin representation       | **Kept** (2D map and 3D illustration, both labelled unverified)                   |
+| Verified safe-point routing       | **Built** (A\* over approved route data only; "Navigation unavailable" otherwise) |
+| Map data and safe-point approvals | **Built** (two-person rule, audited)                                              |
 
 ## Phase 6: drills, learning and Tom
 
@@ -71,9 +71,9 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Privacy and support pages, final    | Replace the Phase 1 drafts after institutional and legal review      |
 | Deployment                          | Production CORS, host secrets, second-device and real-device testing |
 
-## Prerequisites for Phase 5 (owner actions)
+## Prerequisites for Phase 6 (owner actions)
 
-1. **Review and approve** Phase 4 (`feat/phase4-responder-ops`).
-2. **Maps:** provide verified campus geometry (buildings, floors, exits) and approved assembly points, or confirm Phase 5 should build the map and routing with "Navigation unavailable" until such data exists.
-3. **3D view:** confirm whether to keep or remove the 3D campus view (the master plan proposes removing it).
-4. **Still outstanding:** a Postgres database for development and staging, an email provider, photo storage and retention, a notification provider decision, and rotating the Groq key.
+1. **Review** Phase 5 (`feat/phase5-maps`).
+2. **Map data:** campus estates or security to supply route data and safe points, and two administrators to approve them.
+3. **Tom:** a named reviewer for Tom's help content.
+4. **Still outstanding:** Postgres for development and staging, email provider, photo storage, notification provider, rotating the Groq key.

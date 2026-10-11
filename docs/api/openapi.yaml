@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Amrita Sahaya API
-  version: 0.4.0
+  version: 0.5.0
   description: >-
     Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
     behavior is simulated. No endpoint contacts real emergency services.
@@ -28,6 +28,7 @@ tags:
   - name: Attachments
   - name: Responder operations
   - name: Roll call
+  - name: Navigation
 paths:
   /health:
     get:
@@ -1367,6 +1368,216 @@ paths:
                   note: { type: string }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /maps/navigation:
+    get:
+      tags: [Navigation]
+      operationId: getNavigationStatus
+      summary: Whether approved route data and approved safe points exist
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available: { type: boolean }
+                  reason: { type: [string, 'null'] }
+                  graph: { type: [object, 'null'] }
+                  safePoints: { type: array, items: { $ref: '#/components/schemas/SafePoint' } }
+  /maps/safe-points:
+    get:
+      tags: [Navigation]
+      operationId: listSafePoints
+      summary: Safe points (students see APPROVED only; staff see all)
+      responses:
+        '200':
+          description: Safe points
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/SafePoint' } }
+  /maps/route:
+    get:
+      tags: [Navigation]
+      operationId: getRoute
+      summary: Route over the APPROVED route graph to an APPROVED safe point, avoiding active blocks (A*)
+      parameters:
+        - { name: fromLat, in: query, required: true, schema: { type: number } }
+        - { name: fromLng, in: query, required: true, schema: { type: number } }
+        - { name: safePointId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: accessible, in: query, schema: { enum: ['true', 'false'] } }
+      responses:
+        '200':
+          description: Route
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    {
+                      type: array,
+                      items:
+                        {
+                          type: object,
+                          properties: { lat: { type: number }, lng: { type: number } },
+                        },
+                    }
+                  distanceM: { type: integer }
+                  walkSeconds: { type: integer }
+                  graphVersion: { type: string }
+                  safePoint: { $ref: '#/components/schemas/SafePoint' }
+                  blocksAvoided: { type: integer }
+                  startSnapM: { type: integer }
+                  note: { type: string }
+        '409': { description: NAVIGATION_UNAVAILABLE or NO_ROUTE }
+        '422': { description: START_OFF_NETWORK (more than 150 m from the approved routes) }
+  /admin/navigation/safe-points:
+    post:
+      tags: [Administration]
+      operationId: adminProposeSafePoint
+      summary: Propose a safe point (PROPOSED until a second administrator approves)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, kind, latitude, longitude, reason]
+              properties:
+                name: { type: string }
+                kind: { enum: [ASSEMBLY_POINT, SHELTER, EXIT] }
+                latitude: { type: number }
+                longitude: { type: number }
+                buildingId: { type: string, format: uuid }
+                notes: { type: string }
+                reason: { type: string, minLength: 5 }
+      responses:
+        '201':
+          {
+            description: Proposed,
+            content: { application/json: { schema: { $ref: '#/components/schemas/SafePoint' } } },
+          }
+  /admin/navigation/safe-points/{id}/review:
+    post:
+      tags: [Administration]
+      operationId: adminReviewSafePoint
+      summary: Approve or retire a safe point (the proposer cannot approve; 409 SAME_PERSON)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: { enum: [APPROVE, RETIRE] }
+                reason: { type: string, minLength: 5, maxLength: 300 }
+      responses:
+        '200':
+          {
+            description: Updated,
+            content: { application/json: { schema: { $ref: '#/components/schemas/SafePoint' } } },
+          }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/navigation/route-graphs:
+    get:
+      tags: [Administration]
+      operationId: adminListRouteGraphs
+      summary: Route data versions
+      responses:
+        '200':
+          description: Versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/RouteGraph' } }
+    post:
+      tags: [Administration]
+      operationId: adminUploadRouteGraph
+      summary: Upload route data (nodes and edges) as a DRAFT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, source, nodes, edges, reason]
+              properties:
+                version: { type: string }
+                source: { type: string }
+                nodes:
+                  {
+                    type: array,
+                    maxItems: 5000,
+                    items:
+                      {
+                        type: object,
+                        required: [id, lat, lng],
+                        properties:
+                          {
+                            id: { type: string },
+                            lat: { type: number },
+                            lng: { type: number },
+                            label: { type: string },
+                          },
+                      },
+                  }
+                edges:
+                  {
+                    type: array,
+                    maxItems: 20000,
+                    items:
+                      {
+                        type: object,
+                        required: [from, to],
+                        properties:
+                          {
+                            from: { type: string },
+                            to: { type: string },
+                            accessible: { type: boolean },
+                          },
+                      },
+                  }
+                reason: { type: string, minLength: 5 }
+      responses:
+        '201':
+          {
+            description: Draft,
+            content: { application/json: { schema: { $ref: '#/components/schemas/RouteGraph' } } },
+          }
+        '400': { description: INVALID_GRAPH (details.problems) }
+  /admin/navigation/route-graphs/{id}/review:
+    post:
+      tags: [Administration]
+      operationId: adminReviewRouteGraph
+      summary: Approve (retires the previous approved version) or retire route data; the uploader cannot approve
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: { enum: [APPROVE, RETIRE] }
+                reason: { type: string, minLength: 5, maxLength: 300 }
+      responses:
+        '200':
+          {
+            description: Updated,
+            content: { application/json: { schema: { $ref: '#/components/schemas/RouteGraph' } } },
+          }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -1686,6 +1897,34 @@ components:
       description: >-
         Exactly one of incidentId/drillId. helpDetails is optional since 0.3.0; a help request
         without text is recorded as "No details given (quick help request)".
+    SafePoint:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { enum: [ASSEMBLY_POINT, SHELTER, EXIT] }
+        latitude: { type: number }
+        longitude: { type: number }
+        buildingId: { type: [string, 'null'], format: uuid }
+        notes: { type: [string, 'null'] }
+        status: { enum: [PROPOSED, APPROVED, RETIRED] }
+        proposedBy: { type: string, format: uuid }
+        reviewedBy: { type: [string, 'null'], format: uuid }
+        reviewedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    RouteGraph:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: string }
+        source: { type: string }
+        status: { enum: [DRAFT, APPROVED, RETIRED] }
+        nodeCount: { type: integer }
+        edgeCount: { type: integer }
+        uploadedBy: { type: string, format: uuid }
+        approvedBy: { type: [string, 'null'], format: uuid }
+        approvedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
     Responder:
       type: object
       properties:

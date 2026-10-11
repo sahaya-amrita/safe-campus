@@ -7,7 +7,11 @@
 import type {
   AdminUser,
   AttachmentView,
+  NavigationStatus,
   ResponderInboxItem,
+  RouteGraphView,
+  RouteResponse,
+  SafePointView,
   ResponderView,
   RollCallResponse,
   AuditEventView,
@@ -335,6 +339,40 @@ const enc = encodeURIComponent;
 export function sahayaApi(client: ApiClient) {
   return {
     me: () => client.get<Me>('/api/v1/users/me'),
+    // Navigation (Phase 5): only approved route data and safe points.
+    navigationStatus: () => client.get<NavigationStatus>('/api/v1/maps/navigation'),
+    navigationRoute: (q: {
+      fromLat: number;
+      fromLng: number;
+      safePointId: string;
+      accessible: boolean;
+    }) =>
+      client.get<RouteResponse>(
+        `/api/v1/maps/route?fromLat=${q.fromLat}&fromLng=${q.fromLng}&safePointId=${enc(q.safePointId)}&accessible=${q.accessible}`,
+      ),
+    safePoints: () => client.get<{ items: SafePointView[] }>('/api/v1/maps/safe-points'),
+    proposeSafePoint: (input: {
+      name: string;
+      kind: SafePointView['kind'];
+      latitude: number;
+      longitude: number;
+      notes?: string;
+      reason: string;
+    }) => client.post<SafePointView>('/api/v1/admin/navigation/safe-points', input),
+    reviewSafePoint: (id: string, decision: 'APPROVE' | 'RETIRE', reason: string) =>
+      client.post<SafePointView>(`/api/v1/admin/navigation/safe-points/${enc(id)}/review`, {
+        decision,
+        reason,
+      }),
+    routeGraphs: () =>
+      client.get<{ items: RouteGraphView[] }>('/api/v1/admin/navigation/route-graphs'),
+    uploadRouteGraph: (input: unknown) =>
+      client.post<RouteGraphView>('/api/v1/admin/navigation/route-graphs', input),
+    reviewRouteGraph: (id: string, decision: 'APPROVE' | 'RETIRE', reason: string) =>
+      client.post<RouteGraphView>(`/api/v1/admin/navigation/route-graphs/${enc(id)}/review`, {
+        decision,
+        reason,
+      }),
     // Responder operations (Phase 4). Notices are in-app only.
     myResponderProfile: () => client.get<ResponderView>('/api/v1/responders/me'),
     setDuty: (availability: ResponderView['availability']) =>
