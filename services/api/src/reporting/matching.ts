@@ -1,14 +1,15 @@
 import type pg from 'pg';
+import { loadSettings } from '../routes/adminOps.js';
 
 /**
- * Responder matching for a new help request. Picks up to three verified,
+ * Responder matching for a new help request. Picks up to the configured number
+ * (system setting maxMatchedResponders, default three) of verified,
  * AVAILABLE responders, preferring the request's zone (assigned zones, not
  * live GPS), records them and queues a SIMULATED notification for each.
  *
  * Matching never assigns anyone and never tells the student that help is on
  * the way: a responder must acknowledge and accept the request in the app.
  */
-export const MAX_MATCHED_RESPONDERS = 3;
 
 export async function matchResponders(
   client: pg.PoolClient,
@@ -23,7 +24,7 @@ export async function matchResponders(
   const ranked = [
     ...candidates.rows.filter((r) => zoneId && r.assigned_zone_id === zoneId),
     ...candidates.rows.filter((r) => !zoneId || r.assigned_zone_id !== zoneId),
-  ].slice(0, MAX_MATCHED_RESPONDERS);
+  ].slice(0, (await loadSettings(client)).values.maxMatchedResponders);
   for (const responder of ranked) {
     await client.query(
       `INSERT INTO help_request_notifications (help_request_id, responder_id) VALUES ($1, $2)`,

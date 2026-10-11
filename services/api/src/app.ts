@@ -18,6 +18,7 @@ import { createEmailSender, DevMailbox, type EmailSender } from './auth/email.js
 import { adminRouter } from './routes/admin.js';
 import { attachmentsRouter } from './routes/attachments.js';
 import { sosRouter } from './routes/sos.js';
+import { analyticsRouter, settingsRouter } from './routes/adminOps.js';
 import { assistantContentRouter, drillReviewRouter, progressRouter } from './routes/learning.js';
 import { adminNavigationRouter, navigationRouter } from './routes/navigation.js';
 import { adminRespondersRouter, responderSelfRouter, rollCallRouter } from './routes/operations.js';
@@ -89,6 +90,9 @@ export function createApp(
   app.use('/api/v1', authenticate(config, pool));
   app.use('/api/v1/assistant', assistant.router);
   app.use('/api/v1/users', usersRouter(pool));
+  // Mounted before the ADMIN-only /admin router: analytics is also open to verifiers.
+  app.use('/api/v1', settingsRouter(pool));
+  app.use('/api/v1', analyticsRouter(pool, config));
   app.use('/api/v1/admin/responders', adminRespondersRouter(pool, config));
   app.use('/api/v1/admin/navigation', adminNavigationRouter(pool, config));
   app.use('/api/v1/admin/assistant-content', assistantContentRouter(pool));

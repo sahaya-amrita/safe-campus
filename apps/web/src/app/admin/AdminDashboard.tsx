@@ -37,29 +37,31 @@ export function AdminDashboard({ user, nav }: { user: Me; nav: readonly StaffNav
         </ul>
       </Surface>
 
-      <Surface
-        title="Not built yet"
-        description="Specified for later phases. These open a placeholder, not a working screen."
-      >
-        <ul className="as-admin-links">
-          {PLANNED_ADMIN_SECTIONS.map((p) => (
-            <li key={p.section}>
-              <button
-                type="button"
-                className="as-admin-link as-admin-link--planned"
-                onClick={() => navigate(`${ROUTES.admin.root}/${p.section}`)}
-              >
-                <AppIcon name="clock" size={20} />
-                <span>
-                  <strong>{p.label}</strong>
-                  <small>{p.phase}</small>
-                </span>
-                <AppIcon name="chevron" size={18} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Surface>
+      {PLANNED_ADMIN_SECTIONS.length > 0 && (
+        <Surface
+          title="Not built yet"
+          description="Specified for later phases. These open a placeholder, not a working screen."
+        >
+          <ul className="as-admin-links">
+            {PLANNED_ADMIN_SECTIONS.map((p) => (
+              <li key={p.section}>
+                <button
+                  type="button"
+                  className="as-admin-link as-admin-link--planned"
+                  onClick={() => navigate(`${ROUTES.admin.root}/${p.section}`)}
+                >
+                  <AppIcon name="clock" size={20} />
+                  <span>
+                    <strong>{p.label}</strong>
+                    <small>{p.phase}</small>
+                  </span>
+                  <AppIcon name="chevron" size={18} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Surface>
+      )}
     </div>
   );
 }

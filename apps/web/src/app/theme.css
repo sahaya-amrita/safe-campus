@@ -1959,3 +1959,34 @@ a[href^='tel:']:not([class]) {
   white-space: pre-line;
   color: var(--ds-ink-2);
 }
+
+/* ---------- Phase 7: analytics bars ---------- */
+.as-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.as-bars li {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 3fr auto;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-sm);
+}
+.as-bars__track {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--ds-surface-2);
+  overflow: hidden;
+}
+.as-bars__fill {
+  display: block;
+  height: 100%;
+  background: var(--ds-primary);
+}
+.as-bars__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

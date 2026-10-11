@@ -62,18 +62,20 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Tom knowledge review        | **Built** (named reviewer; approval tied to exact wording)                     |
 | 3D floating Tom             | **Not done** (presentation only; deferred)                                     |
 
-## Phase 7: administration, analytics and deployment (M7, M8)
+## Phase 7: administration, analytics and deployment (built; see [13](./13-phase7-admin-analytics-deploy.md))
 
-| Item                                | Integration boundary                                                 |
-| ----------------------------------- | -------------------------------------------------------------------- |
-| System settings (`/admin/settings`) | Server-side settings API, audited; approved acknowledgement timers   |
-| Descriptive analytics               | Labelled synthetic until real history exists; no prediction          |
-| Privacy and support pages, final    | Replace the Phase 1 drafts after institutional and legal review      |
-| Deployment                          | Production CORS, host secrets, second-device and real-device testing |
+| Item                             | Status                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| System settings                  | **Built** (audited, source required; control room uses them)                                            |
+| Descriptive analytics            | **Built** (counts only; labelled synthetic in DEMO; no prediction)                                      |
+| Privacy and support pages, final | **Draft remains** (needs institutional and legal review)                                                |
+| Deployment                       | **Hardened** (production seed, photo purge, proxy); the live deployment is run by the integration owner |
 
-## Prerequisites for Phase 7 (owner actions)
+## What remains after Phase 7 (owner actions, not code)
 
-1. **Review** Phase 6 (`feat/phase6-learning`).
-2. **Tom:** a named reviewer approves the help texts in Admin → Tom help content.
-3. **Deployment:** hosting accounts, a production database, email provider and secrets, and the production web origin for CORS.
-4. **Legal:** institutional and legal review of the privacy and help pages.
+1. **Institutional data:** verified route data and safe points (two administrators to approve), confirmed responder roster and zones, approved campus contacts and instruction packs.
+2. **Accounts and services:** production database, email provider and verified sender, first administrator, agreed ERT timers in System settings, a named reviewer for Tom's help text.
+3. **Reviews:** legal and institutional review of the privacy and help pages; native-speaker review of the five draft translations; accessibility audit with screen readers.
+4. **Testing:** real-device testing (Android Chrome, iPhone Safari) of sign-in, SOS, GPS, camera, offline and install.
+5. **Security:** rotate the Groq key that was exposed in a chat transcript.
+6. **Deferred features:** 3D floating Tom; indoor and floor-level routing; real notification delivery (needs a provider decision); background sync on Android.

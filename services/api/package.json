@@ -16,6 +16,7 @@
     "outbox:once": "tsx src/scripts/process-outbox.ts",
     "admin:grant": "tsx src/scripts/grant-admin.ts",
     "dev:memory": "tsx src/scripts/dev-memory.ts",
+    "purge:photos": "tsx src/scripts/purge-photos.ts",
     "assistant:smoke": "tsx src/assistant/smoke.ts"
   },
   "dependencies": {

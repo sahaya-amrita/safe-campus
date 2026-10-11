@@ -1,11 +1,22 @@
 import type { HelpRequest, Incident } from '../api/sahaya';
 
 /**
- * Acknowledgement timers T1/T2 (blueprint §8.5). These are DEMO placeholders:
- * the real values must come from the ERT and the Security Officer.
+ * Acknowledgement timers T1/T2 (blueprint §8.5). Defaults are DEMO
+ * placeholders; since Phase 7 an administrator sets the agreed values in
+ * system settings and the control room passes them in.
  */
 export const ACK_TARGET_SECONDS = 120;
 export const ESCALATE_AFTER_SECONDS = 300;
+
+export interface AckTimers {
+  ackTargetSeconds: number;
+  escalateAfterSeconds: number;
+}
+
+export const DEFAULT_TIMERS: AckTimers = {
+  ackTargetSeconds: ACK_TARGET_SECONDS,
+  escalateAfterSeconds: ESCALATE_AFTER_SECONDS,
+};
 
 export type AckState =
   | { kind: 'WAITING'; seconds: number; stage: 'ON_TIME' | 'OVERDUE' | 'ESCALATE' }
@@ -16,20 +27,24 @@ const secondsBetween = (from: string, to: number) =>
   Math.max(0, Math.floor((to - Date.parse(from)) / 1000));
 
 /** How long a help request has waited, or how long acknowledgement took. */
-export function ackState(h: HelpRequest, now: number): AckState {
+export function ackState(
+  h: HelpRequest,
+  now: number,
+  timers: AckTimers = DEFAULT_TIMERS,
+): AckState {
   if (h.status === 'RESOLVED' || h.status === 'CANCELLED') return { kind: 'CLOSED' };
   if (h.acknowledgedAt) {
     const seconds = secondsBetween(h.createdAt, Date.parse(h.acknowledgedAt));
-    return { kind: 'ACKNOWLEDGED', seconds, late: seconds > ACK_TARGET_SECONDS };
+    return { kind: 'ACKNOWLEDGED', seconds, late: seconds > timers.ackTargetSeconds };
   }
   const seconds = secondsBetween(h.createdAt, now);
   return {
     kind: 'WAITING',
     seconds,
     stage:
-      seconds >= ESCALATE_AFTER_SECONDS
+      seconds >= timers.escalateAfterSeconds
         ? 'ESCALATE'
-        : seconds >= ACK_TARGET_SECONDS
+        : seconds >= timers.ackTargetSeconds
           ? 'OVERDUE'
           : 'ON_TIME',
   };

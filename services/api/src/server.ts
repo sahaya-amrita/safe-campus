@@ -3,6 +3,7 @@ import { loadConfig } from './config.js';
 import { createPool } from './db.js';
 import { createLogger } from './logger.js';
 import { processOutboxBatch } from './outbox.js';
+import { purgeUnattachedPhotos } from './routes/adminOps.js';
 
 const config = loadConfig();
 const logger = createLogger(config);
@@ -30,9 +31,18 @@ const outboxTimer =
     : undefined;
 outboxTimer?.unref();
 
+// Uploaded photos never attached to a report are deleted after the configured hours.
+const purgeTimer = setInterval(() => {
+  purgeUnattachedPhotos(pool, logger).catch((error: unknown) =>
+    logger.error({ err: error }, 'photo purge failed'),
+  );
+}, 3_600_000);
+purgeTimer.unref();
+
 function shutdown(signal: string) {
   logger.info({ signal }, 'shutting down API server');
   if (outboxTimer) clearInterval(outboxTimer);
+  clearInterval(purgeTimer);
   server.close(async () => {
     await pool.end();
     process.exit(0);
