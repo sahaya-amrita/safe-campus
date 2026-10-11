@@ -1,5 +1,5 @@
 /*
- * Amrita Sahaya unified app theme: blue and white (Amrita Sahaya 2.0).
+ * Amrita Sahaya unified app theme: the shared brand-board palette.
  * Colours come from the design-system tokens; red is kept for emergency
  * and error surfaces only.
  * Classes are prefixed `as-`; reused student components keep their `sc-`
@@ -46,8 +46,8 @@ body {
   min-height: 100dvh;
   overflow-x: clip;
   background:
-    radial-gradient(circle at 8% 4%, rgba(29, 95, 199, 0.11), transparent 31rem),
-    radial-gradient(circle at 94% 18%, rgba(20, 108, 67, 0.08), transparent 26rem), var(--as-bg);
+    radial-gradient(circle at 8% 4%, rgba(164, 18, 63, 0.06), transparent 31rem),
+    radial-gradient(circle at 94% 18%, rgba(177, 139, 76, 0.08), transparent 26rem), var(--as-bg);
   color: var(--as-ink);
   font-family: var(--as-font);
   -webkit-font-smoothing: antialiased;
@@ -495,7 +495,7 @@ body {
   max-width: 920px;
   margin: 0 auto;
   min-height: 100dvh;
-  background: rgba(241, 246, 251, 0.9);
+  background: var(--ds-bg);
   position: relative;
 }
 .as-topbar {
@@ -513,7 +513,7 @@ body {
   box-shadow: 0 10px 30px -28px rgba(16, 42, 67, 0.75);
 }
 .as-topbar .as-brand__name {
-  color: var(--ds-deep);
+  color: var(--ds-primary);
   font-size: 1.1rem;
 }
 .as-topbar .as-brand__tag {
@@ -644,8 +644,8 @@ body {
 /* Home */
 .as-hero {
   background:
-    radial-gradient(circle at 92% 12%, rgba(255, 255, 255, 0.22), transparent 9rem),
-    linear-gradient(135deg, var(--ds-deep), var(--ds-primary));
+    repeating-linear-gradient(135deg, transparent 0 25px, rgba(255, 255, 255, 0.025) 25px 26px),
+    linear-gradient(120deg, #6e1232, var(--ds-primary));
   color: #fff;
   border-radius: var(--ds-radius-lg);
   padding: clamp(20px, 4vw, 28px);
@@ -658,7 +658,7 @@ body {
   font-weight: 800;
 }
 .as-hero p {
-  color: #dce7f5;
+  color: #f9e5ed;
   font-size: 0.92rem;
 }
 .as-quick {
@@ -676,7 +676,7 @@ body {
   min-height: 92px;
   border-radius: 14px;
   border: 1px solid var(--as-line);
-  background: linear-gradient(145deg, #fff, #f8fbff);
+  background: var(--ds-surface);
   color: var(--as-ink);
   text-decoration: none;
   cursor: pointer;
@@ -1560,8 +1560,8 @@ a[href^='tel:']:not([class]) {
 .as-root .sc-student.as-student-root {
   --maroon: var(--ds-danger);
   --maroon-700: var(--ds-danger-700);
-  --teal: var(--ds-primary);
-  --teal-800: var(--ds-primary-700);
+  --teal: var(--ds-teal);
+  --teal-800: #11524d;
   --navy: var(--ds-deep);
   --ivory: var(--ds-bg);
   --bg: var(--ds-bg);
@@ -1571,9 +1571,9 @@ a[href^='tel:']:not([class]) {
   --ink-muted: var(--ds-muted);
   --line: var(--ds-line);
   --help-ink: var(--ds-danger);
-  --safe-ink: var(--ds-primary-700);
+  --safe-ink: var(--ds-teal);
   --help-tint: var(--ds-danger-50);
-  --safe-tint: var(--ds-primary-50);
+  --safe-tint: var(--ds-info-50);
   --warn-ink: var(--ds-warn);
   --warn-tint: var(--ds-warn-50);
   --warn-line: var(--ds-warn-line);
@@ -2047,10 +2047,10 @@ a[href^='tel:']:not([class]) {
   box-shadow: 0 16px 34px -20px rgba(16, 42, 67, 0.72);
 }
 .as-student-root .sc-action--safe {
-  background: linear-gradient(135deg, var(--ds-primary), #2875dd);
+  background: linear-gradient(135deg, #11524d, var(--ds-teal));
 }
 .as-student-root .sc-action--safe:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--ds-primary-700), var(--ds-primary));
+  background: #11524d;
 }
 .as-student-root .sc-action--help {
   background: linear-gradient(135deg, var(--ds-danger-700), var(--ds-danger));
@@ -2065,6 +2065,110 @@ a[href^='tel:']:not([class]) {
 }
 .as-student-root .sc-tom {
   right: max(18px, calc(50% - 400px));
+}
+
+/* Shared identity for authentication, public pages and both staff workspaces. */
+.as-login {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 32px, rgba(164, 18, 63, 0.025) 32px 33px),
+    radial-gradient(ellipse at top left, #f1dce4, transparent 60%), var(--ds-bg);
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+.as-login__card {
+  border-top: 4px solid var(--ds-primary);
+  box-shadow: var(--ds-shadow-lg);
+  padding: clamp(20px, 5vw, 32px);
+}
+.as-brand__name,
+.as-screen-title,
+.as-public__title,
+.as-auth__title {
+  letter-spacing: -0.035em;
+}
+.as-hero h1 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  letter-spacing: -0.035em;
+}
+.as-quick button,
+.as-quick a {
+  border-radius: 12px;
+  box-shadow: none;
+  border-top: 3px solid var(--ds-primary-100);
+}
+.as-root .sc-student .sc-emergency {
+  background: var(--ds-deep);
+}
+.as-staff {
+  grid-template-columns: 248px minmax(0, 1fr);
+}
+.as-side {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 255, 255, 0.018) 32px 33px),
+    var(--ds-deep);
+  border-top: 4px solid var(--ds-primary);
+  overflow-y: auto;
+}
+.as-side__link[aria-current='page'] {
+  background: var(--ds-primary);
+  box-shadow: inset 3px 0 var(--ds-gold);
+}
+.as-staff__head {
+  flex-wrap: wrap;
+  border-top: 4px solid var(--ds-primary);
+}
+.as-staff__content > *,
+.as-staff__head > *,
+.as-table-wrap {
+  min-width: 0;
+}
+.as-root .sc-ops {
+  --ops-bg: var(--ds-bg);
+  --ops-surface: var(--ds-surface);
+  --ops-surface-2: var(--ds-surface-2);
+  --ops-line: var(--ds-line);
+  --ops-fg: var(--ds-ink);
+  --ops-muted: var(--ds-muted);
+  --ops-accent: var(--ds-primary);
+  --ops-font: var(--ds-font);
+}
+.as-user,
+.as-stat {
+  border-top: 3px solid var(--ds-primary-100);
+}
+.as-admin-link:hover,
+.as-item:hover {
+  background: var(--ds-primary-50);
+}
+.as-update {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--ds-deep);
+  color: white;
+  border-bottom: 3px solid var(--ds-gold);
+}
+.as-update > div {
+  display: grid;
+  gap: 2px;
+}
+.as-update span {
+  font-size: 0.875rem;
+  color: #e6e8ed;
+}
+
+@media (max-width: 900px) {
+  .as-staff {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .as-side {
+    overflow-y: visible;
+  }
 }
 
 @media (min-width: 720px) {

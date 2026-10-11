@@ -18,6 +18,7 @@ import {
 } from './routes';
 import { Loading } from './ui';
 import './theme.css';
+import { AppUpdateNotice } from './AppUpdateNotice';
 
 const StudentShell = lazy(() =>
   import('./student/StudentShell').then((m) => ({ default: m.StudentShell })),
@@ -178,6 +179,7 @@ function Gate() {
 export function App({ apiBaseUrl = appConfig.apiBaseUrl }: { apiBaseUrl?: string | null }) {
   return (
     <div className="as-root">
+      <AppUpdateNotice />
       <SessionProvider apiBaseUrl={apiBaseUrl}>
         <Suspense fallback={<Pending />}>
           <Gate />

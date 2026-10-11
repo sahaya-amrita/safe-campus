@@ -1,28 +1,26 @@
 /*
- * Amrita Sahaya 2.0 design tokens: minimal, mobile-first, blue and white.
- *
- * Contrast (WCAG 2.1, measured): white on primary 5.98:1, primary on bg
- * 5.50:1, muted on bg 5.21:1, ink on bg 14.46:1, white on danger
- * 6.57:1, white on deep 14.64:1, control border on white 3.03:1.
- * Emergency and error surfaces stay red; blue is never used to mean "danger".
+ * Amrita Sahaya brand-board palette: maroon, ivory, navy and teal.
+ * Brand accents and semantic emergency red remain distinct.
  */
 :root {
   /* Brand */
-  --ds-primary: #1d5fc7;
-  --ds-primary-700: #154ba1;
-  --ds-deep: #102a43;
-  --ds-primary-50: #edf4ff;
-  --ds-primary-100: #d9e8ff;
+  --ds-primary: #a4123f;
+  --ds-primary-700: #860e33;
+  --ds-deep: #15273b;
+  --ds-primary-50: #fbeaf0;
+  --ds-primary-100: #f1ceda;
+  --ds-teal: #176b65;
+  --ds-gold: #b18b4c;
 
   /* Neutrals */
-  --ds-bg: #f1f6fb;
+  --ds-bg: #f7f5f1;
   --ds-surface: #ffffff;
-  --ds-surface-2: #e9f0f8;
-  --ds-ink: #10243a;
-  --ds-ink-2: #30465f;
-  --ds-muted: #536982;
-  --ds-line: #d5e0ec;
-  --ds-control: #8296ae;
+  --ds-surface-2: #efece6;
+  --ds-ink: #15273b;
+  --ds-ink-2: #344458;
+  --ds-muted: #62606a;
+  --ds-line: #e2dcd3;
+  --ds-control: #91877e;
 
   /* Status */
   --ds-danger: #b42318;
@@ -35,10 +33,10 @@
   --ds-ok: #146c43;
   --ds-ok-50: #e7f5ee;
   --ds-ok-line: #b5dec8;
-  --ds-info: var(--ds-primary-700);
-  --ds-info-50: var(--ds-primary-50);
-  --ds-info-line: var(--ds-primary-100);
-  --ds-focus: #1769d2;
+  --ds-info: #176b65;
+  --ds-info-50: #e6f2f0;
+  --ds-info-line: #b9d8d4;
+  --ds-focus: #176b65;
 
   /* Shape and depth */
   --ds-radius-lg: 24px;
