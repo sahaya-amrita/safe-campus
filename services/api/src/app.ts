@@ -23,6 +23,7 @@ import { assistantContentRouter, drillReviewRouter, progressRouter } from './rou
 import { adminNavigationRouter, navigationRouter } from './routes/navigation.js';
 import { adminRespondersRouter, responderSelfRouter, rollCallRouter } from './routes/operations.js';
 import { authRouter, devMailboxRouter } from './routes/auth.js';
+import { pushRouter } from './routes/push.js';
 import { alertsRouter } from './routes/alerts.js';
 import { checkinsRouter, incidentCheckinsRouter } from './routes/checkins.js';
 import { drillsRouter, trainingRouter } from './routes/drills.js';
@@ -106,6 +107,7 @@ export function createApp(
   app.use('/api/v1/checkins', checkinsRouter(pool));
   app.use('/api/v1/help-requests', helpRequestsRouter(pool));
   app.use('/api/v1/sos', sosRouter(pool, config));
+  app.use('/api/v1/push', pushRouter(pool, config));
   app.use('/api/v1/attachments', attachmentsRouter(pool));
   app.use('/api/v1/instruction-packs', instructionPacksRouter(pool, config));
   app.use('/api/v1/responders/me', responderSelfRouter(pool));

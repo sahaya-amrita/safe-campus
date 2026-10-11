@@ -9,7 +9,7 @@ import { hasRole } from '../auth/session';
 import { useRoute } from '../router';
 import { useStaffLink } from '../staff/workspace';
 import { LocationLine, PhotoStrip } from './reportContext';
-import { MatchedInbox, RollCallCard } from './operations';
+import { MatchedInbox, PhoneNotices, RollCallCard } from './operations';
 import { ControlRoom } from './ControlRoom';
 import { IncidentSearch } from './IncidentSearch';
 import { Stat, useActions } from './shared';
@@ -317,6 +317,7 @@ export function HelpRequestsView({ api, user }: { api: SahayaApi; user: Me }) {
   return (
     <>
       {isResponder && <MatchedInbox api={api} />}
+      {isResponder && <PhoneNotices api={api} />}
       <Card
         title="Persistent help requests"
         icon="hand"

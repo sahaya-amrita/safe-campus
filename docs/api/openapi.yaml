@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Amrita Sahaya API
-  version: 0.7.0
+  version: 0.8.0
   description: >-
     Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
     behavior is simulated. No endpoint contacts real emergency services.
@@ -31,6 +31,7 @@ tags:
   - name: Navigation
   - name: Learning
   - name: Settings and analytics
+  - name: Push
 paths:
   /health:
     get:
@@ -1411,9 +1412,13 @@ paths:
         - { name: fromLng, in: query, required: true, schema: { type: number } }
         - { name: safePointId, in: query, required: true, schema: { type: string, format: uuid } }
         - { name: accessible, in: query, schema: { enum: ['true', 'false'] } }
+        - name: fromFloor
+          in: query
+          description: Floor the person is on (ground = 0). The route starts from a node on that floor.
+          schema: { type: integer, minimum: -10, maximum: 60 }
       responses:
         '200':
-          description: Route
+          description: Route. Lifts are never used; step-free routes also exclude stairs.
           content:
             application/json:
               schema:
@@ -1425,9 +1430,23 @@ paths:
                       items:
                         {
                           type: object,
-                          properties: { lat: { type: number }, lng: { type: number } },
+                          properties:
+                            {
+                              lat: { type: number },
+                              lng: { type: number },
+                              floor: { type: integer },
+                            },
                         },
                     }
+                  floorChanges:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        atStep: { type: integer }
+                        from: { type: integer }
+                        to: { type: integer }
+                        via: { type: string, enum: [STAIRS, RAMP] }
                   distanceM: { type: integer }
                   walkSeconds: { type: integer }
                   graphVersion: { type: string }
@@ -1529,6 +1548,7 @@ paths:
                             lat: { type: number },
                             lng: { type: number },
                             label: { type: string },
+                            floor: { type: integer, minimum: -10, maximum: 60 },
                           },
                       },
                   }
@@ -1545,6 +1565,7 @@ paths:
                             from: { type: string },
                             to: { type: string },
                             accessible: { type: boolean },
+                            kind: { type: string, enum: [PATH, STAIRS, RAMP, LIFT] },
                           },
                       },
                   }
@@ -1742,6 +1763,63 @@ paths:
                   helpRequests: { type: object }
                   drills: { type: array, items: { type: object } }
                   photos: { type: object }
+  /push/config:
+    get:
+      tags: [Push]
+      operationId: getPushConfig
+      summary: Whether phone notices are on, the VAPID public key, and this user's active devices
+      responses:
+        '200':
+          description: Push configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+                  publicKey: { type: string, nullable: true }
+                  devices: { type: integer }
+                  note: { type: string }
+  /push/subscriptions:
+    post:
+      tags: [Push]
+      operationId: registerPushDevice
+      summary: Register this device for matched-request notices (RESPONDER). Browser push services only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, keys]
+              properties:
+                endpoint: { type: string, format: uri }
+                keys:
+                  type: object
+                  required: [p256dh, auth]
+                  properties:
+                    p256dh: { type: string }
+                    auth: { type: string }
+      responses:
+        '201': { description: Registered }
+        '400': { description: PUSH_ENDPOINT_NOT_ALLOWED or validation error }
+        '409': { description: PUSH_DISABLED (no VAPID keys on this server) }
+  /push/subscriptions/remove:
+    post:
+      tags: [Push]
+      operationId: removePushDevice
+      summary: Stop notices to one of the signed-in user's devices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties:
+                endpoint: { type: string, format: uri }
+      responses:
+        '200': { description: Removed }
 components:
   securitySchemes:
     bearerAuth:

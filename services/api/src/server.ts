@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createPool } from './db.js';
 import { createLogger } from './logger.js';
+import { createPushSender } from './notifications/push.js';
 import { processOutboxBatch } from './outbox.js';
 import { purgeUnattachedPhotos } from './routes/adminOps.js';
 
@@ -14,7 +15,9 @@ const server = app.listen(config.PORT, () => {
 });
 
 // Processes simulated dispatch and zone-alert events with the local adapter only.
-// It never contacts an external notification or emergency service.
+// It never contacts an emergency service. When VAPID keys are configured
+// (Phase 8), matched help requests also send a Web Push notice to responders.
+const pushSender = createPushSender(config);
 const outboxPollMs = config.OUTBOX_POLL_MS ?? 5000;
 let outboxRunning = false;
 const outboxTimer =
@@ -22,7 +25,7 @@ const outboxTimer =
     ? setInterval(() => {
         if (outboxRunning) return;
         outboxRunning = true;
-        processOutboxBatch(pool, config, logger)
+        processOutboxBatch(pool, config, logger, true, pushSender)
           .catch((error: unknown) => logger.error({ err: error }, 'simulated outbox batch failed'))
           .finally(() => {
             outboxRunning = false;

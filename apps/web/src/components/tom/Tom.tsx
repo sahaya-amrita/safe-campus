@@ -674,7 +674,10 @@ export function Tom({
         aria-keyshortcuts={keyboardShortcut && shortcutOn ? 'Shift+?' : undefined}
         onClick={() => (open ? close() : openPanel())}
       >
-        <TomAvatar size={30} />
+        <span className="sc-tom__float" aria-hidden="true">
+          <TomAvatar size={30} dimensional />
+          <span className="sc-tom__float-shadow" />
+        </span>
         <span className="sc-tom__launcher-label">{open ? m.launcherClose : m.launcherOpen}</span>
       </button>
     </div>

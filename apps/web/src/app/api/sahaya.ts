@@ -19,6 +19,7 @@ import type {
   RouteResponse,
   SafePointView,
   ResponderView,
+  PushConfigView,
   RollCallResponse,
   AuditEventView,
   LocationView,
@@ -386,9 +387,11 @@ export function sahayaApi(client: ApiClient) {
       fromLng: number;
       safePointId: string;
       accessible: boolean;
+      /** Floor the person is on; omitted when outdoors or unknown. */
+      fromFloor?: number | null;
     }) =>
       client.get<RouteResponse>(
-        `/api/v1/maps/route?fromLat=${q.fromLat}&fromLng=${q.fromLng}&safePointId=${enc(q.safePointId)}&accessible=${q.accessible}`,
+        `/api/v1/maps/route?fromLat=${q.fromLat}&fromLng=${q.fromLng}&safePointId=${enc(q.safePointId)}&accessible=${q.accessible}${q.fromFloor == null ? '' : `&fromFloor=${q.fromFloor}`}`,
       ),
     safePoints: () => client.get<{ items: SafePointView[] }>('/api/v1/maps/safe-points'),
     proposeSafePoint: (input: {
@@ -413,7 +416,15 @@ export function sahayaApi(client: ApiClient) {
         decision,
         reason,
       }),
-    // Responder operations (Phase 4). Notices are in-app only.
+    // Phase 8: Web Push for matched-request notices (off unless the server has keys).
+    pushConfig: () => client.get<PushConfigView>('/api/v1/push/config'),
+    registerPushDevice: (subscription: {
+      endpoint: string;
+      keys: { p256dh: string; auth: string };
+    }) => client.post<{ devices: number }>('/api/v1/push/subscriptions', subscription),
+    removePushDevice: (endpoint: string) =>
+      client.post<{ devices: number }>('/api/v1/push/subscriptions/remove', { endpoint }),
+    // Responder operations (Phase 4). Notices are in-app; Phase 8 adds optional push.
     myResponderProfile: () => client.get<ResponderView>('/api/v1/responders/me'),
     setDuty: (availability: ResponderView['availability']) =>
       client.patch<ResponderView>('/api/v1/responders/me/duty', { availability }),

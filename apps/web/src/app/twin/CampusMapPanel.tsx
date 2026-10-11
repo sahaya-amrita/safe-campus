@@ -12,7 +12,7 @@ import {
   type Point,
   type SafeDestination,
 } from '../../features/maps/safe-route.ts';
-import type { RouteResponse } from '@sahaya/contracts';
+import type { FloorChangeView, RouteResponse } from '@sahaya/contracts';
 import { ApiError } from '../api/client';
 import { StatusBanner } from '../../design-system';
 import { useKeyForBody } from '../responder/shared';
@@ -75,6 +75,8 @@ export function CampusMapPanel({
   const [start, setStart] = useState<Start | null>(null);
   const [safePointId, setSafePointId] = useState<string | null>(null);
   const [stepFree, setStepFree] = useState(false);
+  /** Floor the person is on; null when outdoors or not chosen. */
+  const [floor, setFloor] = useState<number | null>(null);
   const nav = useAsync(() => api.navigationStatus(), [api], 60_000);
   const [practice, setPractice] = useState<string[]>([]);
   const [tap, setTap] = useState<TapAction>('START');
@@ -125,9 +127,10 @@ export function CampusMapPanel({
             fromLng: startLngLat[0],
             safePointId,
             accessible: stepFree,
+            fromFloor: floor,
           })
       : null,
-    [api, available, startLngLat?.[0], startLngLat?.[1], safePointId, stepFree, blocks.data],
+    [api, available, startLngLat?.[0], startLngLat?.[1], safePointId, stepFree, floor, blocks.data],
   );
   const route = routeQuery.data && available && startLngLat && safePointId ? routeQuery.data : null;
   const routePath = useMemo<Point[] | null>(
@@ -274,6 +277,24 @@ export function CampusMapPanel({
                   </label>
                 )}
                 {available && (
+                  <label className="as-field">
+                    <span className="as-label">Which floor are you on?</span>
+                    <select
+                      value={floor === null ? '' : String(floor)}
+                      onChange={(e) =>
+                        setFloor(e.target.value === '' ? null : Number(e.target.value))
+                      }
+                    >
+                      <option value="">Outdoors, or not in a building</option>
+                      {FLOOR_OPTIONS.map((f) => (
+                        <option key={f} value={f}>
+                          {floorName(f, true)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {available && (
                   <label className="as-check">
                     <input
                       type="checkbox"
@@ -392,6 +413,7 @@ export function CampusMapPanel({
                   loading={routeQuery.loading}
                   error={routeQuery.error}
                   route={route}
+                  stepFree={stepFree}
                 />
               )}
             </div>
@@ -461,18 +483,54 @@ export function CampusMapPanel({
   );
 }
 
+const FLOOR_OPTIONS = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+/** Plain floor name: "ground floor", "floor 2", "basement level 1". */
+export function floorName(floor: number, capital = false): string {
+  const name =
+    floor === 0 ? 'ground floor' : floor < 0 ? `basement level ${-floor}` : `floor ${floor}`;
+  return capital ? name.charAt(0).toUpperCase() + name.slice(1) : name;
+}
+
+/**
+ * Turns the server's floor changes into plain steps, merging consecutive
+ * flights in the same direction ("Take the stairs down from floor 3 to the
+ * ground floor"). Lifts never appear: the server never routes through them.
+ */
+export function describeFloorChanges(changes: readonly FloorChangeView[]): string[] {
+  const place = (f: number) => (f === 0 ? 'the ground floor' : floorName(f));
+  const merged: FloorChangeView[] = [];
+  for (const c of changes) {
+    const last = merged[merged.length - 1];
+    const sameWay =
+      last &&
+      last.via === c.via &&
+      last.to === c.from &&
+      Math.sign(last.to - last.from) === Math.sign(c.to - c.from);
+    if (last && sameWay) merged[merged.length - 1] = { ...last, to: c.to };
+    else merged.push({ ...c });
+  }
+  return merged.map((c) => {
+    const way = c.to < c.from ? 'down' : 'up';
+    const via = c.via === 'RAMP' ? 'ramp' : 'stairs';
+    return `Take the ${via} ${way} from ${place(c.from)} to ${place(c.to)}.`;
+  });
+}
+
 function RouteSummary({
   hasStart,
   hasTarget,
   loading,
   error,
   route,
+  stepFree = false,
 }: {
   hasStart: boolean;
   hasTarget: boolean;
   loading: boolean;
   error: unknown;
   route: RouteResponse | null;
+  stepFree?: boolean;
 }) {
   if (!hasStart)
     return (
@@ -487,13 +545,15 @@ function RouteSummary({
     return (
       <div className="as-notice as-notice--danger" role="alert">
         <strong>
-          {code === 'NO_ROUTE'
-            ? 'No approved route avoids the blocked areas.'
-            : code === 'START_OFF_NETWORK'
-              ? 'You are too far from any approved route.'
-              : code === 'NAVIGATION_UNAVAILABLE'
-                ? 'Navigation is unavailable for this safe point.'
-                : 'The route could not be loaded.'}
+          {code === 'NO_ROUTE' && stepFree
+            ? 'No step-free approved route is available. Lifts are not used in an evacuation: use Help now so responders know where you are.'
+            : code === 'NO_ROUTE'
+              ? 'No approved route avoids the blocked areas.'
+              : code === 'START_OFF_NETWORK'
+                ? 'You are too far from any approved route on this floor.'
+                : code === 'NAVIGATION_UNAVAILABLE'
+                  ? 'Navigation is unavailable for this safe point.'
+                  : 'The route could not be loaded.'}
         </strong>{' '}
         Follow staff and signs, and call security or <a href="tel:112">112</a> if anyone is in
         danger.
@@ -523,6 +583,14 @@ function RouteSummary({
           </Pill>
         )}
       </div>
+      {route.floorChanges.length > 0 && (
+        <ol className="as-routecard__steps" aria-label="Floor changes">
+          {describeFloorChanges(route.floorChanges).map((step, i) => (
+            <li key={i}>{step}</li>
+          ))}
+          <li>Do not use lifts.</li>
+        </ol>
+      )}
       <p className="as-small as-muted">{route.note}</p>
     </section>
   );

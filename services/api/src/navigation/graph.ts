@@ -9,6 +9,13 @@
  * walking distance, so it returns the same shortest distance as Dijkstra
  * (tested on random graphs). Edges that pass through an active blocked area
  * are removed before searching.
+ *
+ * Floors (Phase 8): nodes may carry a floor number (ground = 0; missing
+ * means 0). Edges between floors must be STAIRS or RAMP, and cost their
+ * walking distance plus a fixed effort per floor climbed, so the heuristic
+ * still never overestimates. LIFT edges are kept in the data but never used:
+ * lifts are not an evacuation route unless the institution designates one,
+ * and that designation is not modelled. Step-free routing drops STAIRS.
  */
 
 export interface GraphNode {
@@ -16,13 +23,32 @@ export interface GraphNode {
   lat: number;
   lng: number;
   label?: string | undefined;
+  /** Floor number; ground = 0, basements negative. Missing means 0. */
+  floor?: number | undefined;
 }
+
+export type EdgeKind = 'PATH' | 'STAIRS' | 'RAMP' | 'LIFT';
 
 export interface GraphEdge {
   from: string;
   to: string;
   /** False marks steps or other barriers to wheelchair access. */
   accessible?: boolean | undefined;
+  /** Missing means PATH. Only STAIRS, RAMP or LIFT may join different floors. */
+  kind?: EdgeKind | undefined;
+}
+
+/** Walking effort added per floor of stairs, in metres of level walking. */
+export const STAIR_EFFORT_M_PER_FLOOR = 15;
+
+export const floorOf = (node: { floor?: number | undefined }) => node.floor ?? 0;
+
+export interface FloorChange {
+  /** Index in the path of the node where the change begins. */
+  atStep: number;
+  from: number;
+  to: number;
+  via: 'STAIRS' | 'RAMP';
 }
 
 export interface Graph {
@@ -87,11 +113,21 @@ export function validateGraph(graph: Graph): GraphProblem[] {
       problems.push(`Node ${node.id} has an invalid latitude`);
     if (!Number.isFinite(node.lng) || Math.abs(node.lng) > 180)
       problems.push(`Node ${node.id} has an invalid longitude`);
+    if (node.floor !== undefined && (!Number.isInteger(node.floor) || Math.abs(node.floor) > 60))
+      problems.push(`Node ${node.id} has an invalid floor`);
   }
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
   for (const [index, edge] of graph.edges.entries()) {
     if (!ids.has(edge.from) || !ids.has(edge.to))
       problems.push(`Edge ${index} refers to a missing node`);
     if (edge.from === edge.to) problems.push(`Edge ${index} connects a node to itself`);
+    const a = nodeById.get(edge.from);
+    const b = nodeById.get(edge.to);
+    const kind = edge.kind ?? 'PATH';
+    if (a && b && floorOf(a) !== floorOf(b) && kind === 'PATH')
+      problems.push(`Edge ${index} joins two floors; mark it STAIRS, RAMP or LIFT`);
+    if (kind === 'STAIRS' && edge.accessible === true)
+      problems.push(`Edge ${index} is stairs and cannot be marked step-free`);
   }
   return problems.slice(0, 20);
 }
@@ -102,12 +138,15 @@ function adjacency(graph: Graph, blocked: readonly Blocked[], accessibleOnly: bo
   const node = new Map(graph.nodes.map((n) => [n.id, n]));
   const adj: Adjacency = new Map(graph.nodes.map((n) => [n.id, []]));
   for (const edge of graph.edges) {
-    if (accessibleOnly && edge.accessible === false) continue;
+    const kind = edge.kind ?? 'PATH';
+    if (kind === 'LIFT') continue;
+    if (accessibleOnly && (edge.accessible === false || kind === 'STAIRS')) continue;
     const a = node.get(edge.from);
     const b = node.get(edge.to);
     if (!a || !b) continue;
     if (blocked.some((blk) => distanceToSegmentM(blk, a, b) <= blk.radiusM)) continue;
-    const cost = distanceM(a, b);
+    const floors = Math.abs(floorOf(a) - floorOf(b));
+    const cost = distanceM(a, b) + (kind === 'STAIRS' ? floors * STAIR_EFFORT_M_PER_FLOOR : 0);
     adj.get(a.id)!.push({ to: b.id, cost });
     adj.get(b.id)!.push({ to: a.id, cost });
   }
@@ -210,14 +249,37 @@ export function dijkstra(
   return search(graph, from, to, { ...options, heuristic: false });
 }
 
+/** Nearest node, optionally only among nodes on one floor. */
 export function nearestNode(
   graph: Graph,
   point: { lat: number; lng: number },
+  floor?: number,
 ): { node: GraphNode; distanceM: number } | null {
   let best: { node: GraphNode; distanceM: number } | null = null;
   for (const node of graph.nodes) {
+    if (floor !== undefined && floorOf(node) !== floor) continue;
     const d = distanceM(point, node);
     if (!best || d < best.distanceM) best = { node, distanceM: d };
   }
   return best;
+}
+
+/** Where a path changes floor, and how (for step-by-step guidance). */
+export function floorChanges(graph: Graph, nodeIds: readonly string[]): FloorChange[] {
+  const node = new Map(graph.nodes.map((n) => [n.id, n]));
+  const edgeKind = new Map<string, EdgeKind>();
+  for (const e of graph.edges) {
+    if (e.kind === 'LIFT') continue; // never part of a route
+    edgeKind.set(`${e.from}|${e.to}`, e.kind ?? 'PATH');
+    edgeKind.set(`${e.to}|${e.from}`, e.kind ?? 'PATH');
+  }
+  const changes: FloorChange[] = [];
+  for (let i = 0; i + 1 < nodeIds.length; i++) {
+    const from = floorOf(node.get(nodeIds[i]!)!);
+    const to = floorOf(node.get(nodeIds[i + 1]!)!);
+    if (from === to) continue;
+    const kind = edgeKind.get(`${nodeIds[i]}|${nodeIds[i + 1]}`);
+    changes.push({ atStep: i, from, to, via: kind === 'RAMP' ? 'RAMP' : 'STAIRS' });
+  }
+  return changes;
 }
