@@ -15,6 +15,7 @@ import {
   TextField,
 } from '../../design-system';
 import { formatWhen, useAsync } from '../ui';
+import { humanize } from '../labels';
 
 type Change =
   | { kind: 'add' }
@@ -76,7 +77,7 @@ export function RosterPage({ api, user }: { api: SahayaApi; user: Me }) {
                       {r.userId === user.id && <span className="as-muted"> (you)</span>}
                     </p>
                     <p className="as-muted as-small">
-                      {r.email} · {r.approvedRole}
+                      {r.email} · {humanize(r.approvedRole)}
                     </p>
                   </div>
                   <div className="as-row">

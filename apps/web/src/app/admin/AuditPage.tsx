@@ -4,11 +4,29 @@ import type { AuditEventView } from '@sahaya/contracts';
 import type { SahayaApi } from '../api/sahaya';
 import { describeAuthError } from '../auth/AuthScreens';
 import { Button, EmptyState, ErrorState, Skeleton, Surface, TextField } from '../../design-system';
+import { auditActionLabel, auditDetails, COMMON_AUDIT_ACTIONS, humanize } from '../labels';
 import { formatWhen } from '../ui';
+
+/** Kinds of record an event can be about; values match the stored entity type exactly. */
+const ENTITY_TYPES: { value: string; label: string }[] = [
+  { value: 'user', label: 'Accounts' },
+  { value: 'HELP_REQUEST', label: 'Help requests' },
+  { value: 'INCIDENT', label: 'Incidents' },
+  { value: 'ALERT', label: 'Alerts' },
+  { value: 'DRILL', label: 'Drills' },
+  { value: 'RESPONDER', label: 'Responders' },
+  { value: 'SAFE_POINT', label: 'Safe points' },
+  { value: 'ROUTE_GRAPH', label: 'Route data' },
+  { value: 'INSTRUCTION_PACK', label: 'Guides' },
+  { value: 'attachment', label: 'Photos' },
+  { value: 'SETTINGS', label: 'Settings' },
+];
+const OTHER = '__other__';
 
 /** Read-only audit log (ADMIN). Events cannot be edited or deleted from the app. */
 export function AuditPage({ api }: { api: SahayaApi }) {
   const [action, setAction] = useState('');
+  const [otherAction, setOtherAction] = useState('');
   const [entityType, setEntityType] = useState('');
   const [filters, setFilters] = useState({ action: '', entityType: '' });
   const [items, setItems] = useState<AuditEventView[]>([]);
@@ -52,25 +70,51 @@ export function AuditPage({ api }: { api: SahayaApi }) {
 
   const apply = (event: FormEvent) => {
     event.preventDefault();
-    setFilters({ action: action.trim().toUpperCase(), entityType: entityType.trim() });
+    setFilters({
+      action: (action === OTHER ? otherAction : action).trim().toUpperCase(),
+      entityType,
+    });
   };
 
   return (
     <div className="as-stack">
-      <Surface title="Filter" description="Newest events first. Codes are never recorded.">
+      <Surface title="Filter" description="Newest events first. Sign-in codes are never recorded.">
         <form className="as-admin-filters" onSubmit={apply}>
-          <TextField
-            label="Action"
-            placeholder="e.g. ROLE_GRANTED"
-            value={action}
-            onChange={(e) => setAction(e.target.value)}
-          />
-          <TextField
-            label="Entity type"
-            placeholder="e.g. user"
-            value={entityType}
-            onChange={(e) => setEntityType(e.target.value)}
-          />
+          <label className="ds-field">
+            <span className="ds-field__label">What happened</span>
+            <select className="ds-input" value={action} onChange={(e) => setAction(e.target.value)}>
+              <option value="">Any action</option>
+              {COMMON_AUDIT_ACTIONS.map((a) => (
+                <option key={a} value={a}>
+                  {auditActionLabel(a)}
+                </option>
+              ))}
+              <option value={OTHER}>Other (enter the code)…</option>
+            </select>
+          </label>
+          {action === OTHER && (
+            <TextField
+              label="Action code"
+              placeholder="e.g. DRILL_STOPPED"
+              value={otherAction}
+              onChange={(e) => setOtherAction(e.target.value)}
+            />
+          )}
+          <label className="ds-field">
+            <span className="ds-field__label">About</span>
+            <select
+              className="ds-input"
+              value={entityType}
+              onChange={(e) => setEntityType(e.target.value)}
+            >
+              <option value="">Anything</option>
+              {ENTITY_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <Button type="submit" variant="secondary">
             Apply
           </Button>
@@ -94,28 +138,44 @@ export function AuditPage({ api }: { api: SahayaApi }) {
             <thead>
               <tr>
                 <th scope="col">When</th>
-                <th scope="col">Action</th>
-                <th scope="col">Actor</th>
-                <th scope="col">Entity</th>
+                <th scope="col">What happened</th>
+                <th scope="col">By</th>
+                <th scope="col">About</th>
                 <th scope="col">Details</th>
               </tr>
             </thead>
             <tbody>
               {items.map((event) => (
                 <tr key={event.id}>
-                  <td>{formatWhen(event.createdAt)}</td>
-                  <td>
-                    <code>{event.action}</code>
+                  <td data-label="When" className="as-nowrap">
+                    {formatWhen(event.createdAt)}
                   </td>
-                  <td>{event.actorEmail ?? (event.actorId ? event.actorId : 'System')}</td>
-                  <td>
-                    {event.entityType}
+                  <td data-label="What happened">
+                    <strong>{auditActionLabel(event.action)}</strong>
+                    <small className="as-audit-code">{event.action}</small>
+                  </td>
+                  <td data-label="By">
+                    {event.actorEmail ?? (event.actorId ? event.actorId : 'System')}
+                  </td>
+                  <td data-label="About">
+                    {humanize(event.entityType)}
                     {event.entityId && (
-                      <small className="as-muted"> {event.entityId.slice(0, 8)}</small>
+                      <small className="as-muted"> #{event.entityId.slice(0, 8)}</small>
                     )}
                   </td>
-                  <td>
-                    <code className="as-audit-meta">{JSON.stringify(event.metadata)}</code>
+                  <td data-label="Details">
+                    {auditDetails(event.metadata).length === 0 ? (
+                      <span className="as-muted">—</span>
+                    ) : (
+                      <dl className="as-audit-details">
+                        {auditDetails(event.metadata).map((d) => (
+                          <div key={d.label}>
+                            <dt>{d.label}</dt>
+                            <dd>{d.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -285,12 +285,12 @@ describe('admin users and roles', () => {
     const roleGroup = await screen.findByLabelText('Roles of student@campus.test', undefined, {
       timeout: 5000,
     });
-    expect(within(roleGroup).getByRole('button', { name: 'STUDENT' })).toHaveAttribute(
+    expect(within(roleGroup).getByRole('button', { name: 'Student' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    await user.click(within(roleGroup).getByRole('button', { name: 'RESPONDER' }));
-    const dialog = screen.getByRole('dialog', { name: 'Grant RESPONDER to student@campus.test' });
+    await user.click(within(roleGroup).getByRole('button', { name: 'Responder' }));
+    const dialog = screen.getByRole('dialog', { name: 'Make student@campus.test a Responder' });
     await user.click(within(dialog).getByRole('button', { name: 'Confirm' }));
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Give a reason of at least 5');
     expect(sent).toHaveLength(0);
@@ -301,13 +301,13 @@ describe('admin users and roles', () => {
     );
     await user.click(within(dialog).getByRole('button', { name: 'Confirm' }));
     expect(
-      await screen.findByText(/Grant RESPONDER to student@campus.test: done and recorded/),
+      await screen.findByText(/Make student@campus.test a Responder: done and recorded/),
     ).toBeInTheDocument();
     expect(sent).toEqual([{ role: 'RESPONDER', reason: 'Drill responder' }]);
     await waitFor(() =>
       expect(
         within(screen.getByLabelText('Roles of student@campus.test')).getByRole('button', {
-          name: 'RESPONDER',
+          name: 'Responder',
         }),
       ).toHaveAttribute('aria-pressed', 'true'),
     );

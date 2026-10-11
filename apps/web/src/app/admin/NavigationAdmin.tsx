@@ -15,7 +15,7 @@ import {
   Surface,
   TextField,
 } from '../../design-system';
-import { formatWhen, useAsync, type Tone } from '../ui';
+import { Fold, formatWhen, useAsync, type Tone } from '../ui';
 
 const STATUS_TONE: Record<string, Tone> = {
   PROPOSED: 'warn',
@@ -108,6 +108,17 @@ function ReviewSheet({
 }
 
 /** Safe-point approvals (ADMIN). */
+/** "2 approved · 1 waiting for a second administrator" */
+function summary(
+  items: readonly { status: string }[] | undefined,
+  waitingStatus: string,
+): string | undefined {
+  if (!items) return undefined;
+  const approved = items.filter((i) => i.status === 'APPROVED').length;
+  const waiting = items.filter((i) => i.status === waitingStatus).length;
+  return `${approved} approved · ${waiting} waiting for a second administrator`;
+}
+
 export function SafePointsPage({ api, user }: { api: SahayaApi; user: Me }) {
   const points = useAsync(() => api.safePoints(), [api]);
   const [review, setReview] = useState<Review | null>(null);
@@ -165,10 +176,68 @@ export function SafePointsPage({ api, user }: { api: SahayaApi; user: Me }) {
         {TWO_PERSON}
       </StatusBanner>
       {done && <StatusBanner tone="ok">{done}</StatusBanner>}
-      <Surface
-        title="Propose a safe point"
-        description="Assembly points, shelters and exits confirmed by the institution."
-      >
+      <Surface title="Safe points" description={summary(points.data?.items, 'PROPOSED')}>
+        {points.loading && !points.data ? (
+          <Skeleton lines={3} label="safe points" />
+        ) : points.error && !points.data ? (
+          <ErrorState
+            title="Could not load safe points"
+            message={describeAuthError(points.error)}
+            onRetry={points.reload}
+          />
+        ) : points.data && points.data.items.length === 0 ? (
+          <EmptyState icon="pin" title="No safe points yet" />
+        ) : (
+          <ul className="as-user-list">
+            {points.data?.items.map((p) => (
+              <li key={p.id} className="as-user">
+                <div className="as-user__head">
+                  <div>
+                    <p className="as-user__name">{p.name}</p>
+                    <p className="as-small as-muted">
+                      {p.kind.replace(/_/g, ' ').toLowerCase()} · {p.latitude.toFixed(5)},{' '}
+                      {p.longitude.toFixed(5)}
+                      {p.proposedBy === user.id ? ' · proposed by you' : ''}
+                    </p>
+                  </div>
+                  <Pill tone={STATUS_TONE[p.status] ?? 'neutral'}>{p.status.toLowerCase()}</Pill>
+                </div>
+                {p.reviewedAt && (
+                  <p className="as-small as-muted">Reviewed {formatWhen(p.reviewedAt)}</p>
+                )}
+                <div className="as-row">
+                  {p.status === 'PROPOSED' &&
+                    (p.proposedBy === user.id ? (
+                      <span className="as-small as-wait">
+                        Waiting for another administrator to approve
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => setReview({ kind: 'point', item: p, decision: 'APPROVE' })}
+                      >
+                        Approve
+                      </Button>
+                    ))}
+                  {p.status !== 'RETIRED' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setReview({ kind: 'point', item: p, decision: 'RETIRE' })}
+                    >
+                      Retire
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Surface>
+      <Fold title="Propose a safe point" icon="plus">
+        <p className="as-small as-muted">
+          Assembly points, shelters and exits confirmed by the institution.
+        </p>
         <div className="as-admin-filters">
           <TextField
             label="Name"
@@ -209,60 +278,7 @@ export function SafePointsPage({ api, user }: { api: SahayaApi; user: Me }) {
         <Button loading={busy} onClick={() => void propose()}>
           Propose safe point
         </Button>
-      </Surface>
-      <Surface title="Safe points">
-        {points.loading && !points.data ? (
-          <Skeleton lines={3} label="safe points" />
-        ) : points.error && !points.data ? (
-          <ErrorState
-            title="Could not load safe points"
-            message={describeAuthError(points.error)}
-            onRetry={points.reload}
-          />
-        ) : points.data && points.data.items.length === 0 ? (
-          <EmptyState icon="pin" title="No safe points yet" />
-        ) : (
-          <ul className="as-user-list">
-            {points.data?.items.map((p) => (
-              <li key={p.id} className="as-user">
-                <div className="as-user__head">
-                  <div>
-                    <p className="as-user__name">{p.name}</p>
-                    <p className="as-small as-muted">
-                      {p.kind.replace(/_/g, ' ').toLowerCase()} · {p.latitude.toFixed(5)},{' '}
-                      {p.longitude.toFixed(5)}
-                      {p.proposedBy === user.id ? ' · proposed by you' : ''}
-                    </p>
-                  </div>
-                  <Pill tone={STATUS_TONE[p.status] ?? 'neutral'}>{p.status.toLowerCase()}</Pill>
-                </div>
-                {p.reviewedAt && (
-                  <p className="as-small as-muted">Reviewed {formatWhen(p.reviewedAt)}</p>
-                )}
-                <div className="as-row">
-                  {p.status === 'PROPOSED' && (
-                    <Button
-                      size="sm"
-                      onClick={() => setReview({ kind: 'point', item: p, decision: 'APPROVE' })}
-                    >
-                      Approve
-                    </Button>
-                  )}
-                  {p.status !== 'RETIRED' && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setReview({ kind: 'point', item: p, decision: 'RETIRE' })}
-                    >
-                      Retire
-                    </Button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Surface>
+      </Fold>
       {review && (
         <ReviewSheet
           api={api}
@@ -334,34 +350,13 @@ export function MapDataPage({ api, user }: { api: SahayaApi; user: Me }) {
     <div className="as-stack">
       <StatusBanner tone="info" title="Routes use approved data only">
         {TWO_PERSON} With no approved route data, students and responders see “Navigation
-        unavailable”. Community-mapped (OpenStreetMap) paths are never used for routes.
+        unavailable”.
+        {user.mode === 'DEMO'
+          ? ' In this DEMO, a practice network built from community-mapped (OpenStreetMap) paths is pre-approved; every route on it is labelled a practice route, never an evacuation route.'
+          : ' Community-mapped (OpenStreetMap) paths are never used for routes.'}
       </StatusBanner>
       {done && <StatusBanner tone="ok">{done}</StatusBanner>}
-      <Surface
-        title="Upload route data"
-        description="A walking network: points (nodes) and the paths that join them (edges). Indoors, give each node a floor (ground = 0) and mark edges between floors as STAIRS, RAMP or LIFT. Lifts are kept on record but never used for evacuation routes."
-      >
-        <label className="ds-field">
-          <span className="ds-field__label">Route graph (JSON)</span>
-          <textarea
-            className="ds-input as-graph-input"
-            value={text}
-            placeholder={EXAMPLE}
-            onChange={(e) => setText(e.target.value)}
-            spellCheck={false}
-          />
-        </label>
-        <TextField
-          label="Reason (kept in the audit log)"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-        <FormError>{error}</FormError>
-        <Button loading={busy} onClick={() => void upload()}>
-          Upload as draft
-        </Button>
-      </Surface>
-      <Surface title="Route data versions">
+      <Surface title="Route data versions" description={summary(graphs.data?.items, 'DRAFT')}>
         {graphs.loading && !graphs.data ? (
           <Skeleton lines={3} label="route data" />
         ) : graphs.error && !graphs.data ? (
@@ -391,14 +386,19 @@ export function MapDataPage({ api, user }: { api: SahayaApi; user: Me }) {
                   {g.approvedAt ? ` · approved ${formatWhen(g.approvedAt)}` : ''}
                 </p>
                 <div className="as-row">
-                  {g.status === 'DRAFT' && (
-                    <Button
-                      size="sm"
-                      onClick={() => setReview({ kind: 'graph', item: g, decision: 'APPROVE' })}
-                    >
-                      Approve
-                    </Button>
-                  )}
+                  {g.status === 'DRAFT' &&
+                    (g.uploadedBy === user.id ? (
+                      <span className="as-small as-wait">
+                        Waiting for another administrator to approve
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => setReview({ kind: 'graph', item: g, decision: 'APPROVE' })}
+                      >
+                        Approve
+                      </Button>
+                    ))}
                   {g.status !== 'RETIRED' && (
                     <Button
                       size="sm"
@@ -414,6 +414,32 @@ export function MapDataPage({ api, user }: { api: SahayaApi; user: Me }) {
           </ul>
         )}
       </Surface>
+      <Fold title="Upload new route data" icon="plus">
+        <p className="as-small as-muted">
+          A walking network: points (nodes) and the paths that join them (edges). Indoors, give each
+          node a floor (ground = 0) and mark edges between floors as STAIRS, RAMP or LIFT. Lifts are
+          kept on record but never used for evacuation routes.
+        </p>
+        <label className="ds-field">
+          <span className="ds-field__label">Route graph (JSON)</span>
+          <textarea
+            className="ds-input as-graph-input"
+            value={text}
+            placeholder={EXAMPLE}
+            onChange={(e) => setText(e.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        <TextField
+          label="Reason (kept in the audit log)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <FormError>{error}</FormError>
+        <Button loading={busy} onClick={() => void upload()}>
+          Upload as draft
+        </Button>
+      </Fold>
       {review && (
         <ReviewSheet
           api={api}

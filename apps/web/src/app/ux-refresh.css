@@ -1018,3 +1018,104 @@
   color: var(--ds-muted);
   box-shadow: none;
 }
+
+/* ---------- Inner admin pages ---------- */
+.as-progressbar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--ds-surface-2);
+  overflow: hidden;
+}
+.as-progressbar > span {
+  display: block;
+  height: 100%;
+  background: var(--ds-teal);
+}
+.as-wait {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--ds-warn-50);
+  color: var(--ds-warn);
+  font-weight: 600;
+}
+.as-user__head {
+  align-items: center;
+  gap: 12px;
+}
+.as-user__avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ds-deep);
+  color: #fff;
+  font-weight: 750;
+  font-size: 0.85rem;
+}
+.as-user__who {
+  flex: 1;
+  min-width: 0;
+}
+.as-user__who p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.as-user__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.as-role-chip {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.82rem;
+}
+.as-audit-code {
+  display: block;
+  margin-top: 2px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--ds-muted);
+}
+.as-audit-details {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 0.82rem;
+}
+.as-audit-details > div {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.as-audit-details dt {
+  color: var(--ds-muted);
+  font-weight: 600;
+}
+.as-audit-details dt::after {
+  content: ':';
+}
+.as-audit-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.as-nowrap {
+  white-space: nowrap;
+}
+@media (max-width: 899px) {
+  .as-nowrap {
+    white-space: normal;
+  }
+}
+/* Stacks and card headers must shrink and wrap on narrow screens. */
+.as-stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ds-card__head {
+  flex-wrap: wrap;
+}

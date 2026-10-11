@@ -259,7 +259,7 @@ export async function purgeUnattachedPhotos(pool: DatabasePool, logger?: Logger)
     if (stale.rows.length > 0) {
       await writeAudit(client, {
         action: 'UNATTACHED_PHOTOS_PURGED',
-        entityType: 'ATTACHMENT',
+        entityType: 'attachment',
         metadata: { count: stale.rows.length, olderThanHours: hours },
       });
       logger?.info({ count: stale.rows.length }, 'purged unattached photos');

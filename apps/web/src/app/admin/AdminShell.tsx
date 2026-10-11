@@ -41,6 +41,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.users',
+    short: 'Users',
     group: 'People',
     primary: true,
     section: 'users',
@@ -130,6 +131,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.incidents',
+    short: 'Verify',
     group: 'Operations',
     primary: true,
     section: 'incidents',
@@ -153,6 +155,7 @@ export const ADMIN_NAV: StaffNavItem[] = [
   },
   {
     id: 'admin.drills',
+    short: 'Drills',
     group: 'Operations',
     primary: true,
     section: 'drills',

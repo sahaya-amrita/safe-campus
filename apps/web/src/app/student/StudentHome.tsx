@@ -15,6 +15,7 @@ import {
   useAsync,
 } from '../ui';
 import { useStudent } from './core';
+import { humanize } from '../labels';
 
 export function StudentHome() {
   const s = useStudent();
@@ -177,7 +178,8 @@ export function StudentHome() {
                   </Pill>
                 </div>
                 <span className="as-muted as-small">
-                  {h.approvedRole} · verified in the system · contact via in-app help request only
+                  {humanize(h.approvedRole)} · verified in the system · contact via in-app help
+                  request only
                 </span>
               </li>
             ))}

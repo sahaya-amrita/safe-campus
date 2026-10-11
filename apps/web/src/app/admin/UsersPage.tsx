@@ -15,6 +15,7 @@ import {
   Surface,
   TextField,
 } from '../../design-system';
+import { roleLabel } from '../labels';
 import { formatWhen, useAsync } from '../ui';
 
 const ROLES: readonly Role[] = roleSchema.options;
@@ -33,8 +34,9 @@ type Change =
   | { kind: 'status'; user: AdminUser; status: 'ACTIVE' | 'DISABLED' };
 
 function describeChange(change: Change): string {
-  if (change.kind === 'grant') return `Grant ${change.role} to ${change.user.email}`;
-  if (change.kind === 'revoke') return `Remove ${change.role} from ${change.user.email}`;
+  if (change.kind === 'grant') return `Make ${change.user.email} a ${roleLabel(change.role)}`;
+  if (change.kind === 'revoke')
+    return `Remove the ${roleLabel(change.role)} role from ${change.user.email}`;
   return `${change.status === 'DISABLED' ? 'Disable' : 'Enable'} ${change.user.email}`;
 }
 
@@ -82,7 +84,7 @@ export function UsersPage({ api, user }: { api: SahayaApi; user: Me }) {
               <option value="">Any role</option>
               {ROLES.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {roleLabel(r)}
                 </option>
               ))}
             </select>
@@ -114,7 +116,15 @@ export function UsersPage({ api, user }: { api: SahayaApi; user: Me }) {
           {users.data?.items.map((u) => (
             <li key={u.id} className="as-user">
               <div className="as-user__head">
-                <div>
+                <span className="as-user__avatar" aria-hidden="true">
+                  {u.displayName
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((w) => w[0]!.toUpperCase())
+                    .join('')}
+                </span>
+                <div className="as-user__who">
                   <p className="as-user__name">
                     {u.displayName}
                     {u.id === user.id && <span className="as-muted"> (you)</span>}
@@ -129,7 +139,7 @@ export function UsersPage({ api, user }: { api: SahayaApi; user: Me }) {
                 Last sign-in: {formatWhen(u.lastSignInAt)} · Email verified:{' '}
                 {u.emailVerifiedAt ? formatWhen(u.emailVerifiedAt) : 'not yet'}
               </p>
-              <div className="as-user__roles" aria-label={`Roles of ${u.email}`}>
+              <div className="as-user__roles" role="group" aria-label={`Roles of ${u.email}`}>
                 {ROLES.map((role) => {
                   const has = u.roles.includes(role);
                   return (
@@ -142,7 +152,8 @@ export function UsersPage({ api, user }: { api: SahayaApi; user: Me }) {
                       disabled={u.status !== 'ACTIVE' && !has}
                       onClick={() => setChange({ kind: has ? 'revoke' : 'grant', user: u, role })}
                     >
-                      {role}
+                      {has && <span aria-hidden="true">✓ </span>}
+                      {roleLabel(role)}
                     </button>
                   );
                 })}

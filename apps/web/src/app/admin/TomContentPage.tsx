@@ -13,6 +13,7 @@ import {
   Surface,
   TextField,
 } from '../../design-system';
+import { roleLabel } from '../labels';
 import { formatWhen, useAsync, type Tone } from '../ui';
 
 const TONE: Record<AssistantContentView['state'], Tone> = {
@@ -38,6 +39,11 @@ export function TomContentPage({ api }: { api: SahayaApi }) {
   const [done, setDone] = useState<string | null>(null);
   const items = content.data?.items ?? [];
   const approved = items.filter((i) => i.state === 'APPROVED').length;
+  const [view, setView] = useState<'REVIEW' | 'APPROVED' | 'ALL'>('REVIEW');
+  const shown = items.filter((i) =>
+    view === 'ALL' ? true : view === 'APPROVED' ? i.state === 'APPROVED' : i.state !== 'APPROVED',
+  );
+  const percent = items.length ? Math.round((approved / items.length) * 100) : 0;
 
   const save = async () => {
     if (!open) return;
@@ -69,7 +75,30 @@ export function TomContentPage({ api }: { api: SahayaApi }) {
         Tom answers only from approved text outside DEMO mode. An approval covers the exact wording;
         any change sends it back to draft.
       </StatusBanner>
+      {items.length > 0 && (
+        <div className="as-progressbar" role="img" aria-label={`${percent}% approved`}>
+          <span style={{ width: `${percent}%` }} />
+        </div>
+      )}
       {done && <StatusBanner tone="ok">{done}</StatusBanner>}
+      <div className="as-seg" role="group" aria-label="Show">
+        {(
+          [
+            ['REVIEW', `Needs review (${items.length - approved})`],
+            ['APPROVED', `Approved (${approved})`],
+            ['ALL', `All (${items.length})`],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={view === value}
+            onClick={() => setView(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       {content.loading && !content.data ? (
         <Skeleton lines={5} label="help content" />
       ) : content.error && !content.data ? (
@@ -78,12 +107,16 @@ export function TomContentPage({ api }: { api: SahayaApi }) {
           message={describeAuthError(content.error)}
           onRetry={content.reload}
         />
+      ) : shown.length === 0 ? (
+        <p className="as-muted">
+          {view === 'REVIEW' ? 'Everything has been reviewed.' : 'Nothing here yet.'}
+        </p>
       ) : (
-        items.map((item) => (
+        shown.map((item) => (
           <Surface
             key={item.id}
             title={item.title}
-            description={`${item.kind.replace(/_/g, ' ').toLowerCase()} · version ${item.version} · for ${item.audience === 'ALL' ? 'everyone' : item.audience.join(', ').toLowerCase()}`}
+            description={`${item.kind.replace(/_/g, ' ').toLowerCase()} · version ${item.version} · for ${item.audience === 'ALL' ? 'everyone' : item.audience.map(roleLabel).join(', ')}`}
             action={<Pill tone={TONE[item.state]}>{item.state.toLowerCase()}</Pill>}
           >
             <p className="as-tom-text">{item.body}</p>
@@ -97,15 +130,17 @@ export function TomContentPage({ api }: { api: SahayaApi }) {
               </p>
             )}
             <div className="as-row">
-              <Button size="sm" onClick={() => setOpen({ item, decision: 'APPROVED' })}>
-                Approve this text
-              </Button>
+              {item.state !== 'APPROVED' && (
+                <Button size="sm" onClick={() => setOpen({ item, decision: 'APPROVED' })}>
+                  Approve this text
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => setOpen({ item, decision: 'REJECTED' })}
               >
-                Reject
+                {item.state === 'APPROVED' ? 'Withdraw approval' : 'Reject'}
               </Button>
             </div>
           </Surface>

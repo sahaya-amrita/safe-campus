@@ -67,7 +67,7 @@ export function pushRouter(pool: DatabasePool, config: Config) {
         await writeAudit(client, {
           actorId: userId,
           action: 'PUSH_DEVICE_REGISTERED',
-          entityType: 'USER',
+          entityType: 'user',
           entityId: userId,
           metadata: { pushHost: new URL(body.endpoint).hostname },
         });
@@ -92,7 +92,7 @@ export function pushRouter(pool: DatabasePool, config: Config) {
           await writeAudit(client, {
             actorId: userId,
             action: 'PUSH_DEVICE_REMOVED',
-            entityType: 'USER',
+            entityType: 'user',
             entityId: userId,
           });
       });

@@ -31,26 +31,37 @@ const point: SafePointView = {
 };
 
 describe('SafePointsPage', () => {
-  it('explains the two-person rule when the proposer tries to approve', async () => {
+  it('does not offer Approve on your own proposal, and says a second administrator is needed', async () => {
+    const reviewSafePoint = vi.fn();
     const api = {
       safePoints: vi.fn(async () => ({ items: [point] })),
-      reviewSafePoint: vi.fn(async () => {
-        throw new ApiError('CONFLICT', 409, 'SAME_PERSON', 'second admin');
-      }),
+      reviewSafePoint,
+    } as unknown as SahayaApi;
+    render(<SafePointsPage api={api} user={me} />);
+    expect(await screen.findByText(/proposed by you/)).toBeInTheDocument();
+    expect(screen.getByText('Waiting for another administrator to approve')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(
+      screen.getByText('0 approved · 1 waiting for a second administrator'),
+    ).toBeInTheDocument();
+  });
+
+  it('lets a different administrator approve, with a reason', async () => {
+    const reviewSafePoint = vi.fn(async () => ({ ...point, status: 'APPROVED' }));
+    const api = {
+      safePoints: vi.fn(async () => ({ items: [{ ...point, proposedBy: 'someone-else' }] })),
+      reviewSafePoint,
     } as unknown as SahayaApi;
     const user = userEvent.setup();
     render(<SafePointsPage api={api} user={me} />);
-    expect(await screen.findByText(/proposed by you/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    await user.click(await screen.findByRole('button', { name: 'Approve' }));
     const dialog = screen.getByRole('dialog');
     await user.type(
       within(dialog).getByLabelText('Reason (kept in the audit log)'),
       'Checked on site',
     );
     await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-      'A second administrator must approve it.',
-    );
+    expect(reviewSafePoint).toHaveBeenCalledWith(point.id, 'APPROVE', 'Checked on site');
   });
 
   it('proposes a point only with coordinates and a reason', async () => {
