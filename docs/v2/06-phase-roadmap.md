@@ -54,13 +54,13 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Verified safe-point routing       | **Built** (A\* over approved route data only; "Navigation unavailable" otherwise) |
 | Map data and safe-point approvals | **Built** (two-person rule, audited)                                              |
 
-## Phase 6: drills, learning and Tom
+## Phase 6: drills, learning and Tom (built; see [12](./12-phase6-drills-learning-tom.md))
 
-| Item                        | Integration boundary                                           |
-| --------------------------- | -------------------------------------------------------------- |
-| Virtual drills and progress | Uses `/training/results`; drills are always labelled as drills |
-| 3D floating Tom             | Presentation only. Tom never initiates consequential actions.  |
-| Tom knowledge review        | A named reviewer approves the help content                     |
+| Item                        | Status                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| Virtual drills and progress | **Built** (progress screen; drill after-action reviews with follow-up actions) |
+| Tom knowledge review        | **Built** (named reviewer; approval tied to exact wording)                     |
+| 3D floating Tom             | **Not done** (presentation only; deferred)                                     |
 
 ## Phase 7: administration, analytics and deployment (M7, M8)
 
@@ -71,9 +71,9 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Privacy and support pages, final    | Replace the Phase 1 drafts after institutional and legal review      |
 | Deployment                          | Production CORS, host secrets, second-device and real-device testing |
 
-## Prerequisites for Phase 6 (owner actions)
+## Prerequisites for Phase 7 (owner actions)
 
-1. **Review** Phase 5 (`feat/phase5-maps`).
-2. **Map data:** campus estates or security to supply route data and safe points, and two administrators to approve them.
-3. **Tom:** a named reviewer for Tom's help content.
-4. **Still outstanding:** Postgres for development and staging, email provider, photo storage, notification provider, rotating the Groq key.
+1. **Review** Phase 6 (`feat/phase6-learning`).
+2. **Tom:** a named reviewer approves the help texts in Admin → Tom help content.
+3. **Deployment:** hosting accounts, a production database, email provider and secrets, and the production web origin for CORS.
+4. **Legal:** institutional and legal review of the privacy and help pages.

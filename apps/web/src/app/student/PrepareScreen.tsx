@@ -17,7 +17,7 @@ const TOPICS = [
 export function PrepareScreen() {
   const s = useStudent();
   const packs = useInstructionPacks(s.deps.api, s.deps.packStore, s.language, s.deps.now);
-  const training = useAsync(s.api ? () => s.api!.myTraining() : null, [s.api]);
+  const progress = useAsync(s.api ? () => s.api!.myProgress() : null, [s.api]);
   const drills = useAsync(s.api ? () => s.api!.drills() : null, [s.api]);
   const [practice, setPractice] = useState(false);
   const titles = (packs?.packs ?? []).map((p) => p.pack.title.toLowerCase());
@@ -75,7 +75,7 @@ export function PrepareScreen() {
         <p className="as-muted">
           A short screen-only exercise. No alarms, alerts or contacts are triggered.
         </p>
-        {practice && <DrillPractice api={s.api} onSaved={training.reload} />}
+        {practice && <DrillPractice api={s.api} onSaved={progress.reload} />}
       </Card>
 
       <Card title="Scheduled drills" icon="users" labelledBy="as-prep-drills">
@@ -107,28 +107,65 @@ export function PrepareScreen() {
         )}
       </Card>
 
-      <Card title="My training history" icon="check" labelledBy="as-prep-history">
+      <Card title="My progress" icon="check" labelledBy="as-prep-history">
         {!s.api ? (
           <p className="as-muted">Needs a signed-in API session.</p>
-        ) : training.loading && !training.data ? (
+        ) : progress.loading && !progress.data ? (
           <Loading />
-        ) : training.error ? (
-          <ErrorNotice error={training.error} onRetry={training.reload} />
-        ) : training.data?.items.length ? (
-          <ul className="as-list">
-            {training.data.items.map((r) => (
-              <li key={r.id} className="as-item">
-                <div className="as-row as-row--between">
-                  <span className="as-item__title">{r.scenarioRef}</span>
-                  <Pill tone="info">{Math.round(r.score)}%</Pill>
-                </div>
-                <span className="as-muted as-small">{formatWhen(r.completedAt)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState title="No saved drill results yet." />
-        )}
+        ) : progress.error ? (
+          <ErrorNotice error={progress.error} onRetry={progress.reload} />
+        ) : progress.data ? (
+          <>
+            <div className="as-grid2 as-progress">
+              <p>
+                <strong>{progress.data.summary.practiceRuns}</strong>
+                <span className="as-muted as-small">practice runs</span>
+              </p>
+              <p>
+                <strong>
+                  {progress.data.summary.bestScore === null
+                    ? '—'
+                    : `${Math.round(progress.data.summary.bestScore)}%`}
+                </strong>
+                <span className="as-muted as-small">best practice score</span>
+              </p>
+              <p>
+                <strong>{progress.data.summary.drillsJoined}</strong>
+                <span className="as-muted as-small">drills you checked in to</span>
+              </p>
+            </div>
+            {progress.data.drills.length > 0 && (
+              <ul className="as-list" aria-label="Drills you took part in">
+                {progress.data.drills.map((d) => (
+                  <li key={d.drillId} className="as-item">
+                    <div className="as-row as-row--between">
+                      <span className="as-item__title">{d.name}</span>
+                      <Pill tone={d.lastStatus === 'CONFIRMED_SAFE' ? 'ok' : 'warn'}>
+                        {d.lastStatus === 'CONFIRMED_SAFE' ? 'Checked in safe' : 'Asked for help'}
+                      </Pill>
+                    </div>
+                    <span className="as-muted as-small">{formatWhen(d.checkedInAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {progress.data.practice.length > 0 ? (
+              <ul className="as-list" aria-label="Practice results">
+                {progress.data.practice.map((r) => (
+                  <li key={r.id} className="as-item">
+                    <div className="as-row as-row--between">
+                      <span className="as-item__title">{r.scenarioRef}</span>
+                      <Pill tone="info">{Math.round(r.score)}%</Pill>
+                    </div>
+                    <span className="as-muted as-small">{formatWhen(r.completedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState title="No practice results yet." />
+            )}
+          </>
+        ) : null}
       </Card>
     </>
   );

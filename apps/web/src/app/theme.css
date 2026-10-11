@@ -1930,3 +1930,32 @@ a[href^='tel:']:not([class]) {
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   font-size: var(--ds-text-sm);
 }
+
+/* ---------- Phase 6: learning ---------- */
+.as-progress p {
+  display: grid;
+  gap: 2px;
+}
+.as-progress strong {
+  font-size: var(--ds-text-xl);
+  color: var(--ds-primary-700);
+}
+.as-aar {
+  border-top: 1px solid var(--ds-line);
+  padding-top: var(--ds-space-2);
+}
+.as-aar__action {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: var(--ds-space-2);
+  align-items: end;
+}
+@media (max-width: 560px) {
+  .as-aar__action {
+    grid-template-columns: 1fr;
+  }
+}
+.as-tom-text {
+  white-space: pre-line;
+  color: var(--ds-ink-2);
+}

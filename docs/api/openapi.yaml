@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Amrita Sahaya API
-  version: 0.5.0
+  version: 0.6.0
   description: >-
     Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
     behavior is simulated. No endpoint contacts real emergency services.
@@ -29,6 +29,7 @@ tags:
   - name: Responder operations
   - name: Roll call
   - name: Navigation
+  - name: Learning
 paths:
   /health:
     get:
@@ -1578,6 +1579,103 @@ paths:
             content: { application/json: { schema: { $ref: '#/components/schemas/RouteGraph' } } },
           }
         '409': { $ref: '#/components/responses/Conflict' }
+  /drills/{drillId}/review:
+    parameters:
+      - { name: drillId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Learning]
+      operationId: getDrillReview
+      summary: After-action review of an ended drill (staff)
+      responses:
+        '200':
+          {
+            description: Review,
+            content: { application/json: { schema: { $ref: '#/components/schemas/DrillReview' } } },
+          }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Learning]
+      operationId: saveDrillReview
+      summary: Write or update the review (DRILL_MANAGER, ADMIN); only after the drill ended; marks it REVIEWED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [summary]
+              properties:
+                summary: { type: string, minLength: 3, maxLength: 2000 }
+                wentWell: { type: string }
+                toImprove: { type: string }
+                actions:
+                  type: array
+                  maxItems: 30
+                  items:
+                    type: object
+                    required: [id, text]
+                    properties:
+                      id: { type: string }
+                      text: { type: string, minLength: 3 }
+                      owner: { type: string }
+                      dueDate: { type: [string, 'null'], format: date }
+                      status: { enum: [OPEN, DONE] }
+      responses:
+        '200':
+          {
+            description: Saved,
+            content: { application/json: { schema: { $ref: '#/components/schemas/DrillReview' } } },
+          }
+        '409': { description: DRILL_NOT_ENDED }
+  /training/progress/mine:
+    get:
+      tags: [Learning]
+      operationId: getMyProgress
+      summary: Practice results and drills the signed-in user checked in to
+      responses:
+        '200':
+          description: Progress
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    properties:
+                      practiceRuns: { type: integer }
+                      bestScore: { type: [number, 'null'] }
+                      drillsJoined: { type: integer }
+                  practice: { type: array, items: { type: object } }
+                  drills: { type: array, items: { type: object } }
+  /admin/assistant-content:
+    get:
+      tags: [Learning]
+      operationId: listAssistantContent
+      summary: Tom's help texts with their review state (ADMIN, INCIDENT_VERIFIER)
+      responses:
+        '200': { description: Help texts }
+  /admin/assistant-content/{docId}/review:
+    post:
+      tags: [Learning]
+      operationId: reviewAssistantContent
+      summary: Approve or reject one exact help text (a later wording change returns it to DRAFT)
+      parameters:
+        - { name: docId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, notes]
+              properties:
+                decision: { enum: [APPROVED, REJECTED] }
+                notes: { type: string, minLength: 5 }
+                validUntil: { type: string, format: date-time }
+      responses:
+        '201': { description: Review recorded (audited) }
+        '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
     bearerAuth:
@@ -1897,6 +1995,17 @@ components:
       description: >-
         Exactly one of incidentId/drillId. helpDetails is optional since 0.3.0; a help request
         without text is recorded as "No details given (quick help request)".
+    DrillReview:
+      type: object
+      properties:
+        drillId: { type: string, format: uuid }
+        summary: { type: string }
+        wentWell: { type: string }
+        toImprove: { type: string }
+        actions: { type: array, items: { type: object } }
+        updatedBy: { type: string, format: uuid }
+        updatedByName: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
     SafePoint:
       type: object
       properties:

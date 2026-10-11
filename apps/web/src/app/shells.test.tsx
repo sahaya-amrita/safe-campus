@@ -138,6 +138,7 @@ describe('route separation', () => {
       'Responder roster',
       'Campus map data',
       'Safe-point approvals',
+      'Tom help content',
       'Incident verification',
       'Alert management',
       'Drill management',

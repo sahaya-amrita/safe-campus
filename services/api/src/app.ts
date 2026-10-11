@@ -18,6 +18,7 @@ import { createEmailSender, DevMailbox, type EmailSender } from './auth/email.js
 import { adminRouter } from './routes/admin.js';
 import { attachmentsRouter } from './routes/attachments.js';
 import { sosRouter } from './routes/sos.js';
+import { assistantContentRouter, drillReviewRouter, progressRouter } from './routes/learning.js';
 import { adminNavigationRouter, navigationRouter } from './routes/navigation.js';
 import { adminRespondersRouter, responderSelfRouter, rollCallRouter } from './routes/operations.js';
 import { authRouter, devMailboxRouter } from './routes/auth.js';
@@ -90,6 +91,7 @@ export function createApp(
   app.use('/api/v1/users', usersRouter(pool));
   app.use('/api/v1/admin/responders', adminRespondersRouter(pool, config));
   app.use('/api/v1/admin/navigation', adminNavigationRouter(pool, config));
+  app.use('/api/v1/admin/assistant-content', assistantContentRouter(pool));
   app.use('/api/v1/admin', adminRouter(pool));
   app.use('/api/v1/incidents', incidentsRouter(pool, config));
   app.use(
@@ -108,7 +110,9 @@ export function createApp(
   app.use('/api/v1/dispatches', dispatchesRouter(pool));
   app.use('/api/v1/alerts', alertsRouter(pool));
   app.use('/api/v1/trusted-contacts', trustedContactsRouter(pool, config));
+  app.use('/api/v1/drills/:drillId/review', drillReviewRouter(pool));
   app.use('/api/v1/drills', drillsRouter(pool));
+  app.use('/api/v1/training', progressRouter(pool));
   app.use('/api/v1/training', trainingRouter(pool));
   app.use('/api/v1/maps', navigationRouter(pool));
   app.use('/api/v1/maps', mapsRouter(pool, config));

@@ -7,7 +7,10 @@
 import type {
   AdminUser,
   AttachmentView,
+  AssistantContentView,
+  DrillReviewView,
   NavigationStatus,
+  ProgressView,
   ResponderInboxItem,
   RouteGraphView,
   RouteResponse,
@@ -339,6 +342,35 @@ const enc = encodeURIComponent;
 export function sahayaApi(client: ApiClient) {
   return {
     me: () => client.get<Me>('/api/v1/users/me'),
+    // Learning (Phase 6)
+    drillReview: (drillId: string) =>
+      client.get<DrillReviewView>(`/api/v1/drills/${enc(drillId)}/review`),
+    saveDrillReview: (
+      drillId: string,
+      input: {
+        summary: string;
+        wentWell: string;
+        toImprove: string;
+        actions: {
+          id: string;
+          text: string;
+          owner: string;
+          dueDate: string | null;
+          status: 'OPEN' | 'DONE';
+        }[];
+      },
+    ) => client.put<DrillReviewView>(`/api/v1/drills/${enc(drillId)}/review`, input),
+    myProgress: () => client.get<ProgressView>('/api/v1/training/progress/mine'),
+    assistantContent: () =>
+      client.get<{ items: AssistantContentView[] }>('/api/v1/admin/assistant-content'),
+    reviewAssistantContent: (
+      docId: string,
+      input: { decision: 'APPROVED' | 'REJECTED'; notes: string },
+    ) =>
+      client.post<{ docId: string; decision: string }>(
+        `/api/v1/admin/assistant-content/${enc(docId)}/review`,
+        input,
+      ),
     // Navigation (Phase 5): only approved route data and safe points.
     navigationStatus: () => client.get<NavigationStatus>('/api/v1/maps/navigation'),
     navigationRoute: (q: {
