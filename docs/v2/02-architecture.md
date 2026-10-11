@@ -127,9 +127,12 @@ Status key:
 | Safe-point approvals  | `safe-points` | Placeholder, hidden (Phase 5)                                        |
 | System settings       | `settings`    | Placeholder, hidden (Phase 7)                                        |
 
-## Authentication today
+## Authentication (Phase 2)
 
-- DEMO login (`POST /api/v1/auth/demo-login`, bcrypt) issues a JWT signed with `jose`.
-- The token lives in `sessionStorage`, so it ends with the tab.
-- The client re-validates it with `GET /users/me` at start-up. Offline, it keeps the stored identity, and the server still checks every call.
-- **This is not institutional sign-on.** Phase 2 replaces it (see [06](./06-phase-roadmap.md) and [07](./07-safety-boundaries.md)).
+- **Sign-in:** email one-time codes issued and checked by the API (`/auth/otp/request`, `/auth/otp/verify`). The API issues a 2-hour JWT.
+- **Every request** reloads the account's status, revoked sessions and roles from the database, so roles in a token are never trusted.
+- **Registration:** allow-listed domains only, always as STUDENT. Staff roles are granted only by an ADMIN, and every grant is audited.
+- **DEMO password login:** development and tests only.
+- **Token storage:** `sessionStorage`, so it ends with the tab.
+
+Details are in [08](./08-phase2-authentication.md).

@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import type { ZodType } from 'zod';
-import { uuidSchema, type Role } from '@sahaya/contracts';
+import { roleSchema, uuidSchema, type Role } from '@sahaya/contracts';
 import type { Config } from './config.js';
+import type { DatabasePool } from './db.js';
 import { ApiError, forbidden, unauthorized } from './errors.js';
 import { verifyAccessToken } from './security.js';
 
@@ -26,19 +27,56 @@ export const validateBody =
     next();
   };
 
+/**
+ * Verifies the bearer token, then loads the account from the database: a
+ * disabled account, or a token issued before the account's sessions were
+ * revoked, is rejected, and roles always come from the database (a role
+ * removed by an ADMIN stops working on the next request).
+ */
 export const authenticate =
-  (config: Config): RequestHandler =>
+  (config: Config, pool: DatabasePool): RequestHandler =>
   async (request, _response, next) => {
     const value = request.header('authorization');
     if (!value?.startsWith('Bearer ')) {
       next(unauthorized());
       return;
     }
+    let token;
     try {
-      request.auth = await verifyAccessToken(config, value.slice(7));
-      next();
+      token = await verifyAccessToken(config, value.slice(7));
     } catch {
       next(unauthorized('The access token is invalid or expired'));
+      return;
+    }
+    try {
+      const account = await pool.query<{
+        status: string;
+        sessions_valid_after: Date | null;
+      }>('SELECT status, sessions_valid_after FROM users WHERE id = $1', [token.id]);
+      const row = account.rows[0];
+      if (!row || row.status !== 'ACTIVE') {
+        next(unauthorized('This account cannot sign in'));
+        return;
+      }
+      if (
+        row.sessions_valid_after &&
+        token.issuedAtMs < new Date(row.sessions_valid_after).getTime()
+      ) {
+        next(unauthorized('This session was signed out. Sign in again.'));
+        return;
+      }
+      const roles = await pool.query<{ role: string }>(
+        'SELECT role FROM user_roles WHERE user_id = $1 ORDER BY role',
+        [token.id],
+      );
+      request.auth = {
+        id: token.id,
+        email: token.email,
+        roles: roleSchema.array().parse(roles.rows.map((r) => r.role)),
+      };
+      next();
+    } catch (error) {
+      next(error);
     }
   };
 

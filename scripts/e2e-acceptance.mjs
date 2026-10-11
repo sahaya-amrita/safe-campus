@@ -2,7 +2,8 @@
 //
 //   API_URL=http://127.0.0.1:3000 node scripts/e2e-acceptance.mjs
 //
-// Uses only the fictional accounts from `pnpm db:seed`. Every write is DEMO
+// The API must run with DEMO_LOGIN_ENABLED=true (development only; the
+// server refuses it in production). Uses only the fictional accounts from `pnpm db:seed`. Every write is DEMO
 // data; nothing here contacts real people or emergency services. Run it
 // against a dedicated test database: it adds incidents, alerts and requests.
 import { randomUUID } from 'node:crypto';

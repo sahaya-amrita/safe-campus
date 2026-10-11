@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import '../design-system/fonts';
-import { Button, DevPlaceholder, ErrorState } from '../design-system';
+import { Button, ErrorState } from '../design-system';
 import type { Me } from './api/sahaya';
 import { SessionProvider, useSession } from './auth/session';
-import { LoginScreen } from './LoginScreen';
+import { AuthScreen } from './auth/AuthScreens';
 import { appConfig } from './config';
 import { redirect, useRoute } from './router';
 import {
@@ -111,29 +111,6 @@ function AccessDenied({ area, home, reason }: { area: RoleArea; home: string; re
   );
 }
 
-function AuthArea({ path, notice }: { path: string; notice?: string | undefined }) {
-  if (path === ROUTES.auth.register || path === ROUTES.auth.verify) {
-    return (
-      <Centered>
-        <DevPlaceholder
-          title={path === ROUTES.auth.register ? 'Create an account' : 'Verify your email'}
-          phase="Phase 2 (authentication and account security)"
-          summary="Email one-time-code sign-in will replace the DEMO login."
-          needs={[
-            'An approved identity provider and email delivery',
-            'Server-side role assignment (never chosen by the user)',
-          ]}
-        />
-        <Button variant="secondary" block onClick={() => redirect(ROUTES.auth.login)}>
-          Back to sign in
-        </Button>
-      </Centered>
-    );
-  }
-  if (path !== ROUTES.auth.login) return <Redirect to={ROUTES.auth.login} />;
-  return <LoginScreen notice={notice} />;
-}
-
 /** Renders a role area and forgets any pending "return to" path once it shows. */
 function RoleShell({ user, area }: { user: Me; area: RoleArea }) {
   useEffect(() => clearReturn(), []);
@@ -177,7 +154,7 @@ function Gate() {
   if (state.status === 'checking') return <Pending label="Checking your session…" />;
 
   if (state.status === 'signed-out') {
-    if (area === 'auth') return <AuthArea path={path} notice={state.notice} />;
+    if (area === 'auth') return <AuthScreen path={path} notice={state.notice} />;
     return <ToSignIn from={isRoleArea(area) ? path : null} />;
   }
 

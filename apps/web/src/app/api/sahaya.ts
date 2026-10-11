@@ -5,6 +5,10 @@
  * enforces every role and zone rule.
  */
 import type {
+  AdminUser,
+  AuditEventView,
+  AuthConfigResponse,
+  OtpRequestResponse,
   CreateIncidentInput,
   DispatchStatus,
   HazardVerificationStatus,
@@ -30,6 +34,26 @@ export interface LoginResult {
   expiresInSeconds: number;
   user: Me;
   warning: string;
+  /** Email-code sign-in: true when this sign-in created the account. */
+  created?: boolean;
+}
+
+/** Public sign-in endpoints (no token needed). */
+export function authApi(client: ApiClient) {
+  return {
+    config: () => client.get<AuthConfigResponse>('/api/v1/auth/config'),
+    requestCode: (email: string) =>
+      client.post<OtpRequestResponse>('/api/v1/auth/otp/request', { email }),
+    verifyCode: (input: { email: string; code: string; displayName?: string }) =>
+      client.post<LoginResult>('/api/v1/auth/otp/verify', input),
+    demoLogin: (email: string, password: string) =>
+      client.post<LoginResult>('/api/v1/auth/demo-login', { email, password }),
+  };
+}
+
+export interface RoleChangeResult {
+  changed: boolean;
+  roles: Role[];
 }
 
 export interface Page<T> {
@@ -285,6 +309,45 @@ const enc = encodeURIComponent;
 export function sahayaApi(client: ApiClient) {
   return {
     me: () => client.get<Me>('/api/v1/users/me'),
+    updateMe: (input: { displayName?: string; language?: 'en' | 'ta' }) =>
+      client.patch<Me>('/api/v1/users/me', input),
+    signOutEverywhere: () => client.post<void>('/api/v1/users/me/sign-out-everywhere', undefined),
+
+    // Administration (ADMIN only; every change needs a reason and is audited)
+    adminUsers: (query: {
+      q?: string;
+      role?: Role;
+      status?: 'ACTIVE' | 'DISABLED';
+      cursor?: string;
+    }) => {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(query)) if (value) params.set(key, value);
+      const suffix = params.toString();
+      return client.get<{ items: AdminUser[]; nextCursor: string | null }>(
+        `/api/v1/admin/users${suffix ? `?${suffix}` : ''}`,
+      );
+    },
+    grantRole: (userId: string, role: Role, reason: string) =>
+      client.post<RoleChangeResult>(`/api/v1/admin/users/${enc(userId)}/roles`, { role, reason }),
+    revokeRole: (userId: string, role: Role, reason: string) =>
+      client.post<RoleChangeResult>(
+        `/api/v1/admin/users/${enc(userId)}/roles/${enc(role)}/revoke`,
+        { reason },
+      ),
+    setUserStatus: (userId: string, status: 'ACTIVE' | 'DISABLED', reason: string) =>
+      client.post<{ changed: boolean; status: 'ACTIVE' | 'DISABLED' }>(
+        `/api/v1/admin/users/${enc(userId)}/status`,
+        { status, reason },
+      ),
+    auditEvents: (query: { action?: string; entityType?: string; before?: number }) => {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(query))
+        if (value !== undefined && value !== '') params.set(key, String(value));
+      const suffix = params.toString();
+      return client.get<{ items: AuditEventView[]; nextBefore: number | null }>(
+        `/api/v1/admin/audit-events${suffix ? `?${suffix}` : ''}`,
+      );
+    },
 
     // Incidents
     listIncidents: (limit = 50) => client.get<Page<Incident>>(`/api/v1/incidents?limit=${limit}`),

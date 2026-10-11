@@ -34,40 +34,41 @@ Paths are relative to the repository root. "Integrated" means reachable in the u
 
 ## Responder and administrator
 
-| Feature                                                               | Class              | Sources                                                                           | Depends on                                                                     |
-| --------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Responder workspace shell                                             | 1                  | `app/responder/ResponderShell.tsx`, `app/staff/StaffLayout.tsx`                   | —                                                                              |
-| Control room (help timers, hazard queue L1–L3)                        | 1                  | `app/responder/ControlRoom.tsx`, `controlRoomModel.ts`                            | `/help-requests`, `/incidents` (derived levels). Timers are DEMO placeholders. |
-| Help-request queue: acknowledge, assign, resolve                      | 1                  | `app/responder/views.tsx` (`HelpRequestsView`)                                    | `/help-requests/*` (role and zone checks)                                      |
-| Incident search and filters                                           | 1                  | `app/responder/IncidentSearch.tsx`, `incidentFilters.ts`                          | `GET /incidents`                                                               |
-| Incident review and verification                                      | 1                  | `app/responder/views.tsx` (`IncidentDetailView`)                                  | `POST /incidents/:id/reviews`                                                  |
-| Roll call / safety status                                             | 4                  | Control-room check-in counts, `features/responder/RollCallSummary.tsx`            | `GET /checkins/summary`; no per-person roll call                               |
-| Dispatches                                                            | 3                  | `DispatchesView`                                                                  | Simulated dispatch records                                                     |
-| Alert management                                                      | 1                  | `AlertsView`, `AlertComposer`                                                     | `POST /alerts` (ADMIN); delivery is simulated                                  |
-| Drill console (preflight, start, stop, kill switch)                   | 1                  | `app/responder/drillControl.tsx`, `app/DrillBanner.tsx`                           | `/drills/*`                                                                    |
-| Instruction-pack review and publish                                   | 1                  | `PacksView`                                                                       | `/instruction-packs/*`                                                         |
-| Campus contacts                                                       | 4                  | `features/responder/ContactsView.tsx`, `campusDirectory.ts`                       | No institution-verified contacts                                               |
-| Authorization checks                                                  | 1                  | `services/api/src/middleware.ts` (`requireRoles`), route handlers                 | JWT roles from the DB                                                          |
-| Admin console shell                                                   | 1 (new in Phase 1) | `app/admin/*`                                                                     | ADMIN role                                                                     |
-| Users and roles, audit-log viewer, responder roster editing, settings | 5                  | Placeholders in `app/admin/plannedSections.ts`                                    | No API                                                                         |
-| Older responder dashboard harness                                     | 2                  | `features/responder/ResponderDashboard.tsx`, `HelpRequestQueue.tsx`, `mockApi.ts` | Superseded by `app/responder/*`                                                |
-| Hazard review queue module                                            | 2                  | `features/incidents/HazardReviewQueue.tsx`, `hazardReview.ts`                     | Superseded by the control room's hazard queue                                  |
+| Feature                                                   | Class              | Sources                                                                           | Depends on                                                                     |
+| --------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Responder workspace shell                                 | 1                  | `app/responder/ResponderShell.tsx`, `app/staff/StaffLayout.tsx`                   | —                                                                              |
+| Control room (help timers, hazard queue L1–L3)            | 1                  | `app/responder/ControlRoom.tsx`, `controlRoomModel.ts`                            | `/help-requests`, `/incidents` (derived levels). Timers are DEMO placeholders. |
+| Help-request queue: acknowledge, assign, resolve          | 1                  | `app/responder/views.tsx` (`HelpRequestsView`)                                    | `/help-requests/*` (role and zone checks)                                      |
+| Incident search and filters                               | 1                  | `app/responder/IncidentSearch.tsx`, `incidentFilters.ts`                          | `GET /incidents`                                                               |
+| Incident review and verification                          | 1                  | `app/responder/views.tsx` (`IncidentDetailView`)                                  | `POST /incidents/:id/reviews`                                                  |
+| Roll call / safety status                                 | 4                  | Control-room check-in counts, `features/responder/RollCallSummary.tsx`            | `GET /checkins/summary`; no per-person roll call                               |
+| Dispatches                                                | 3                  | `DispatchesView`                                                                  | Simulated dispatch records                                                     |
+| Alert management                                          | 1                  | `AlertsView`, `AlertComposer`                                                     | `POST /alerts` (ADMIN); delivery is simulated                                  |
+| Drill console (preflight, start, stop, kill switch)       | 1                  | `app/responder/drillControl.tsx`, `app/DrillBanner.tsx`                           | `/drills/*`                                                                    |
+| Instruction-pack review and publish                       | 1                  | `PacksView`                                                                       | `/instruction-packs/*`                                                         |
+| Campus contacts                                           | 4                  | `features/responder/ContactsView.tsx`, `campusDirectory.ts`                       | No institution-verified contacts                                               |
+| Authorization checks                                      | 1                  | `services/api/src/middleware.ts` (`requireRoles`), route handlers                 | JWT roles from the DB                                                          |
+| Admin console shell                                       | 1 (new in Phase 1) | `app/admin/*`                                                                     | ADMIN role                                                                     |
+| Users and roles, audit-log viewer                         | 1                  | `app/admin/UsersPage.tsx`, `AuditPage.tsx`, `services/api/src/routes/admin.ts`    | ADMIN only, audited (Phase 2)                                                  |
+| Responder roster editing, map data, safe points, settings | 5                  | Placeholders in `app/admin/plannedSections.ts`                                    | No API                                                                         |
+| Older responder dashboard harness                         | 2                  | `features/responder/ResponderDashboard.tsx`, `HelpRequestQueue.tsx`, `mockApi.ts` | Superseded by `app/responder/*`                                                |
+| Hazard review queue module                                | 2                  | `features/incidents/HazardReviewQueue.tsx`, `hazardReview.ts`                     | Superseded by the control room's hazard queue                                  |
 
 ## Backend
 
-| Feature                                      | Class | Sources                                                                       |
-| -------------------------------------------- | ----- | ----------------------------------------------------------------------------- |
-| Express API, validation, error model         | 1     | `services/api/src/app.ts`, `errors.ts`, `middleware.ts`                       |
-| PostgreSQL schema                            | 1     | `services/api/migrations/001`–`003`                                           |
-| Authentication                               | 4     | `routes/auth.ts`, `security.ts`: DEMO login only, no production guard, no OTP |
-| Shared Zod contracts                         | 1     | `packages/contracts/src/`                                                     |
-| Incident lifecycle with derived hazard level | 1     | `routes/incidents.ts`, `hazardLevel.ts`                                       |
-| Alert management and inbox                   | 1     | `routes/alerts.ts`                                                            |
-| Notification delivery                        | 3     | `outbox.ts`: simulated, no external provider                                  |
-| Drill APIs with kill switch                  | 1     | `routes/drills.ts`                                                            |
-| Responder APIs                               | 4     | `routes/responders.ts`: list and appropriate-responder only                   |
-| Audit and idempotency                        | 1     | `audit.ts`, `idempotency.ts` (audit has no read endpoint)                     |
-| Photo / evidence storage                     | 5     | `incident_evidence` table holds metadata only                                 |
+| Feature                                      | Class | Sources                                                                                                                                                           |
+| -------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Express API, validation, error model         | 1     | `services/api/src/app.ts`, `errors.ts`, `middleware.ts`                                                                                                           |
+| PostgreSQL schema                            | 1     | `services/api/migrations/001`–`003`                                                                                                                               |
+| Authentication                               | 1     | `routes/auth.ts`, `auth/otp.ts`, `auth/email.ts`, `middleware.ts`: email one-time codes, roles and sessions checked against the DB, DEMO login dev-only (Phase 2) |
+| Shared Zod contracts                         | 1     | `packages/contracts/src/`                                                                                                                                         |
+| Incident lifecycle with derived hazard level | 1     | `routes/incidents.ts`, `hazardLevel.ts`                                                                                                                           |
+| Alert management and inbox                   | 1     | `routes/alerts.ts`                                                                                                                                                |
+| Notification delivery                        | 3     | `outbox.ts`: simulated, no external provider                                                                                                                      |
+| Drill APIs with kill switch                  | 1     | `routes/drills.ts`                                                                                                                                                |
+| Responder APIs                               | 4     | `routes/responders.ts`: list and appropriate-responder only                                                                                                       |
+| Audit and idempotency                        | 1     | `audit.ts`, `idempotency.ts`; ADMIN read endpoint `GET /admin/audit-events` (Phase 2)                                                                             |
+| Photo / evidence storage                     | 5     | `incident_evidence` table holds metadata only                                                                                                                     |
 
 ## Maps and digital twin
 

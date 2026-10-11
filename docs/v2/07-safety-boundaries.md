@@ -4,28 +4,24 @@ Amrita Sahaya is an emergency-preparedness **prototype**. It is not institutiona
 
 ## Rules and where they are enforced today
 
-| Rule                                                   | Enforcement in code                                                                                                                                              |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A queued offline SOS is never shown as delivered       | `lib/offline` queue states: `LOCAL_ONLY` / `QUEUED` until a server receipt. `sosSteps` and `DeliveryTrack` tests. The `OfflineIndicator` never says "delivered". |
-| "Responder on the way" only after confirmed acceptance | Help-request status comes only from the server (`OPEN` → `ACKNOWLEDGED` → `ASSIGNED`). `HELP_STATUS` labels in `app/ui.tsx`.                                     |
-| Student reports are never auto-published as alerts     | `POST /incidents` stores `REPORTED`. Alerts need an ADMIN to draft and authorise them. Derived hazard levels are display-only.                                   |
-| No invented routes or safe destinations                | Map routes are labelled "DEMO · not approved". Safe-point approval is a Phase 5 placeholder with no data.                                                        |
-| Demonstration data kept separate from operational data | `OperatingMode` banners (DEMO, DRILL, TEST, SIMULATION, MOCK) on every shell; the striped DRILL banner; synthetic seed accounts at `example.invalid`             |
-| No real emergency messages                             | The outbox worker simulates delivery ("no external provider contacted")                                                                                          |
-| No contact with real university personnel              | Campus contacts are unverified placeholders; no outbound messaging exists                                                                                        |
-| No unauthorised role elevation                         | Roles come from the database and are checked by `requireRoles` on every route. The frontend route gate is advisory; no endpoint lets a user change roles.        |
-| Tom cannot take consequential actions                  | Rule-based refusals on the client and server; Tom only navigates app screens; tests cover refusals                                                               |
-| No claim of approval or readiness                      | `/legal/prototype`, the login banner, and the help and privacy pages say so explicitly                                                                           |
+| Rule                                                   | Enforcement in code                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A queued offline SOS is never shown as delivered       | `lib/offline` queue states: `LOCAL_ONLY` / `QUEUED` until a server receipt. `sosSteps` and `DeliveryTrack` tests. The `OfflineIndicator` never says "delivered".                                                                                                                                 |
+| "Responder on the way" only after confirmed acceptance | Help-request status comes only from the server (`OPEN` → `ACKNOWLEDGED` → `ASSIGNED`). `HELP_STATUS` labels in `app/ui.tsx`.                                                                                                                                                                     |
+| Student reports are never auto-published as alerts     | `POST /incidents` stores `REPORTED`. Alerts need an ADMIN to draft and authorise them. Derived hazard levels are display-only.                                                                                                                                                                   |
+| No invented routes or safe destinations                | Map routes are labelled "DEMO · not approved". Safe-point approval is a Phase 5 placeholder with no data.                                                                                                                                                                                        |
+| Demonstration data kept separate from operational data | `OperatingMode` banners (DEMO, DRILL, TEST, SIMULATION, MOCK) on every shell; the striped DRILL banner; synthetic seed accounts at `example.invalid`                                                                                                                                             |
+| No real emergency messages                             | The outbox worker simulates delivery ("no external provider contacted")                                                                                                                                                                                                                          |
+| No contact with real university personnel              | Campus contacts are unverified placeholders; no outbound messaging exists                                                                                                                                                                                                                        |
+| No unauthorised role elevation                         | `authenticate` reloads roles, account status and revoked sessions from the database on every request (token roles are ignored). Only ADMIN endpoints change roles, each with a reason and an audit event; self-demotion and last-admin removal are refused. `PATCH /users/me` drops role fields. |
+| Tom cannot take consequential actions                  | Rule-based refusals on the client and server; Tom only navigates app screens; tests cover refusals                                                                                                                                                                                               |
+| No claim of approval or readiness                      | `/legal/prototype`, the login banner, and the help and privacy pages say so explicitly                                                                                                                                                                                                           |
 
 ## Boundaries for future phases
 
 These are integration contracts for later phases. **None of them is implemented in Phase 1.**
 
-- **Email OTP and account security.**
-  - The server owns identity and roles.
-  - Tokens are short-lived.
-  - Demo login is disabled in production.
-  - No secrets in the client bundle or Git.
+- **Email OTP and account security.** Built in Phase 2 ([08](./08-phase2-authentication.md)). Remaining: hosted database, real email provider, refresh tokens if sessions must outlive 2 hours.
 - **Contextual permissions.** A `PermissionNotice` comes before any browser prompt, every permission has a working fallback, and nothing is requested at start-up.
 - **SOS and responder matching.**
   - Matching happens on the server.

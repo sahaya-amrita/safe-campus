@@ -14,7 +14,9 @@ import {
   requestContext,
   validateUuidParam,
 } from './middleware.js';
-import { authRouter } from './routes/auth.js';
+import { createEmailSender, DevMailbox, type EmailSender } from './auth/email.js';
+import { adminRouter } from './routes/admin.js';
+import { authRouter, devMailboxRouter } from './routes/auth.js';
 import { alertsRouter } from './routes/alerts.js';
 import { checkinsRouter, incidentCheckinsRouter } from './routes/checkins.js';
 import { drillsRouter, trainingRouter } from './routes/drills.js';
@@ -29,11 +31,18 @@ import { usersRouter } from './routes/users.js';
 export function createApp(
   pool: DatabasePool,
   config: Config,
-  options: { assistant?: AssistantOptions } = {},
+  options: {
+    assistant?: AssistantOptions;
+    /** Overrides the configured sign-in email sender (null = none). Used by tests. */
+    emailSender?: EmailSender | null;
+  } = {},
 ) {
   const app = express();
   const logger = createLogger(config);
+  const emailSender =
+    options.emailSender !== undefined ? options.emailSender : createEmailSender(config, logger);
   app.disable('x-powered-by');
+  if (config.TRUST_PROXY) app.set('trust proxy', config.TRUST_PROXY);
   app.use(requestContext);
   app.use(pinoHttp({ logger }));
   app.use(helmet());
@@ -65,14 +74,17 @@ export function createApp(
       timestamp: new Date().toISOString(),
     });
   });
-  app.use('/api/v1/auth', authRouter(pool, config));
+  app.use('/api/v1/auth', authRouter(pool, config, emailSender, logger));
+  if (config.NODE_ENV !== 'production' && emailSender instanceof DevMailbox)
+    app.use('/api/v1/dev', devMailboxRouter(emailSender));
   // Tom assistant (src/assistant): public health first, interpret after authenticate.
   const assistant = createAssistant(pool, config, logger, options.assistant);
   app.use('/api/v1/assistant', assistant.parseErrorHandler);
   app.use('/api/v1/assistant', assistant.healthRouter);
-  app.use('/api/v1', authenticate(config));
+  app.use('/api/v1', authenticate(config, pool));
   app.use('/api/v1/assistant', assistant.router);
   app.use('/api/v1/users', usersRouter(pool));
+  app.use('/api/v1/admin', adminRouter(pool));
   app.use('/api/v1/incidents', incidentsRouter(pool, config));
   app.use(
     '/api/v1/incidents/:incidentId/checkins',

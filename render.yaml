@@ -28,6 +28,20 @@ services:
         generateValue: true
       - key: OPERATING_MODE
         value: DEMO
+      # Render runs one proxy in front of the service (for sign-in rate limits).
+      - key: TRUST_PROXY
+        value: '1'
+      # Sign-in by email code (DEMO password login is refused in production).
+      # Set EMAIL_PROVIDER=resend with RESEND_API_KEY and EMAIL_FROM, or leave it
+      # unset and the app reports that codes cannot be emailed.
+      - key: AUTH_ALLOWED_EMAIL_DOMAINS
+        sync: false
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
       - key: LOG_LEVEL
         value: info
       - key: CORS_ALLOWED_ORIGINS

@@ -15,6 +15,8 @@ import {
 } from '../responder/views';
 import { StaffLayout, activeItem, toDestinations, type StaffNavItem } from '../staff/StaffLayout';
 import { AdminDashboard } from './AdminDashboard';
+import { AuditPage } from './AuditPage';
+import { UsersPage } from './UsersPage';
 import { PLANNED_ADMIN_SECTIONS } from './plannedSections';
 
 const ADMIN = 'ADMIN' as const;
@@ -29,6 +31,26 @@ export const ADMIN_NAV: StaffNavItem[] = [
     icon: 'grid',
     description: 'Admin overview: what can be managed today and what is still planned.',
     keywords: ['admin', 'dashboard', 'overview'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.users',
+    section: 'users',
+    path: `${ROUTES.admin.root}/users`,
+    label: 'Users and roles',
+    icon: 'users',
+    description: 'Find accounts, grant or remove roles, disable accounts. Every change is audited.',
+    keywords: ['user', 'role', 'account', 'permission', 'disable'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.audit',
+    section: 'audit',
+    path: `${ROUTES.admin.root}/audit`,
+    label: 'Audit log',
+    icon: 'file',
+    description: 'Read-only record of sign-ins, role changes and other audited actions.',
+    keywords: ['audit', 'log', 'history', 'who changed'],
     roles: [ADMIN],
   },
   {
@@ -117,6 +139,12 @@ function AdminWorkspace({ user }: { user: Me }) {
         ) : (
           <IncidentsView api={api} />
         );
+        break;
+      case 'admin.users':
+        view = <UsersPage api={api} user={user} />;
+        break;
+      case 'admin.audit':
+        view = <AuditPage api={api} />;
         break;
       case 'admin.alerts':
         view = <AlertsView api={api} user={user} />;

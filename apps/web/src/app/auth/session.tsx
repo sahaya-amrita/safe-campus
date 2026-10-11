@@ -10,13 +10,15 @@ import {
 import type { ReactNode } from 'react';
 import type { Role } from '@sahaya/contracts';
 import { ApiClient, ApiError } from '../api/client';
-import { sahayaApi, type LoginResult, type Me, type SahayaApi } from '../api/sahaya';
+import { authApi, sahayaApi, type LoginResult, type Me, type SahayaApi } from '../api/sahaya';
 import { STAFF_ROLES } from '../routes';
 
 /**
- * App session. DEMO login only (POST /api/v1/auth/demo-login): it is not
- * institutional SSO. The token lives in sessionStorage so it ends with the
- * tab; the server re-checks it on every request.
+ * App session. Users sign in with an emailed one-time code
+ * (POST /api/v1/auth/otp/request + /verify). DEMO password login exists only
+ * when the server enables it (never in production). The token lives in
+ * sessionStorage so it ends with the tab; the server re-checks the account,
+ * its roles and revoked sessions on every request.
  */
 export type SessionState =
   | { status: 'checking' }
@@ -66,10 +68,22 @@ export interface SessionContextValue {
   /** Null in mock mode. */
   api: SahayaApi | null;
   client: ApiClient | null;
+  /** Public sign-in endpoints. Null in mock mode. */
+  auth: ReturnType<typeof authApi> | null;
   getToken: () => string | null;
+  /** Stores a server-issued sign-in result (email code or DEMO password). */
+  completeSignIn: (result: LoginResult) => void;
+  /** DEMO password login (only when the server enables it). */
   signIn: (email: string, password: string) => Promise<void>;
   signOut: (notice?: string) => void;
+  /** Ends every session of this account on every device, then signs out here. */
+  signOutEverywhere: () => Promise<void>;
+  /** Replaces the signed-in user after a profile change on the server. */
+  updateUser: (user: Me) => void;
 }
+
+/** Set when an email code created the account; the student app shows a welcome once. */
+export const WELCOME_KEY = 'sahaya.welcome.v1';
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
@@ -189,26 +203,63 @@ export function SessionProvider({
     return () => clearTimeout(timer);
   }, [state, signOut]);
 
+  const completeSignIn = useCallback((result: LoginResult) => {
+    const expiresAt = Date.now() + result.expiresInSeconds * 1000;
+    tokenRef.current = result.accessToken;
+    writeStored({
+      token: result.accessToken,
+      expiresAt,
+      user: result.user,
+      warning: result.warning,
+    });
+    if (result.created) {
+      try {
+        localStorage.setItem(WELCOME_KEY, result.user.id);
+      } catch {
+        // The welcome screen is optional.
+      }
+    }
+    setState({ status: 'signed-in', user: result.user, expiresAt, warning: result.warning });
+  }, []);
+
+  const auth = useMemo(() => (client ? authApi(client) : null), [client]);
+
   const signIn = useCallback(
     async (email: string, password: string) => {
-      if (!client) throw new Error('No API configured');
-      const result = await client.post<LoginResult>('/api/v1/auth/demo-login', { email, password });
-      const expiresAt = Date.now() + result.expiresInSeconds * 1000;
-      tokenRef.current = result.accessToken;
-      writeStored({
-        token: result.accessToken,
-        expiresAt,
-        user: result.user,
-        warning: result.warning,
-      });
-      setState({ status: 'signed-in', user: result.user, expiresAt, warning: result.warning });
+      if (!auth) throw new Error('No API configured');
+      completeSignIn(await auth.demoLogin(email, password));
     },
-    [client],
+    [auth, completeSignIn],
   );
 
+  const updateUser = useCallback((user: Me) => {
+    setState((current) => {
+      if (current.status !== 'signed-in') return current;
+      const stored = readStored();
+      if (stored) writeStored({ ...stored, user });
+      return { ...current, user };
+    });
+  }, []);
+
+  const signOutEverywhere = useCallback(async () => {
+    if (api) await api.signOutEverywhere();
+    signOut('You were signed out on every device.');
+  }, [api, signOut]);
+
   const value = useMemo<SessionContextValue>(
-    () => ({ state, api, client, getToken: () => tokenRef.current, signIn, signOut }),
-    [state, api, client, signIn, signOut],
+    () => ({
+      state,
+      api,
+      client,
+      auth,
+      getToken: () => tokenRef.current,
+      completeSignIn,
+      signIn,
+      signOut,
+      signOutEverywhere,
+      updateUser,
+    }),
+    [state, api, client, auth, completeSignIn, signIn, signOut, signOutEverywhere, updateUser],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

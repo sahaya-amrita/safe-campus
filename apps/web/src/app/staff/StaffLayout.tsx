@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode, Ref } from 'react';
 import type { Role } from '@sahaya/contracts';
 import { BRAND } from '../../brand';
@@ -70,7 +71,8 @@ export function StaffLayout({
   bannerRef?: Ref<HTMLDivElement>;
   children: ReactNode;
 }) {
-  const { signOut } = useSession();
+  const { signOut, signOutEverywhere } = useSession();
+  const [confirmAll, setConfirmAll] = useState(false);
   const { path, navigate } = useRoute();
   return (
     <StaffWorkspaceProvider value={{ base, sections: nav.map((n) => n.section) }}>
@@ -124,6 +126,32 @@ export function StaffLayout({
             >
               <AppIcon name="logout" size={16} /> Sign out
             </button>
+            {confirmAll ? (
+              <span className="as-row">
+                <button
+                  type="button"
+                  className="as-linkbtn as-side__linkbtn"
+                  onClick={() => void signOutEverywhere()}
+                >
+                  Confirm sign out everywhere
+                </button>
+                <button
+                  type="button"
+                  className="as-linkbtn as-side__linkbtn"
+                  onClick={() => setConfirmAll(false)}
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="as-linkbtn as-side__linkbtn"
+                onClick={() => setConfirmAll(true)}
+              >
+                Sign out everywhere
+              </button>
+            )}
           </div>
         </aside>
         <div className="as-staff__main">
@@ -135,7 +163,7 @@ export function StaffLayout({
             <header className="as-staff__head">
               <h1 className="as-screen-title">{title}</h1>
               <div className="as-row">
-                <Pill tone="neutral">DEMO sign-in · not SSO</Pill>
+                <Pill tone="neutral">Prototype · not institutional SSO</Pill>
                 <a className="as-btn as-btn--light as-btn--sm" href="tel:112">
                   <AppIcon name="phone" size={16} /> 112
                 </a>

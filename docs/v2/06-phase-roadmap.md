@@ -11,17 +11,19 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 - **Design system:** blue-and-white tokens and components, with the app re-themed.
 - **Fixes:** Tom tour focus bug and its racy test.
 
-## Phase 2: authentication and account security (M1, M2)
+## Phase 2: authentication and account security (built; see [08](./08-phase2-authentication.md))
 
-| Item                                                                  | Integration boundary                                                                                                                   |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Email OTP sign-in and registration (`/auth/register`, `/auth/verify`) | Replace `SessionProvider.signIn` and `POST /auth/demo-login`. The API verifies provider JWTs (JWKS) and loads roles from `user_roles`. |
-| Guest access (if approved)                                            | A guest identity can report, but cannot list other people's reports                                                                    |
-| Disable demo login in production                                      | `/auth/demo-login` returns 404 when `NODE_ENV=production`; the seed passwords become irrelevant                                        |
-| Users and roles (`/admin/users`)                                      | ADMIN-only endpoints; role changes are audited; never client-chosen                                                                    |
-| Audit-log viewer (`/admin/audit`)                                     | ADMIN-only, paginated read over `audit_events`                                                                                         |
-| Welcome and onboarding                                                | Student-only, first run, skippable, no permission prompts                                                                              |
-| Supabase Postgres, RLS or unexposed tables                            | Migrations 001–003 on the new database. Secrets only in `services/api/.env` and host secrets.                                          |
+| Item                                                                                           | Status                                                                                   |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Email one-time-code sign-in and registration (`/auth/login`, `/auth/register`, `/auth/verify`) | **Built.** The API's own codes (decision 2026-10-11).                                    |
+| Guest access                                                                                   | **Not in scope** (decision: accounts only)                                               |
+| DEMO login disabled in production                                                              | **Built.** 404 unless `DEMO_LOGIN_ENABLED=true`; configuration refuses it in production. |
+| Users and roles (`/admin/users`)                                                               | **Built.** Audited, reason required, with self and last-admin guards.                    |
+| Audit-log viewer (`/admin/audit`)                                                              | **Built.** Read-only.                                                                    |
+| Welcome and onboarding                                                                         | **Built.** Shown once to new student accounts; no permission prompts.                    |
+| Sign out everywhere, disabling accounts                                                        | **Built**                                                                                |
+| Hosted Postgres (Supabase or other), RLS                                                       | **Not done.** Needs credentials; the API still uses any Postgres via `DATABASE_URL`.     |
+| Real email sender                                                                              | **Ready, not verified.** Resend adapter; needs a key and verified sender.                |
 
 ## Phase 3: SOS, reporting and permissions (M3, M4)
 
@@ -68,11 +70,11 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Privacy and support pages, final    | Replace the Phase 1 drafts after institutional and legal review      |
 | Deployment                          | Production CORS, host secrets, second-device and real-device testing |
 
-## Prerequisites for Phase 2 (owner actions)
+## Prerequisites for Phase 3 (owner actions)
 
-1. **Review and approve** Phase 1, then approve `git push -u origin develop-v2`.
-2. **Identity provider:** confirm Supabase Auth with email OTP, or name another provider. Decide whether guest access is in scope.
-3. **Email OTP:** provide a database connection string and server secret privately, in `services/api/.env` only, never in chat or Git. Enable email OTP in the provider and configure a sender.
-4. **Groq key:** rotate it, since the old one was exposed in a chat transcript.
-5. **Roles:** confirm the role model (`STUDENT`, `RESPONDER`, `INCIDENT_VERIFIER`, `DRILL_MANAGER`, `ADMIN`) and who may grant each role.
-6. **Isolation:** confirm the new repository uses its own development database, storage and notification configuration, separate from the original project.
+1. **Review and approve** Phase 2 (`feat/phase2-auth`).
+2. **Email:** choose an email provider and verified sender domain. Put `RESEND_API_KEY` and `EMAIL_FROM` in server secrets only.
+3. **Domains:** confirm the allowed self-registration domains (`AUTH_ALLOWED_EMAIL_DOMAINS`).
+4. **Database:** provide the PostgreSQL database for development and staging (credentials in `services/api/.env` only).
+5. **Report contract:** confirm the report contract v2 fields: location method, floor, category and attachments.
+6. **Groq key:** rotate it (still outstanding from Phase 1).

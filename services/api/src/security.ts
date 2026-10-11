@@ -26,7 +26,8 @@ function secret(config: Config) {
 }
 
 export async function issueAccessToken(config: Config, user: AuthenticatedUser): Promise<string> {
-  return new SignJWT({ email: user.email, roles: user.roles })
+  // iat_ms lets the API reject tokens issued before an account's sessions were revoked.
+  return new SignJWT({ email: user.email, roles: user.roles, iat_ms: Date.now() })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject(user.id)
     .setIssuer(config.JWT_ISSUER)
@@ -36,7 +37,12 @@ export async function issueAccessToken(config: Config, user: AuthenticatedUser):
     .sign(secret(config));
 }
 
-export async function verifyAccessToken(config: Config, token: string): Promise<AuthenticatedUser> {
+export interface VerifiedToken extends AuthenticatedUser {
+  /** Milliseconds since the epoch when the token was issued. */
+  issuedAtMs: number;
+}
+
+export async function verifyAccessToken(config: Config, token: string): Promise<VerifiedToken> {
   const { payload } = await jwtVerify(token, secret(config), {
     issuer: config.JWT_ISSUER,
     audience: config.JWT_AUDIENCE,
@@ -44,5 +50,11 @@ export async function verifyAccessToken(config: Config, token: string): Promise<
   if (!payload.sub || typeof payload.email !== 'string' || !Array.isArray(payload.roles)) {
     throw new Error('Malformed access token');
   }
-  return { id: payload.sub, email: payload.email, roles: payload.roles as Role[] };
+  const issuedAtMs =
+    typeof payload.iat_ms === 'number'
+      ? payload.iat_ms
+      : typeof payload.iat === 'number'
+        ? payload.iat * 1000
+        : 0;
+  return { id: payload.sub, email: payload.email, roles: payload.roles as Role[], issuedAtMs };
 }

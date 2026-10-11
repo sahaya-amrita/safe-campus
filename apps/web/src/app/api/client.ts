@@ -20,6 +20,8 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly requestId?: string,
+    /** The server's `error.details`, e.g. `{ retryAfterSeconds }`. */
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -146,7 +148,9 @@ export class ApiClient {
     }
     if (response.ok) return body as T;
     const error = (
-      body as { error?: { code?: string; message?: string; requestId?: string } } | null
+      body as {
+        error?: { code?: string; message?: string; requestId?: string; details?: unknown };
+      } | null
     )?.error;
     const code = error?.code ?? `HTTP_${response.status}`;
     const message = error?.message ?? 'Request failed';
@@ -166,6 +170,6 @@ export class ApiClient {
               : response.status >= 500 || response.status === 429
                 ? 'SERVER'
                 : 'INVALID';
-    throw new ApiError(problem, response.status, code, message, error?.requestId);
+    throw new ApiError(problem, response.status, code, message, error?.requestId, error?.details);
   }
 }

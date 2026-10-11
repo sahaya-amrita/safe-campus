@@ -37,7 +37,8 @@ import type {
 import '../../features/student/fonts';
 import '../../features/student/student.css';
 import type { Me } from '../api/sahaya';
-import { useSession } from '../auth/session';
+import { WELCOME_KEY, useSession } from '../auth/session';
+import { WelcomeScreen } from './WelcomeScreen';
 import { appConfig } from '../config';
 import { DrillBanner } from '../DrillBanner';
 import { useRoute } from '../router';
@@ -200,6 +201,21 @@ export function StudentShell({ user }: { user: Me }) {
   const entries = checkIns.snapshot.entries;
   const photos = usePhotoCounts(deps, entries);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [welcome, setWelcome] = useState(() => {
+    try {
+      return localStorage.getItem(WELCOME_KEY) === user.id;
+    } catch {
+      return false;
+    }
+  });
+  const finishWelcome = useCallback(() => {
+    try {
+      localStorage.removeItem(WELCOME_KEY);
+    } catch {
+      // Nothing stored.
+    }
+    setWelcome(false);
+  }, []);
   const [repeatOf, setRepeatOf] = useState<CheckInEntry | null>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
 
@@ -325,7 +341,9 @@ export function StudentShell({ user }: { user: Me }) {
           lang={language}
           data-script={getLocale(language).script}
         >
-          {route === 'sos' ? (
+          {welcome && route !== 'sos' ? (
+            <WelcomeScreen name={user.displayName} onContinue={finishWelcome} />
+          ) : route === 'sos' ? (
             <SosScreen onClose={() => navigate(ROUTES.student.home)} />
           ) : (
             <div className="as-student" inert={helpOpen || undefined}>

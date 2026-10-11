@@ -1659,3 +1659,153 @@ a[href^='tel:']:not([class]) {
 .as-admin-link--planned > svg:first-child {
   color: var(--ds-muted);
 }
+
+/* ---------- Sign-in (Phase 2) ---------- */
+.as-auth__title {
+  font-size: var(--ds-text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.as-code-field .ds-input {
+  font-size: 1.6rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.as-demo-signin {
+  border-top: 1px solid var(--ds-line);
+  padding-top: var(--ds-space-3);
+}
+
+/* ---------- Admin: users and audit ---------- */
+.as-admin-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--ds-space-3);
+  align-items: end;
+}
+.as-user-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ds-space-3);
+}
+.as-user {
+  display: grid;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-4);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius);
+}
+.as-user__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+}
+.as-user__name {
+  font-weight: 600;
+}
+.as-user__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.as-role-chip {
+  min-height: var(--ds-touch);
+  padding: 6px 12px;
+  border-radius: var(--ds-radius-pill);
+  border: 1px solid var(--ds-control);
+  background: var(--ds-surface);
+  color: var(--ds-ink-2);
+  font: inherit;
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.as-role-chip[aria-pressed='true'] {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary);
+  color: #fff;
+}
+.as-role-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.as-user .ds-btn {
+  justify-self: start;
+}
+.as-table-wrap {
+  overflow-x: auto;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius);
+}
+.as-audit-meta {
+  font-size: var(--ds-text-xs);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.as-side__linkbtn {
+  color: #dce7f5;
+  font-size: var(--ds-text-xs);
+  font-weight: 500;
+  min-height: var(--ds-touch);
+  text-align: left;
+}
+
+/* ---------- Student welcome (first sign-in of a new account) ---------- */
+.as-welcome {
+  min-height: 100dvh;
+  display: grid;
+  align-content: center;
+  gap: var(--ds-space-5);
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--ds-space-6) var(--ds-space-5) calc(var(--ds-space-6) + env(safe-area-inset-bottom));
+}
+.as-welcome__emblem {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid var(--ds-line);
+  display: grid;
+  place-items: center;
+}
+.as-welcome__title {
+  font-size: var(--ds-text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.as-welcome__tag {
+  color: var(--ds-primary-700);
+  font-weight: 600;
+}
+.as-welcome__points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ds-space-4);
+}
+.as-welcome__points li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ds-space-3);
+  align-items: start;
+}
+.as-welcome__points svg {
+  color: var(--ds-primary);
+  margin-top: 2px;
+}
+/* Long email addresses must wrap instead of widening the sign-in card. */
+.as-login__card {
+  overflow-wrap: anywhere;
+}
+.as-login__card > * {
+  min-width: 0;
+}

@@ -29,6 +29,15 @@ const ADMIN = person(['ADMIN'], 'Demo Admin');
 function fakeServer(user: Me) {
   return vi.fn<typeof fetch>(async (input) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (url.endsWith('/auth/config'))
+      return json({
+        methods: ['EMAIL_OTP', 'DEMO_PASSWORD'],
+        allowedEmailDomains: ['campus.test'],
+        emailDelivery: true,
+        codeLength: 6,
+        codeTtlSeconds: 600,
+        resendAfterSeconds: 60,
+      });
     if (url.endsWith('/auth/demo-login'))
       return json({
         accessToken: 'token-abc',
@@ -46,9 +55,12 @@ function fakeServer(user: Me) {
 
 async function signIn() {
   const user = userEvent.setup();
-  await user.type(await screen.findByLabelText('Email'), 'demo@example.invalid');
-  await user.type(screen.getByLabelText('Password'), 'any-password');
-  await user.click(screen.getByRole('button', { name: 'Sign in' }));
+  await user.click(
+    await screen.findByText('Developer sign-in (DEMO password)', undefined, { timeout: 5000 }),
+  );
+  await user.type(screen.getByLabelText('Demo account email'), 'demo@example.invalid');
+  await user.type(screen.getByLabelText('Demo password'), 'any-password');
+  await user.click(screen.getByRole('button', { name: 'Sign in with DEMO password' }));
 }
 
 function go(path: string) {
@@ -121,6 +133,8 @@ describe('route separation', () => {
       .map((b) => b.textContent);
     expect(navLabels).toEqual([
       'Dashboard',
+      'Users and roles',
+      'Audit log',
       'Incident verification',
       'Alert management',
       'Drill management',
@@ -128,11 +142,11 @@ describe('route separation', () => {
       'Campus contacts',
     ]);
     // Unbuilt sections are not in the navigation…
-    expect(within(sections).queryByRole('button', { name: /Users and roles/ })).toBeNull();
+    expect(within(sections).queryByRole('button', { name: /System settings/ })).toBeNull();
     // …and their routes say plainly that they do not work yet.
-    go('/admin/users');
+    go('/admin/settings');
     expect(await screen.findByText('In development · not functional')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Users and roles' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'System settings' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
 
     // Admins may also open the responder workspace.
@@ -192,13 +206,6 @@ describe('public and auth routes', () => {
       await screen.findByRole('heading', { level: 1, name: 'Privacy notice (draft)' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Not reviewed by the university or legal counsel/)).toBeInTheDocument();
-  });
-
-  it('labels registration as a Phase 2 placeholder', async () => {
-    window.location.hash = '/auth/register';
-    render(<App apiBaseUrl="http://api.test" />);
-    expect(await screen.findByText('In development · not functional')).toBeInTheDocument();
-    expect(screen.getByText(/Planned for Phase 2/)).toBeInTheDocument();
   });
 
   it('limits the no-API mock preview to the student app', async () => {

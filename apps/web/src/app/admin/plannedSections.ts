@@ -13,27 +13,6 @@ export interface PlannedSection {
 
 export const PLANNED_ADMIN_SECTIONS: readonly PlannedSection[] = [
   {
-    section: 'users',
-    label: 'Users and roles',
-    phase: 'Phase 2 (authentication and account security)',
-    summary:
-      'Find accounts and change roles. Role changes happen only on the server and are audited.',
-    needs: [
-      'Email OTP authentication replacing DEMO login',
-      'Admin-only user and role endpoints with audit events (none exist today)',
-    ],
-  },
-  {
-    section: 'audit',
-    label: 'Audit logs',
-    phase: 'Phase 2 (authentication and account security)',
-    summary: 'Read-only, filterable view of audited actions.',
-    needs: [
-      'An ADMIN-only, paginated read endpoint over the existing audit_events table',
-      'A retention and access policy for audit data',
-    ],
-  },
-  {
     section: 'responders',
     label: 'Responder management',
     phase: 'Phase 4 (responder operations and verification)',
