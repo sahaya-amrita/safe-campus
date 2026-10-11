@@ -73,7 +73,14 @@ describe('push configuration', () => {
       .send({ endpoint: FCM, keys: KEYS });
     expect(refused.status).toBe(409);
     expect(() =>
-      loadConfig({ ...base, PUSH_PROVIDER: 'webpush' } as Record<string, unknown>),
+      loadConfig({
+        ...base,
+        PUSH_PROVIDER: 'webpush',
+        // Ignore any keys in a developer's local .env.
+        VAPID_PUBLIC_KEY: undefined,
+        VAPID_PRIVATE_KEY: undefined,
+        VAPID_SUBJECT: undefined,
+      } as Record<string, unknown>),
     ).toThrow(/VAPID/);
   });
 

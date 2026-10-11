@@ -3,7 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { PushConfigView } from '@sahaya/contracts';
 import type { SahayaApi } from '../api/sahaya';
-import { base64UrlToBytes, type PushEnvironment } from '../../lib/push';
+import {
+  ServiceWorkerNotReadyError,
+  base64UrlToBytes,
+  readyWithin,
+  type PushEnvironment,
+} from '../../lib/push';
 import { PhoneNotices } from './operations';
 
 const enabled: PushConfigView = {
@@ -75,5 +80,28 @@ describe('PhoneNotices', () => {
 
   it('decodes base64url VAPID keys', () => {
     expect(Array.from(base64UrlToBytes('AQID_w'))).toEqual([1, 2, 3, 255]);
+  });
+
+  it('stops waiting when the app is not installed in the browser', async () => {
+    const registerPushDevice = vi.fn();
+    const api = { pushConfig: async () => enabled, registerPushDevice } as unknown as SahayaApi;
+    const env = fakeEnv({
+      subscribe: () => Promise.reject(new ServiceWorkerNotReadyError()),
+    });
+    const user = userEvent.setup();
+    render(<PhoneNotices api={api} env={env} />);
+    await user.click(await screen.findByRole('button', { name: 'Turn on for this device' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/need the installed app/);
+    expect(registerPushDevice).not.toHaveBeenCalled();
+  });
+
+  it('times out a service worker that never becomes ready', async () => {
+    vi.useFakeTimers();
+    const never = readyWithin(new Promise<never>(() => undefined), 8_000);
+    const check = expect(never).rejects.toBeInstanceOf(ServiceWorkerNotReadyError);
+    await vi.advanceTimersByTimeAsync(8_000);
+    await check;
+    vi.useRealTimers();
+    await expect(readyWithin(Promise.resolve(1), 8_000)).resolves.toBe(1);
   });
 });

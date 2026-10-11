@@ -40,6 +40,31 @@ const toJson = (sub: PushSubscription): DevicePushSubscription => {
   };
 };
 
+/** Thrown when the app's service worker is not running (dev mode, blocked or failed). */
+export class ServiceWorkerNotReadyError extends Error {
+  constructor() {
+    super('The app is not fully installed in this browser yet.');
+    this.name = 'ServiceWorkerNotReadyError';
+  }
+}
+
+/** Resolves like `ready`, but rejects instead of waiting forever. */
+export function readyWithin<T>(ready: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new ServiceWorkerNotReadyError()), ms);
+    ready.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new ServiceWorkerNotReadyError());
+      },
+    );
+  });
+}
+
 /** The real browser environment. */
 export function browserPushEnvironment(): PushEnvironment {
   const supported =
@@ -47,7 +72,7 @@ export function browserPushEnvironment(): PushEnvironment {
     'serviceWorker' in navigator &&
     'PushManager' in window &&
     'Notification' in window;
-  const manager = async () => (await navigator.serviceWorker.ready).pushManager;
+  const manager = async () => (await readyWithin(navigator.serviceWorker.ready, 8_000)).pushManager;
   return {
     supported,
     permission: () => (supported ? Notification.permission : 'denied'),

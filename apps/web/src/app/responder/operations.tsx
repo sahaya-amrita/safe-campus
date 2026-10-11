@@ -11,7 +11,11 @@ import {
 import { ApiError, describeProblem } from '../api/client';
 import type { SahayaApi } from '../api/sahaya';
 import { Pill, formatWhen, useAsync, type Tone } from '../ui';
-import { browserPushEnvironment, type PushEnvironment } from '../../lib/push';
+import {
+  ServiceWorkerNotReadyError,
+  browserPushEnvironment,
+  type PushEnvironment,
+} from '../../lib/push';
 
 const DUTY: { value: ResponderView['availability']; label: string }[] = [
   { value: 'AVAILABLE', label: 'On duty' },
@@ -130,7 +134,11 @@ export function PhoneNotices({ api, env: injected }: { api: SahayaApi; env?: Pus
       setOnDevice(true);
       config.reload();
     } catch (reason) {
-      setError(describeProblem(reason));
+      setError(
+        reason instanceof ServiceWorkerNotReadyError
+          ? 'Phone notices need the installed app. Reload the page (or add it to your Home Screen) and try again.'
+          : describeProblem(reason),
+      );
     } finally {
       setBusy(false);
     }
