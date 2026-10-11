@@ -55,6 +55,7 @@ export function StaffLayout({
   switchTo,
   navRef,
   bannerRef,
+  headerExtra,
   children,
 }: {
   user: Me;
@@ -69,6 +70,8 @@ export function StaffLayout({
   switchTo?: { label: string; path: string } | null;
   navRef?: Ref<HTMLElement>;
   bannerRef?: Ref<HTMLDivElement>;
+  /** Extra controls in the title bar (e.g. the responder's duty status). */
+  headerExtra?: ReactNode;
   children: ReactNode;
 }) {
   const { signOut, signOutEverywhere } = useSession();
@@ -163,6 +166,7 @@ export function StaffLayout({
             <header className="as-staff__head">
               <h1 className="as-screen-title">{title}</h1>
               <div className="as-row">
+                {headerExtra}
                 <Pill tone="neutral">Prototype · not institutional SSO</Pill>
                 <a className="as-btn as-btn--light as-btn--sm" href="tel:112">
                   <AppIcon name="phone" size={16} /> 112

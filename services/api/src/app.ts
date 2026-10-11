@@ -18,6 +18,7 @@ import { createEmailSender, DevMailbox, type EmailSender } from './auth/email.js
 import { adminRouter } from './routes/admin.js';
 import { attachmentsRouter } from './routes/attachments.js';
 import { sosRouter } from './routes/sos.js';
+import { adminRespondersRouter, responderSelfRouter, rollCallRouter } from './routes/operations.js';
 import { authRouter, devMailboxRouter } from './routes/auth.js';
 import { alertsRouter } from './routes/alerts.js';
 import { checkinsRouter, incidentCheckinsRouter } from './routes/checkins.js';
@@ -86,6 +87,7 @@ export function createApp(
   app.use('/api/v1', authenticate(config, pool));
   app.use('/api/v1/assistant', assistant.router);
   app.use('/api/v1/users', usersRouter(pool));
+  app.use('/api/v1/admin/responders', adminRespondersRouter(pool, config));
   app.use('/api/v1/admin', adminRouter(pool));
   app.use('/api/v1/incidents', incidentsRouter(pool, config));
   app.use(
@@ -98,7 +100,9 @@ export function createApp(
   app.use('/api/v1/sos', sosRouter(pool, config));
   app.use('/api/v1/attachments', attachmentsRouter(pool));
   app.use('/api/v1/instruction-packs', instructionPacksRouter(pool, config));
+  app.use('/api/v1/responders/me', responderSelfRouter(pool));
   app.use('/api/v1/responders', respondersRouter(pool));
+  app.use('/api/v1/roll-call', rollCallRouter(pool));
   app.use('/api/v1/dispatches', dispatchesRouter(pool));
   app.use('/api/v1/alerts', alertsRouter(pool));
   app.use('/api/v1/trusted-contacts', trustedContactsRouter(pool, config));

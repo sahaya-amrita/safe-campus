@@ -13,16 +13,6 @@ export interface PlannedSection {
 
 export const PLANNED_ADMIN_SECTIONS: readonly PlannedSection[] = [
   {
-    section: 'responders',
-    label: 'Responder management',
-    phase: 'Phase 4 (responder operations and verification)',
-    summary: 'Maintain the responder roster, duty status and zones.',
-    needs: [
-      'Roster create/update and duty-status endpoints (today GET /responders is read-only)',
-      'Institution-confirmed responder list (only synthetic responders exist)',
-    ],
-  },
-  {
     section: 'map-data',
     label: 'Campus map data',
     phase: 'Phase 5 (maps and safe points)',

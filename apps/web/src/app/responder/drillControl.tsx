@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { RollCallCard } from './operations';
 import type { Drill, Me, SahayaApi } from '../api/sahaya';
 import { useTourTarget } from '../../components/tom';
 import { hasRole } from '../auth/session';
@@ -95,6 +96,9 @@ export function DrillsView({ api, user }: { api: SahayaApi; user: Me }) {
 
   return (
     <div className="as-stack">
+      {drills.active.map((d) => (
+        <RollCallCard key={d.id} api={api} kind="drills" id={d.id} />
+      ))}
       <div ref={preflightTarget}>
         <Card
           title="Before you start"

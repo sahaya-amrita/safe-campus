@@ -16,6 +16,7 @@ import {
 import { StaffLayout, activeItem, toDestinations, type StaffNavItem } from '../staff/StaffLayout';
 import { AdminDashboard } from './AdminDashboard';
 import { AuditPage } from './AuditPage';
+import { RosterPage } from './RosterPage';
 import { UsersPage } from './UsersPage';
 import { PLANNED_ADMIN_SECTIONS } from './plannedSections';
 
@@ -51,6 +52,16 @@ export const ADMIN_NAV: StaffNavItem[] = [
     icon: 'file',
     description: 'Read-only record of sign-ins, role changes and other audited actions.',
     keywords: ['audit', 'log', 'history', 'who changed'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.responders',
+    section: 'responders',
+    path: `${ROUTES.admin.root}/responders`,
+    label: 'Responder roster',
+    icon: 'hand',
+    description: 'Add responders, assign zones and verify them. Every change is audited.',
+    keywords: ['responder', 'roster', 'zone', 'verify', 'duty'],
     roles: [ADMIN],
   },
   {
@@ -142,6 +153,9 @@ function AdminWorkspace({ user }: { user: Me }) {
         break;
       case 'admin.users':
         view = <UsersPage api={api} user={user} />;
+        break;
+      case 'admin.responders':
+        view = <RosterPage api={api} user={user} />;
         break;
       case 'admin.audit':
         view = <AuditPage api={api} />;

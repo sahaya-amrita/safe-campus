@@ -7,6 +7,9 @@
 import type {
   AdminUser,
   AttachmentView,
+  ResponderInboxItem,
+  ResponderView,
+  RollCallResponse,
   AuditEventView,
   LocationView,
   AuthConfigResponse,
@@ -332,6 +335,43 @@ const enc = encodeURIComponent;
 export function sahayaApi(client: ApiClient) {
   return {
     me: () => client.get<Me>('/api/v1/users/me'),
+    // Responder operations (Phase 4). Notices are in-app only.
+    myResponderProfile: () => client.get<ResponderView>('/api/v1/responders/me'),
+    setDuty: (availability: ResponderView['availability']) =>
+      client.patch<ResponderView>('/api/v1/responders/me/duty', { availability }),
+    responderInbox: () =>
+      client.get<{ items: ResponderInboxItem[]; unseen: number; note: string }>(
+        '/api/v1/responders/me/inbox',
+      ),
+    markInboxSeen: (helpRequestIds: string[]) =>
+      client.post<void>('/api/v1/responders/me/inbox/seen', { helpRequestIds }),
+    rollCall: (kind: 'incidents' | 'drills', id: string) =>
+      client.get<RollCallResponse>(`/api/v1/roll-call/${kind}/${enc(id)}`),
+    adminResponders: () =>
+      client.get<{ items: ResponderView[]; zones: { id: string; name: string; code: string }[] }>(
+        '/api/v1/admin/responders',
+      ),
+    createResponder: (input: {
+      userId: string;
+      approvedRole: string;
+      zoneId: string | null;
+      qualifications: string[];
+      reason: string;
+    }) => client.post<ResponderView>('/api/v1/admin/responders', input),
+    updateResponder: (
+      id: string,
+      input: {
+        approvedRole?: string;
+        zoneId?: string | null;
+        qualifications?: string[];
+        reason: string;
+      },
+    ) => client.patch<ResponderView>(`/api/v1/admin/responders/${enc(id)}`, input),
+    verifyResponder: (id: string, verified: boolean, reason: string) =>
+      client.post<ResponderView>(`/api/v1/admin/responders/${enc(id)}/verification`, {
+        verified,
+        reason,
+      }),
     uploadPhoto: (bytes: ArrayBuffer | Blob, mediaType: 'image/jpeg' | 'image/png') =>
       client.postBytes<AttachmentView>('/api/v1/attachments', bytes, mediaType),
     linkHelpRequestPhotos: (helpRequestId: string, attachmentIds: string[]) =>

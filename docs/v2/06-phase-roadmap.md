@@ -36,15 +36,15 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Photo upload with server-side metadata stripping                       | **Built** (stored in Postgres for now)                                                       |
 | Report a concern (non-urgent)                                          | **Built** (`kind: CONCERN`, no dispatch)                                                     |
 
-## Phase 4: responder operations and verification (M5)
+## Phase 4: responder operations and verification (built; see [10](./10-phase4-responder-operations.md))
 
-| Item                                                    | Integration boundary                                                                          |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Duty status, responder management (`/admin/responders`) | Roster create/update endpoints; synthetic responders only until institution data exists       |
-| Incident verification and alert publication             | Verification by authorised reviewers only; alerts are published only by explicit human action |
-| Notifications                                           | Outbox to a real provider only after approval; DEMO stays simulated                           |
-| Evidence viewer                                         | Signed URLs, 403 for unauthorised roles, reviewer identity in the audit log                   |
-| Roll call                                               | Per-person safety status per incident or drill                                                |
+| Item                                                | Status                                                                                       |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Duty status, responder roster (`/admin/responders`) | **Built** (synthetic responders; audited)                                                    |
+| Incident verification and alert publication         | **Built** (verification existed; alerts about unverified incidents must be precautionary)    |
+| Notifications                                       | **Simulated, in-app only** (matched-request inbox); real delivery awaits a provider decision |
+| Evidence viewer                                     | **Built in Phase 3** (audited photo views)                                                   |
+| Roll call                                           | **Built** (per person, incident and drill)                                                   |
 
 ## Phase 5: maps, digital twin and safe points (M6)
 
@@ -71,11 +71,9 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Privacy and support pages, final    | Replace the Phase 1 drafts after institutional and legal review      |
 | Deployment                          | Production CORS, host secrets, second-device and real-device testing |
 
-## Prerequisites for Phase 4 (owner actions)
+## Prerequisites for Phase 5 (owner actions)
 
-1. **Review and approve** Phase 3 (`feat/phase3-reporting`).
-2. **Notifications:** decide whether responders get real notifications (provider, channel) or stay simulated for now.
-3. **Responders:** confirm who the responders are and their zones; only synthetic responders exist today.
-4. **Photos:** choose private object storage (and a retention period) before any real photos are collected.
-5. **Database and email:** still needed from Phase 2: a Postgres database for development and staging, and an email provider with a verified sender.
-6. **Groq key:** rotate it (still outstanding).
+1. **Review and approve** Phase 4 (`feat/phase4-responder-ops`).
+2. **Maps:** provide verified campus geometry (buildings, floors, exits) and approved assembly points, or confirm Phase 5 should build the map and routing with "Navigation unavailable" until such data exists.
+3. **3D view:** confirm whether to keep or remove the 3D campus view (the master plan proposes removing it).
+4. **Still outstanding:** a Postgres database for development and staging, an email provider, photo storage and retention, a notification provider decision, and rotating the Groq key.

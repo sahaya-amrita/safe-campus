@@ -9,6 +9,7 @@ import { hasRole } from '../auth/session';
 import { useRoute } from '../router';
 import { useStaffLink } from '../staff/workspace';
 import { LocationLine, PhotoStrip } from './reportContext';
+import { MatchedInbox, RollCallCard } from './operations';
 import { ControlRoom } from './ControlRoom';
 import { IncidentSearch } from './IncidentSearch';
 import { Stat, useActions } from './shared';
@@ -194,6 +195,7 @@ export function IncidentDetailView({ api, user, id }: { api: SahayaApi; user: Me
               />
               <PhotoStrip attachments={d.attachments} />
             </Card>
+            <RollCallCard api={api} kind="incidents" id={d.id} />
             <Card title="Verification" icon="shield" labelledBy="as-inc-verify">
               {d.verification_history.length === 0 ? (
                 <p className="as-muted">No reviewer decision yet.</p>
@@ -313,81 +315,89 @@ export function HelpRequestsView({ api, user }: { api: SahayaApi; user: Me }) {
   };
 
   return (
-    <Card
-      title="Persistent help requests"
-      icon="hand"
-      labelledBy="as-help-list"
-      action={
-        <div className="as-seg" role="group" aria-label="Status filter">
-          {(['ACTIVE', 'OPEN', 'ACKNOWLEDGED', 'ASSIGNED', 'RESOLVED'] as const).map((s) => (
-            <button key={s} type="button" aria-pressed={status === s} onClick={() => setStatus(s)}>
-              {s === 'ACTIVE' ? 'Active' : HELP_STATUS[s].label.split(' ·')[0]}
-            </button>
+    <>
+      {isResponder && <MatchedInbox api={api} />}
+      <Card
+        title="Persistent help requests"
+        icon="hand"
+        labelledBy="as-help-list"
+        action={
+          <div className="as-seg" role="group" aria-label="Status filter">
+            {(['ACTIVE', 'OPEN', 'ACKNOWLEDGED', 'ASSIGNED', 'RESOLVED'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={status === s}
+                onClick={() => setStatus(s)}
+              >
+                {s === 'ACTIVE' ? 'Active' : HELP_STATUS[s].label.split(' ·')[0]}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <p className="as-muted as-small">
+          Requests stay open until resolved. Responders see only their assigned zone; the server
+          enforces zone and role rules.
+        </p>
+        {list.loading && !list.data && <Loading />}
+        {Boolean(list.error) && <ErrorNotice error={list.error} onRetry={list.reload} />}
+        {list.data && items.length === 0 && (
+          <EmptyState icon="check" title="No help requests in this view." />
+        )}
+        <ul className="as-list">
+          {items.map((h) => (
+            <li key={h.id} className="as-item">
+              <div className="as-row as-row--between">
+                <HelpStatusPill status={h.status} />
+                <span className="as-muted as-small">Opened {formatWhen(h.createdAt)}</span>
+              </div>
+              {h.details && <p style={{ whiteSpace: 'pre-line' }}>{h.details}</p>}
+              <LocationLine location={h.location} reportedAt={h.createdAt} />
+              <PhotoStrip attachments={h.attachments} />
+              <p className="as-muted as-small">
+                {h.source === 'SOS'
+                  ? 'SOS (no drill or incident open)'
+                  : h.incidentId
+                    ? 'Incident'
+                    : 'Drill'}
+                {h.category ? ` · ${h.category.replace(/_/g, ' ').toLowerCase()}` : ''} ·{' '}
+                {h.floorId ? 'floor recorded' : h.zoneId ? 'zone recorded' : 'no zone'} ·{' '}
+                {typeof h.respondersNotified === 'number' &&
+                  `${h.respondersNotified} responder(s) matched (simulated notice) · `}
+                {h.acknowledgedAt && `acknowledged ${formatWhen(h.acknowledgedAt)} · `}
+                {h.assignedAt && `assigned ${formatWhen(h.assignedAt)} · `}
+                {h.resolvedAt && `resolved ${formatWhen(h.resolvedAt)}`}
+              </p>
+              <div className="as-row">
+                {actionsFor(h).map(({ action, label }) => (
+                  <button
+                    key={action}
+                    type="button"
+                    className={`as-btn as-btn--sm${action === 'cancel' ? ' as-btn--ghost' : action === 'resolve' ? ' as-btn--ok' : ''}`}
+                    disabled={busy !== null}
+                    onClick={() =>
+                      void run(
+                        `${h.id}:${action}`,
+                        (key) => api.transitionHelpRequest(h.id, action, key),
+                        list.reload,
+                      )
+                    }
+                  >
+                    {busy === `${h.id}:${action}` ? 'Saving…' : label}
+                  </button>
+                ))}
+              </div>
+              {actionsFor(h).map(({ action }) =>
+                errors[`${h.id}:${action}`] ? (
+                  <ErrorNotice key={action} error={errors[`${h.id}:${action}`]} />
+                ) : null,
+              )}
+            </li>
           ))}
-        </div>
-      }
-    >
-      <p className="as-muted as-small">
-        Requests stay open until resolved. Responders see only their assigned zone; the server
-        enforces zone and role rules.
-      </p>
-      {list.loading && !list.data && <Loading />}
-      {Boolean(list.error) && <ErrorNotice error={list.error} onRetry={list.reload} />}
-      {list.data && items.length === 0 && (
-        <EmptyState icon="check" title="No help requests in this view." />
-      )}
-      <ul className="as-list">
-        {items.map((h) => (
-          <li key={h.id} className="as-item">
-            <div className="as-row as-row--between">
-              <HelpStatusPill status={h.status} />
-              <span className="as-muted as-small">Opened {formatWhen(h.createdAt)}</span>
-            </div>
-            {h.details && <p style={{ whiteSpace: 'pre-line' }}>{h.details}</p>}
-            <LocationLine location={h.location} reportedAt={h.createdAt} />
-            <PhotoStrip attachments={h.attachments} />
-            <p className="as-muted as-small">
-              {h.source === 'SOS'
-                ? 'SOS (no drill or incident open)'
-                : h.incidentId
-                  ? 'Incident'
-                  : 'Drill'}
-              {h.category ? ` · ${h.category.replace(/_/g, ' ').toLowerCase()}` : ''} ·{' '}
-              {h.floorId ? 'floor recorded' : h.zoneId ? 'zone recorded' : 'no zone'} ·{' '}
-              {typeof h.respondersNotified === 'number' &&
-                `${h.respondersNotified} responder(s) matched (simulated notice) · `}
-              {h.acknowledgedAt && `acknowledged ${formatWhen(h.acknowledgedAt)} · `}
-              {h.assignedAt && `assigned ${formatWhen(h.assignedAt)} · `}
-              {h.resolvedAt && `resolved ${formatWhen(h.resolvedAt)}`}
-            </p>
-            <div className="as-row">
-              {actionsFor(h).map(({ action, label }) => (
-                <button
-                  key={action}
-                  type="button"
-                  className={`as-btn as-btn--sm${action === 'cancel' ? ' as-btn--ghost' : action === 'resolve' ? ' as-btn--ok' : ''}`}
-                  disabled={busy !== null}
-                  onClick={() =>
-                    void run(
-                      `${h.id}:${action}`,
-                      (key) => api.transitionHelpRequest(h.id, action, key),
-                      list.reload,
-                    )
-                  }
-                >
-                  {busy === `${h.id}:${action}` ? 'Saving…' : label}
-                </button>
-              ))}
-            </div>
-            {actionsFor(h).map(({ action }) =>
-              errors[`${h.id}:${action}`] ? (
-                <ErrorNotice key={action} error={errors[`${h.id}:${action}`]} />
-              ) : null,
-            )}
-          </li>
-        ))}
-      </ul>
-    </Card>
+        </ul>
+      </Card>
+    </>
   );
 }
 

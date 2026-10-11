@@ -55,6 +55,7 @@ export function describeEntry(
   entry: CheckInEntry,
   t: Messages,
   formatTime: (iso: string) => string,
+  acknowledged = false,
 ): ReactNode[] {
   switch (entry.lifecycle) {
     case 'QUEUED':
@@ -72,7 +73,7 @@ export function describeEntry(
     case 'ACCEPTED':
       return [
         t.detailReceived(formatTime(entry.result?.serverReceivedAt ?? entry.acceptedAt ?? '')),
-        entry.result?.helpRequest ? (
+        acknowledged ? null : entry.result?.helpRequest ? (
           <CriticalText key="open" k="detailHelpOpen" as="span" className="sc-emph" />
         ) : (
           <CriticalText key="ack" k="detailAcceptedNotAcknowledged" as="span" className="sc-emph" />
@@ -98,6 +99,11 @@ interface Props {
   photoCount: number;
   /** Upload progress when photos can be sent (signed in); null keeps them on the device. */
   photoStatus?: PhotoUploadStatus | null;
+  /**
+   * The help request's status as the server reports it (Phase 4). Only a
+   * server-recorded ACKNOWLEDGED, ASSIGNED or RESOLVED marks the responder step done.
+   */
+  serverHelpStatus?: string | null;
   onDeletePhotos: (key: string) => void;
 }
 
@@ -117,11 +123,17 @@ function photoLine(
 
 /** The latest check-in: what was sent, its delivery status, and the delivery track. */
 export const SubmissionCard = forwardRef<HTMLElement, Props>(function SubmissionCard(
-  { entry, onRetry, photoCount, photoStatus = null, onDeletePhotos },
+  { entry, onRetry, photoCount, photoStatus = null, serverHelpStatus = null, onDeletePhotos },
   ref,
 ) {
   const { t, formatTime } = useI18n();
-  const status = toDeliveryStatus(entry);
+  const delivered = toDeliveryStatus(entry);
+  const acknowledged =
+    delivered === 'SERVER_RECEIVED' &&
+    (serverHelpStatus === 'ACKNOWLEDGED' ||
+      serverHelpStatus === 'ASSIGNED' ||
+      serverHelpStatus === 'RESOLVED');
+  const status: MessageDeliveryStatus = acknowledged ? 'ACKNOWLEDGED' : delivered;
   const isHelp = entry.payload.status === 'HELP_REQUESTED';
   return (
     <article
@@ -144,9 +156,11 @@ export const SubmissionCard = forwardRef<HTMLElement, Props>(function Submission
       <DeliveryTrack status={status} />
 
       <div className="sc-latest-detail">
-        {describeEntry(entry, t, formatTime).map((line, index) => (
-          <p key={index}>{line}</p>
-        ))}
+        {describeEntry(entry, t, formatTime, acknowledged)
+          .filter(Boolean)
+          .map((line, index) => (
+            <p key={index}>{line}</p>
+          ))}
       </div>
       {entry.payload.note && <blockquote className="sc-note">{entry.payload.note}</blockquote>}
       {(entry.payload.landmark || entry.payload.location) && (

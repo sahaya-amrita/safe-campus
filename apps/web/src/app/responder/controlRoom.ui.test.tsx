@@ -74,6 +74,12 @@ function fakeApi(over: Record<string, unknown>): SahayaApi {
     listHelpRequests: vi.fn(async () => ({ items: [] })),
     drills: vi.fn(async () => ({ items: [] })),
     buildings: vi.fn(async () => ({ items: [] })),
+    rollCall: vi.fn(async () => ({
+      scope: { kind: 'drill', id: 'd1', zoneCount: 0 },
+      counts: { SAFE: 0, NEEDS_HELP: 0, NO_RESPONSE: 0 },
+      items: [],
+      note: '',
+    })),
     checkinSummary: vi.fn(async () => ({
       incidentId: 'i1',
       counts: { CONFIRMED_SAFE: 4, HELP_REQUESTED: 1, UNCONFIRMED: 7 },

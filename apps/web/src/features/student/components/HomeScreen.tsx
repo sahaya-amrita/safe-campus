@@ -23,6 +23,8 @@ interface Props {
   photoCount: (key: string) => number;
   /** Upload progress per check-in when photos can be sent; absent keeps them on the device. */
   photoStatus?: (key: string) => PhotoUploadStatus | null;
+  /** Server-reported status of a check-in's help request, by help request id. */
+  helpStatus?: (helpRequestId: string) => string | null;
   onDeletePhotos: (key: string) => void;
 }
 
@@ -110,6 +112,11 @@ export const HomeScreen = forwardRef<HTMLElement, Props>(function HomeScreen(pro
             onRetry={props.onRetry}
             photoCount={props.photoCount(latest.key)}
             photoStatus={props.photoStatus?.(latest.key) ?? null}
+            serverHelpStatus={
+              latest.result?.helpRequest
+                ? (props.helpStatus?.(latest.result.helpRequest.id) ?? null)
+                : null
+            }
             onDeletePhotos={props.onDeletePhotos}
           />
         ) : (

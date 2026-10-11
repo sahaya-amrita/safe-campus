@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { createAlertSchema } from '@sahaya/contracts';
 import type { DatabasePool } from '../db.js';
 import { withTransaction } from '../db.js';
-import { badRequest, notFound } from '../errors.js';
+import { ApiError, badRequest, notFound } from '../errors.js';
 import { requireRoles, validateBody, validateUuidParam } from '../middleware.js';
 import { writeAudit } from '../audit.js';
 import {
@@ -39,6 +39,21 @@ export function alertsRouter(pool: DatabasePool) {
       const alert = await withTransaction(pool, async (client) => {
         const replay = await getIdempotentResponse(client, auth.id, 'alert-create', key, hash);
         if (replay) return replay;
+        // An alert about an incident nobody has verified must say it is precautionary:
+        // a student report is never published as a confirmed emergency.
+        if (body.incidentId) {
+          const incident = await client.query<{ verification_status: string }>(
+            'SELECT verification_status FROM incidents WHERE id = $1',
+            [body.incidentId],
+          );
+          if (incident.rowCount === 0) throw notFound('Incident');
+          if (incident.rows[0]!.verification_status !== 'VERIFIED' && !body.precautionary)
+            throw new ApiError(
+              409,
+              'INCIDENT_NOT_VERIFIED',
+              'This incident is not verified. Mark the alert as precautionary, or verify the incident first.',
+            );
+        }
         const result = await client.query<{ id: string }>(
           `INSERT INTO emergency_alerts
           (incident_id, title, message, precautionary, mode, created_by)

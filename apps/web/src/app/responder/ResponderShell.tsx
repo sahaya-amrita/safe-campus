@@ -6,6 +6,7 @@ import { ROUTES, canEnter } from '../routes';
 import { TourTargetProvider, useTourTarget } from '../../components/tom';
 import { StaffLayout, activeItem, toDestinations, type StaffNavItem } from '../staff/StaffLayout';
 import { DrillsView } from './drillControl';
+import { DutyControl } from './operations';
 import {
   AlertsView,
   ContactsPage,
@@ -181,6 +182,7 @@ function ResponderWorkspace({ user }: { user: Me }) {
       }
       navRef={navTarget}
       bannerRef={bannerTarget}
+      headerExtra={hasRole(user, 'RESPONDER') ? <DutyControl api={api} /> : null}
     >
       {view}
     </StaffLayout>

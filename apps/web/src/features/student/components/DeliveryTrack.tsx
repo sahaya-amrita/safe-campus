@@ -6,10 +6,12 @@ type StepStatus = 'done' | 'current' | 'paused' | 'failed' | 'todo' | 'untracked
 
 /**
  * Where each step stands for a delivery status. The last step is "untracked"
- * unless the server itself reports ACKNOWLEDGED — which the current API never
- * does for students — so the app never claims a responder has seen anything.
+ * unless the server itself reports that a responder acknowledged the help
+ * request, so the app never claims a responder has seen anything.
  */
-export function trackFor(status: MessageDeliveryStatus): [StepStatus, StepStatus, StepStatus, StepStatus] {
+export function trackFor(
+  status: MessageDeliveryStatus,
+): [StepStatus, StepStatus, StepStatus, StepStatus] {
   switch (status) {
     case 'LOCAL_ONLY':
     case 'QUEUED':
@@ -31,7 +33,10 @@ export function DeliveryTrack({ status }: { status: MessageDeliveryStatus }) {
   const { t } = useI18n();
   const statuses = trackFor(status);
   const labels = [t.stepSaved, t.stepSent, t.stepReceived, t.stepResponder];
-  const reached = statuses.reduce((last, s, i) => (s === 'todo' || s === 'untracked' ? last : i), 0);
+  const reached = statuses.reduce(
+    (last, s, i) => (s === 'todo' || s === 'untracked' ? last : i),
+    0,
+  );
 
   return (
     <ol className="sc-track" aria-label={t.trackLabel} data-testid="delivery-track">
@@ -39,11 +44,20 @@ export function DeliveryTrack({ status }: { status: MessageDeliveryStatus }) {
         const step = statuses[index] ?? 'todo';
         const mark = MARK[step];
         return (
-          <li key={label} className={`sc-step sc-step--${step}`} data-step-status={step} aria-current={index === reached ? 'step' : undefined}>
-            <span className="sc-step-dot">{mark ? <Icon name={mark} size={14} /> : <span>{index + 1}</span>}</span>
+          <li
+            key={label}
+            className={`sc-step sc-step--${step}`}
+            data-step-status={step}
+            aria-current={index === reached ? 'step' : undefined}
+          >
+            <span className="sc-step-dot">
+              {mark ? <Icon name={mark} size={14} /> : <span>{index + 1}</span>}
+            </span>
             <span className="sc-step-label">
               {label}
-              {step === 'untracked' && <span className="sc-step-note">{t.stepResponderUntracked}</span>}
+              {step === 'untracked' && (
+                <span className="sc-step-note">{t.stepResponderUntracked}</span>
+              )}
             </span>
           </li>
         );

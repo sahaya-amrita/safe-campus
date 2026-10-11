@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Amrita Sahaya API
-  version: 0.3.0
+  version: 0.4.0
   description: >-
     Test-safe backend API for the SAFE CAMPUS hackathon MVP. All notification and dispatch
     behavior is simulated. No endpoint contacts real emergency services.
@@ -26,6 +26,8 @@ tags:
   - name: Administration
   - name: SOS
   - name: Attachments
+  - name: Responder operations
+  - name: Roll call
 paths:
   /health:
     get:
@@ -651,7 +653,10 @@ paths:
       tags: [Alerts]
       operationId: createAlert
       summary: Create a zone-scoped alert draft
-      description: Requires ADMIN; all supported modes are non-live.
+      description: >-
+        Requires ADMIN; all supported modes are non-live. An alert linked to an incident that is
+        not VERIFIED must set precautionary=true, otherwise 409 INCIDENT_NOT_VERIFIED: a student
+        report is never published as a confirmed emergency.
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
@@ -1149,6 +1154,219 @@ paths:
                   nextBefore: { type: [integer, 'null'] }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /responders/me:
+    get:
+      tags: [Responder operations]
+      operationId: getMyResponderProfile
+      summary: The signed-in responder's roster profile
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Responder' }
+        '404': { description: NO_RESPONDER_PROFILE (not on the roster) }
+  /responders/me/duty:
+    patch:
+      tags: [Responder operations]
+      operationId: setMyDuty
+      summary: Set duty status. Only verified, AVAILABLE responders are matched to help requests.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [availability]
+              properties:
+                availability: { enum: [AVAILABLE, BUSY, OFF_DUTY] }
+      responses:
+        '200':
+          description: Updated profile (audited)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Responder' }
+  /responders/me/inbox:
+    get:
+      tags: [Responder operations]
+      operationId: getMyInbox
+      summary: Help requests this responder was matched to (in-app notices only)
+      responses:
+        '200':
+          description: Notices, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, unseen, note]
+                properties:
+                  unseen: { type: integer }
+                  note: { type: string }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        helpRequestId: { type: string, format: uuid }
+                        status: { type: string }
+                        priority: { type: [string, 'null'] }
+                        source: { enum: [CHECKIN, SOS] }
+                        category: { type: [string, 'null'] }
+                        sameZone: { type: boolean }
+                        matchedAt: { type: string, format: date-time }
+                        seenAt: { type: [string, 'null'], format: date-time }
+  /responders/me/inbox/seen:
+    post:
+      tags: [Responder operations]
+      operationId: markInboxSeen
+      summary: Mark matched notices as seen (does not acknowledge the help request)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [helpRequestIds]
+              properties:
+                helpRequestIds: { type: array, maxItems: 50, items: { type: string, format: uuid } }
+      responses:
+        '204': { description: Marked }
+  /admin/responders:
+    get:
+      tags: [Administration]
+      operationId: adminListResponders
+      summary: Responder roster and zones (ADMIN)
+      responses:
+        '200':
+          description: Roster
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Responder' } }
+                  zones:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        code: { type: string }
+    post:
+      tags: [Administration]
+      operationId: adminCreateResponder
+      summary: Add a user with the RESPONDER role to the roster (starts unverified and off duty)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, approvedRole, reason]
+              properties:
+                userId: { type: string, format: uuid }
+                approvedRole: { type: string, minLength: 2, maxLength: 80 }
+                zoneId: { type: [string, 'null'], format: uuid }
+                qualifications: { type: array, maxItems: 10, items: { type: string } }
+                reason: { type: string, minLength: 5, maxLength: 300 }
+      responses:
+        '201':
+          description: Created (audited)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Responder' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/responders/{responderId}:
+    patch:
+      tags: [Administration]
+      operationId: adminUpdateResponder
+      summary: Change role description, zone or qualifications (audited, reason required)
+      parameters:
+        - { name: responderId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                approvedRole: { type: string }
+                zoneId: { type: [string, 'null'], format: uuid }
+                qualifications: { type: array, items: { type: string } }
+                reason: { type: string, minLength: 5, maxLength: 300 }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Responder' }
+  /admin/responders/{responderId}/verification:
+    post:
+      tags: [Administration]
+      operationId: adminVerifyResponder
+      summary: Verify or remove verification (audited). Removing it also takes the responder off duty. Not for your own profile.
+      parameters:
+        - { name: responderId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verified, reason]
+              properties:
+                verified: { type: boolean }
+                reason: { type: string, minLength: 5, maxLength: 300 }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Responder' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /roll-call/{kind}/{id}:
+    get:
+      tags: [Roll call]
+      operationId: getRollCall
+      summary: Per-person status for an incident or drill (staff; every view is audited)
+      description: >-
+        Students with a zone membership in the scope plus anyone who checked in. RESPONDER-only
+        accounts see a scope only when it includes their assigned zone. NO_RESPONSE means no
+        server-received check-in; it does not mean someone is hurt or absent.
+      parameters:
+        - { name: kind, in: path, required: true, schema: { enum: [incidents, drills] } }
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Roll call
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scope: { type: object }
+                  counts:
+                    type: object
+                    properties:
+                      SAFE: { type: integer }
+                      NEEDS_HELP: { type: integer }
+                      NO_RESPONSE: { type: integer }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        studentId: { type: string, format: uuid }
+                        displayName: { type: string }
+                        status: { enum: [SAFE, NEEDS_HELP, NO_RESPONSE] }
+                        lastCheckInAt: { type: [string, 'null'], format: date-time }
+                        helpRequestId: { type: [string, 'null'], format: uuid }
+                        helpRequestStatus: { type: [string, 'null'] }
+                  note: { type: string }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
     bearerAuth:
@@ -1468,6 +1686,22 @@ components:
       description: >-
         Exactly one of incidentId/drillId. helpDetails is optional since 0.3.0; a help request
         without text is recorded as "No details given (quick help request)".
+    Responder:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        displayName: { type: string }
+        email: { type: string }
+        approvedRole: { type: string }
+        qualifications: { type: array, items: { type: string } }
+        zoneId: { type: [string, 'null'], format: uuid }
+        zoneName: { type: [string, 'null'] }
+        availability: { enum: [AVAILABLE, BUSY, OFF_DUTY] }
+        verified: { type: boolean }
+        verifiedAt: { type: [string, 'null'], format: date-time }
+        dutyChangedAt: { type: [string, 'null'], format: date-time }
+        mode: { type: string }
     ReportCategory: { enum: [FIRE_SMOKE, MEDICAL, PERSONAL_SAFETY, HAZARD, OTHER] }
     ReportLocation:
       type: object

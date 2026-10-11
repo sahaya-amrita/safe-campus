@@ -135,6 +135,7 @@ describe('route separation', () => {
       'Dashboard',
       'Users and roles',
       'Audit log',
+      'Responder roster',
       'Incident verification',
       'Alert management',
       'Drill management',

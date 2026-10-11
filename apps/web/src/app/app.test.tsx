@@ -281,6 +281,7 @@ describe('HelpRequestsView', () => {
       .mockResolvedValueOnce({ ...open, status: 'ACKNOWLEDGED' });
     const api = {
       listHelpRequests: vi.fn(async () => ({ items: [open] })),
+      responderInbox: vi.fn(async () => ({ items: [], unseen: 0, note: '' })),
       transitionHelpRequest,
     } as unknown as SahayaApi;
     render(<HelpRequestsView api={api} user={responder} />);

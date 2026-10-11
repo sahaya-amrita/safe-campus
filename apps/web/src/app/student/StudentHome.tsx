@@ -106,6 +106,7 @@ export function StudentHome() {
           onRetry={s.checkIns.retry}
           photoCount={s.photoCount}
           photoStatus={s.photoStatus}
+          helpStatus={(id) => s.myHelp?.data?.items.find((h) => h.id === id)?.status ?? null}
           onDeletePhotos={s.deletePhotos}
         />
       </div>

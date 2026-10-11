@@ -1913,3 +1913,14 @@ a[href^='tel:']:not([class]) {
 .as-report .as-seg button {
   min-height: var(--ds-touch);
 }
+
+/* ---------- Responder duty status (Phase 4) ---------- */
+.as-duty {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
+}
+.as-duty__seg button {
+  min-height: var(--ds-touch);
+}
