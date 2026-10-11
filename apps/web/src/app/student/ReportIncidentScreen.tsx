@@ -1,5 +1,6 @@
 import { IncidentForm } from '../IncidentForm';
 import { useRoute } from '../router';
+import { ROUTES } from '../routes';
 import { AppIcon, Card, EmptyState } from '../ui';
 import { useStudent } from './core';
 
@@ -12,7 +13,7 @@ export function ReportIncidentScreen() {
         type="button"
         className="as-btn as-btn--ghost as-btn--sm"
         style={{ justifySelf: 'start' }}
-        onClick={() => navigate('/home')}
+        onClick={() => navigate(ROUTES.student.home)}
       >
         <AppIcon name="back" size={16} /> Back
       </button>

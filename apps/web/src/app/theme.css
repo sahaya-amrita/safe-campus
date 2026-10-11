@@ -1,33 +1,36 @@
 /*
- * Amrita Sahaya unified app theme. Amrita maroon on white / warm neutrals.
+ * Amrita Sahaya unified app theme: blue and white (Amrita Sahaya 2.0).
+ * Colours come from the design-system tokens; red is kept for emergency
+ * and error surfaces only.
  * Classes are prefixed `as-`; reused student components keep their `sc-`
  * styles via the `.sc-student` wrapper.
  */
 :root {
-  --as-maroon: #a4123f;
-  --as-maroon-700: #860e33;
-  --as-maroon-900: #4a0618;
-  --as-maroon-50: #fbeef2;
-  --as-ink: #1d1a1c;
-  --as-ink-2: #514a4e;
-  --as-muted: #6f676b;
-  --as-bg: #f7f4f2;
-  --as-surface: #ffffff;
-  --as-line: #e7e0dc;
-  --as-focus: #1d5fd1;
-  --as-ok: #176b45;
-  --as-ok-50: #e7f4ec;
-  --as-warn: #8a4b00;
-  --as-warn-50: #fff3df;
-  --as-info: #1e4f9a;
-  --as-info-50: #e8effc;
-  --as-danger: #a4123f;
-  --as-danger-50: #fbe7ed;
-  --as-radius: 16px;
-  --as-radius-sm: 10px;
-  --as-shadow: 0 1px 2px rgba(40, 10, 20, 0.06), 0 4px 14px rgba(40, 10, 20, 0.06);
-  --as-tabbar-h: 68px;
-  --as-font: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Aliases onto the design-system tokens (src/design-system/tokens.css). */
+  --as-primary: var(--ds-primary);
+  --as-primary-700: var(--ds-primary-700);
+  --as-primary-900: var(--ds-deep);
+  --as-primary-50: var(--ds-primary-50);
+  --as-ink: var(--ds-ink);
+  --as-ink-2: var(--ds-ink-2);
+  --as-muted: var(--ds-muted);
+  --as-bg: var(--ds-bg);
+  --as-surface: var(--ds-surface);
+  --as-line: var(--ds-line);
+  --as-focus: var(--ds-focus);
+  --as-ok: var(--ds-ok);
+  --as-ok-50: var(--ds-ok-50);
+  --as-warn: var(--ds-warn);
+  --as-warn-50: var(--ds-warn-50);
+  --as-info: var(--ds-info);
+  --as-info-50: var(--ds-info-50);
+  --as-danger: var(--ds-danger);
+  --as-danger-50: var(--ds-danger-50);
+  --as-radius: var(--ds-radius);
+  --as-radius-sm: var(--ds-radius-sm);
+  --as-shadow: var(--ds-shadow);
+  --as-tabbar-h: var(--ds-tabbar-h);
+  --as-font: var(--ds-font);
   color-scheme: light;
 }
 
@@ -50,10 +53,10 @@ body {
 .as-root *::after {
   box-sizing: border-box;
 }
-.as-root :where(h1, h2, h3, p, ul, ol, dl, dd, figure) {
+:where(.as-root) :where(h1, h2, h3, p, ul, ol, dl, dd, figure) {
   margin: 0;
 }
-.as-root :where(button, input, select, textarea) {
+:where(.as-root) :where(button, input, select, textarea) {
   font: inherit;
   color: inherit;
 }
@@ -101,7 +104,7 @@ body {
   padding: 10px 16px;
   border-radius: 12px;
   border: 1px solid transparent;
-  background: var(--as-maroon);
+  background: var(--as-primary);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -111,7 +114,7 @@ body {
     transform 0.1s ease;
 }
 .as-btn:hover {
-  background: var(--as-maroon-700);
+  background: var(--as-primary-700);
 }
 .as-btn:active {
   transform: translateY(1px);
@@ -122,11 +125,11 @@ body {
 }
 .as-btn--ghost {
   background: transparent;
-  color: var(--as-maroon);
+  color: var(--as-primary);
   border-color: var(--as-line);
 }
 .as-btn--ghost:hover {
-  background: var(--as-maroon-50);
+  background: var(--as-primary-50);
 }
 .as-btn--light {
   background: var(--as-surface);
@@ -134,7 +137,7 @@ body {
   border-color: var(--as-line);
 }
 .as-btn--light:hover {
-  background: #faf7f6;
+  background: var(--ds-surface-2);
 }
 .as-btn--ok {
   background: var(--as-ok);
@@ -155,7 +158,7 @@ body {
   background: none;
   border: 0;
   padding: 0;
-  color: var(--as-maroon);
+  color: var(--as-primary);
   font-weight: 700;
   cursor: pointer;
   text-decoration: underline;
@@ -185,7 +188,7 @@ body {
   font-weight: 700;
 }
 .as-card__title svg {
-  color: var(--as-maroon);
+  color: var(--as-primary);
 }
 .as-muted {
   color: var(--as-muted);
@@ -226,25 +229,25 @@ body {
 .as-pill--danger {
   background: var(--as-danger-50);
   color: var(--as-danger);
-  border-color: #f2c4d1;
+  border-color: var(--ds-danger-line);
 }
 .as-pill--warn {
   background: var(--as-warn-50);
   color: var(--as-warn);
-  border-color: #f0d199;
+  border-color: var(--ds-warn-line);
 }
 .as-pill--info {
   background: var(--as-info-50);
   color: var(--as-info);
-  border-color: #c6d6f4;
+  border-color: var(--ds-info-line);
 }
 .as-pill--ok {
   background: var(--as-ok-50);
   color: var(--as-ok);
-  border-color: #b9dcc6;
+  border-color: var(--ds-ok-line);
 }
 .as-pill--neutral {
-  background: #f1eeec;
+  background: var(--ds-surface-2);
   color: var(--as-ink-2);
   border-color: var(--as-line);
 }
@@ -254,7 +257,7 @@ body {
   gap: 8px;
   margin: 0;
   padding: 8px 12px;
-  background: #2b2226;
+  background: var(--ds-deep);
   color: #fff;
   font-size: 0.8rem;
   font-weight: 700;
@@ -271,26 +274,26 @@ body {
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--as-danger-50);
-  color: var(--as-maroon-900);
-  border: 1px solid #f2c4d1;
+  color: var(--ds-danger-700);
+  border: 1px solid var(--ds-danger-line);
 }
 .as-notice {
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--as-info-50);
-  color: #183a70;
-  border: 1px solid #c6d6f4;
+  color: var(--ds-info);
+  border: 1px solid var(--ds-info-line);
   font-size: 0.92rem;
 }
 .as-notice--warn {
   background: var(--as-warn-50);
   color: #5c3200;
-  border-color: #f0d199;
+  border-color: var(--ds-warn-line);
 }
 .as-notice--ok {
   background: var(--as-ok-50);
   color: #0f4a30;
-  border-color: #b9dcc6;
+  border-color: var(--ds-ok-line);
 }
 .as-empty {
   display: grid;
@@ -315,7 +318,7 @@ body {
   height: 16px;
   border-radius: 50%;
   border: 2px solid var(--as-line);
-  border-top-color: var(--as-maroon);
+  border-top-color: var(--as-primary);
   animation: as-spin 0.8s linear infinite;
 }
 @keyframes as-spin {
@@ -346,12 +349,12 @@ body {
   width: 100%;
 }
 .as-item--button:hover {
-  border-color: #d2c4c8;
-  background: #fffafb;
+  border-color: var(--ds-control);
+  background: #f8fbff;
 }
 .as-item--active {
-  border-color: var(--as-maroon);
-  box-shadow: 0 0 0 2px var(--as-maroon-50);
+  border-color: var(--as-primary);
+  box-shadow: 0 0 0 2px var(--as-primary-50);
 }
 .as-item__title {
   font-weight: 700;
@@ -387,7 +390,7 @@ body {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid #cfc6c9;
+  border: 1px solid var(--ds-control);
   border-radius: 10px;
   background: #fff;
   font-weight: 400;
@@ -406,7 +409,7 @@ body {
 .as-check input {
   width: 20px;
   height: 20px;
-  accent-color: var(--as-maroon);
+  accent-color: var(--as-primary);
 }
 .as-seg {
   display: flex;
@@ -423,8 +426,8 @@ body {
   font-weight: 700;
 }
 .as-seg button[aria-pressed='true'] {
-  background: var(--as-maroon);
-  border-color: var(--as-maroon);
+  background: var(--as-primary);
+  border-color: var(--as-primary);
   color: #fff;
 }
 
@@ -434,7 +437,7 @@ body {
   display: grid;
   place-items: center;
   padding: 24px 16px;
-  background: linear-gradient(160deg, var(--as-maroon-900), var(--as-maroon) 60%, #c43a62);
+  background: var(--ds-bg);
 }
 .as-login__card {
   width: min(440px, 100%);
@@ -443,7 +446,8 @@ body {
   padding: 24px;
   display: grid;
   gap: 16px;
-  box-shadow: 0 20px 50px rgba(30, 0, 10, 0.35);
+  border: 1px solid var(--ds-line);
+  box-shadow: var(--ds-shadow);
 }
 .as-brand {
   display: flex;
@@ -457,7 +461,7 @@ body {
 .as-brand__name {
   font-size: 1.35rem;
   font-weight: 800;
-  color: var(--as-maroon);
+  color: var(--as-primary);
   line-height: 1.1;
 }
 .as-brand__tag {
@@ -487,8 +491,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--as-maroon);
-  color: #fff;
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  border-bottom: 1px solid var(--ds-line);
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
   display: flex;
   align-items: center;
@@ -496,17 +501,18 @@ body {
   gap: 10px;
 }
 .as-topbar .as-brand__name {
-  color: #fff;
+  color: var(--ds-deep);
   font-size: 1.1rem;
 }
 .as-topbar .as-brand__tag {
-  color: #f5d6df;
+  color: var(--ds-muted);
 }
 .as-topbar__emblem {
   width: 36px;
   height: 36px;
   border-radius: 10px;
   background: #fff;
+  border: 1px solid var(--ds-line);
   display: grid;
   place-items: center;
 }
@@ -562,7 +568,7 @@ body {
   position: relative;
 }
 .as-tab[aria-current='page'] {
-  color: var(--as-maroon);
+  color: var(--as-primary);
 }
 .as-tab[aria-current='page']::before {
   content: '';
@@ -572,7 +578,7 @@ body {
   right: 25%;
   height: 3px;
   border-radius: 0 0 3px 3px;
-  background: var(--as-maroon);
+  background: var(--as-primary);
 }
 .as-tab__badge {
   position: absolute;
@@ -582,7 +588,7 @@ body {
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: var(--as-maroon);
+  background: var(--ds-danger);
   color: #fff;
   font-size: 0.7rem;
   display: grid;
@@ -597,23 +603,23 @@ body {
   padding: 0 18px;
   border-radius: 999px;
   border: 3px solid #fff;
-  background: #7d0b2e;
+  background: var(--ds-danger);
   color: #fff;
   font-weight: 800;
   letter-spacing: 0.06em;
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 8px 22px rgba(90, 0, 30, 0.35);
+  box-shadow: 0 8px 22px rgba(180, 35, 24, 0.35);
   cursor: pointer;
 }
 .as-sos-fab:hover {
-  background: #5d0822;
+  background: var(--ds-danger-700);
 }
 
 /* Home */
 .as-hero {
-  background: linear-gradient(150deg, var(--as-maroon), #c02c58);
+  background: linear-gradient(150deg, var(--ds-deep), var(--ds-primary));
   color: #fff;
   border-radius: 20px;
   padding: 18px;
@@ -626,7 +632,7 @@ body {
   font-weight: 800;
 }
 .as-hero p {
-  color: #fde8ee;
+  color: #dce7f5;
   font-size: 0.92rem;
 }
 .as-quick {
@@ -652,7 +658,7 @@ body {
   box-shadow: var(--as-shadow);
 }
 .as-quick svg {
-  color: var(--as-maroon);
+  color: var(--as-primary);
 }
 .as-quick small {
   font-weight: 400;
@@ -783,7 +789,7 @@ body {
   min-height: 56px;
   border-radius: 14px;
   background: #fff;
-  color: #7d0b2e;
+  color: var(--ds-danger-700);
   font-weight: 900;
   font-size: 1.1rem;
   text-decoration: none;
@@ -828,8 +834,8 @@ body {
 /* ---------- Safe-route map ---------- */
 .as-notice--danger {
   background: var(--as-danger-50);
-  color: var(--as-maroon-900);
-  border-color: #f2c4d1;
+  color: var(--ds-danger-700);
+  border-color: var(--ds-danger-line);
 }
 .as-seg--sm button {
   min-height: 44px;
@@ -1110,8 +1116,8 @@ body {
   background: var(--as-bg);
 }
 .as-side {
-  background: #24161b;
-  color: #f4e9ec;
+  background: var(--ds-deep);
+  color: #dce7f5;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1125,7 +1131,7 @@ body {
   font-size: 1.1rem;
 }
 .as-side .as-brand__tag {
-  color: #d8b9c3;
+  color: #a9c3e3;
 }
 .as-side nav {
   display: grid;
@@ -1139,7 +1145,7 @@ body {
   min-height: 44px;
   padding: 8px 12px;
   border-radius: 10px;
-  color: #f4e9ec;
+  color: #dce7f5;
   background: none;
   border: 0;
   text-align: left;
@@ -1150,7 +1156,7 @@ body {
   background: rgba(255, 255, 255, 0.08);
 }
 .as-side__link[aria-current='page'] {
-  background: var(--as-maroon);
+  background: var(--as-primary);
   color: #fff;
 }
 .as-side__foot {
@@ -1203,7 +1209,7 @@ body {
 .as-stat__value {
   font-size: 1.8rem;
   font-weight: 800;
-  color: var(--as-maroon);
+  color: var(--as-primary);
   line-height: 1.1;
 }
 .as-stat__label {
@@ -1289,43 +1295,13 @@ body {
   transition-duration: 0.01ms !important;
 }
 
-/* ---------- Light-only brand theme ----------
- * The unified app follows the Amrita maroon-on-white identity. Reused student
- * components ship a dark palette; pin them to their light tokens here. */
-.as-root .sc-student.as-student-root {
-  --bg: var(--as-bg);
-  --surface: #ffffff;
-  --surface-2: #f0ede6;
-  --ink: var(--navy);
-  --ink-muted: #4b5868;
-  --line: #ddd8cf;
-  --help-ink: var(--maroon);
-  --safe-ink: var(--teal);
-  --help-tint: #fbeaf0;
-  --safe-tint: #e6f2f0;
-  --warn-ink: #7a4700;
-  --warn-tint: #fff1d6;
-  --warn-line: #efc77f;
-  --info-ink: #1e3a8a;
-  --info-tint: #e8effc;
-  --danger-ink: #7c0f2c;
-  --danger-tint: #fbe7ec;
-  --focus: #1d4ed8;
-  --shadow: 0 1px 2px rgba(21, 39, 59, 0.06), 0 8px 24px -14px rgba(21, 39, 59, 0.3);
-  color-scheme: light;
-  color: var(--as-ink);
-}
-.as-root .sc-student .sc-mode {
-  background: var(--navy);
-  color: #fff;
-}
 .as-root .sc-student .sc-emergency {
   background: var(--navy);
   border: 0;
 }
 /* Tom: brand accent, and above the student tab bar (opposite the SOS button). */
 .as-root {
-  --color-info: var(--as-maroon);
+  --color-info: var(--as-primary);
 }
 .as-student-root .sc-tom {
   bottom: calc(var(--as-tabbar-h) + 14px + env(safe-area-inset-bottom));
@@ -1438,11 +1414,11 @@ a[href^='tel:']:not([class]) {
   color: var(--as-ink-2);
 }
 .as-count--ok {
-  border-color: #b9dcc6;
+  border-color: var(--ds-ok-line);
   background: var(--as-ok-50);
 }
 .as-count--danger {
-  border-color: #f2c4d1;
+  border-color: var(--ds-danger-line);
   background: var(--as-danger-50);
 }
 
@@ -1532,4 +1508,154 @@ a[href^='tel:']:not([class]) {
 }
 .as-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------- Student module on the blue-and-white foundation ----------
+ * Phase 1 is light-only (main.tsx sets data-theme="light"). These remap the
+ * student module's own tokens; the selector's specificity also beats its
+ * prefers-color-scheme: dark block. Help, SOS and 112 stay red. */
+.as-root .sc-student.as-student-root {
+  --maroon: var(--ds-danger);
+  --maroon-700: var(--ds-danger-700);
+  --teal: var(--ds-primary);
+  --teal-800: var(--ds-primary-700);
+  --navy: var(--ds-deep);
+  --ivory: var(--ds-bg);
+  --bg: var(--ds-bg);
+  --surface: var(--ds-surface);
+  --surface-2: var(--ds-surface-2);
+  --ink: var(--ds-ink);
+  --ink-muted: var(--ds-muted);
+  --line: var(--ds-line);
+  --help-ink: var(--ds-danger);
+  --safe-ink: var(--ds-primary-700);
+  --help-tint: var(--ds-danger-50);
+  --safe-tint: var(--ds-primary-50);
+  --warn-ink: var(--ds-warn);
+  --warn-tint: var(--ds-warn-50);
+  --warn-line: var(--ds-warn-line);
+  --info-ink: var(--ds-primary-700);
+  --info-tint: var(--ds-primary-50);
+  --danger-ink: var(--ds-danger-700);
+  --danger-tint: var(--ds-danger-50);
+  --focus: var(--ds-focus);
+  --shadow: var(--ds-shadow);
+  --font: var(--ds-font);
+  color-scheme: light;
+  color: var(--as-ink);
+}
+.as-root .sc-student .sc-mode {
+  background: var(--ds-deep);
+  color: #fff;
+}
+.as-student-root .sc-source {
+  font-family: var(--ds-font);
+}
+
+/* ---------- Public pages (/help, /legal/*) ---------- */
+.as-public {
+  min-height: 100dvh;
+  background: var(--ds-bg);
+}
+.as-public__main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--ds-space-5) var(--ds-space-4) var(--ds-space-7);
+  display: grid;
+  gap: var(--ds-space-4);
+}
+.as-public__title {
+  font-size: var(--ds-text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+}
+.as-public__dl {
+  display: grid;
+  gap: var(--ds-space-1);
+  margin: 0;
+}
+.as-public__dl dt {
+  font-weight: 600;
+  margin-top: var(--ds-space-2);
+}
+.as-public__dl dt:first-child {
+  margin-top: 0;
+}
+.as-public__dl dd {
+  margin: 0;
+  color: var(--ds-ink-2);
+}
+.as-public__list {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--ds-space-2);
+  color: var(--ds-ink-2);
+}
+.as-public__links,
+.as-login__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2) var(--ds-space-4);
+  font-size: var(--ds-text-sm);
+}
+.as-public__links a,
+.as-login__links a {
+  color: var(--ds-primary-700);
+  font-weight: 500;
+  min-height: var(--ds-touch);
+  display: inline-flex;
+  align-items: center;
+}
+.as-public .ds-topbar .as-brand__name {
+  font-size: 1.05rem;
+  color: var(--ds-deep);
+}
+@media (max-width: 479px) {
+  .as-public .ds-topbar .as-brand__tag {
+    display: none;
+  }
+}
+
+/* ---------- Admin console ---------- */
+.as-admin-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.as-admin-link {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-height: 56px;
+  padding: var(--ds-space-3);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.as-admin-link:hover {
+  border-color: var(--ds-control);
+  background: #f8fbff;
+}
+.as-admin-link > svg:first-child {
+  color: var(--ds-primary);
+}
+.as-admin-link span {
+  display: grid;
+  gap: 2px;
+}
+.as-admin-link small {
+  color: var(--ds-muted);
+  font-size: var(--ds-text-sm);
+}
+.as-admin-link--planned > svg:first-child {
+  color: var(--ds-muted);
 }

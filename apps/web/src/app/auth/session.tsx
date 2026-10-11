@@ -11,6 +11,7 @@ import type { ReactNode } from 'react';
 import type { Role } from '@sahaya/contracts';
 import { ApiClient, ApiError } from '../api/client';
 import { sahayaApi, type LoginResult, type Me, type SahayaApi } from '../api/sahaya';
+import { STAFF_ROLES } from '../routes';
 
 /**
  * App session. DEMO login only (POST /api/v1/auth/demo-login): it is not
@@ -85,12 +86,7 @@ export function useApi(): SahayaApi {
   return api;
 }
 
-export const STAFF_ROLES: readonly Role[] = [
-  'RESPONDER',
-  'INCIDENT_VERIFIER',
-  'DRILL_MANAGER',
-  'ADMIN',
-];
+export { STAFF_ROLES };
 
 export function hasRole(user: Pick<Me, 'roles'>, ...roles: Role[]): boolean {
   return roles.some((role) => user.roles.includes(role));

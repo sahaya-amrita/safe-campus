@@ -11,6 +11,7 @@ import { useTourTarget } from '../../components/tom';
 import { hasRole } from '../auth/session';
 import { IncidentForm } from '../IncidentForm';
 import { useRoute } from '../router';
+import { useStaffLink } from '../staff/workspace';
 import {
   Card,
   EmptyState,
@@ -56,6 +57,7 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
   const helpTarget = useTourTarget('control.help');
   const hazardTarget = useTourTarget('control.hazards');
   const { navigate } = useRoute();
+  const link = useStaffLink();
   const incidents = useAsync(() => api.listIncidents(100), [api], 10_000);
   const help = useAsync(() => api.listHelpRequests(), [api], 10_000);
   const drills = useActiveDrills(api);
@@ -85,7 +87,7 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
         <Stat
           value={waiting.length}
           label="Waiting for acknowledgement"
-          onClick={() => navigate('/r/help')}
+          onClick={() => navigate(link('help'))}
         />
         <Stat
           value={overdue.length}
@@ -94,9 +96,13 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
         <Stat
           value={suspected}
           label="L2 suspected hazards"
-          onClick={() => navigate('/r/incidents')}
+          onClick={() => navigate(link('incidents'))}
         />
-        <Stat value={verified} label="L3 verified, open" onClick={() => navigate('/r/incidents')} />
+        <Stat
+          value={verified}
+          label="L3 verified, open"
+          onClick={() => navigate(link('incidents'))}
+        />
       </div>
       {Boolean(help.error) && <ErrorNotice error={help.error} onRetry={help.reload} />}
       {Boolean(incidents.error) && (
@@ -143,7 +149,7 @@ export function ControlRoom({ api, user }: { api: SahayaApi; user: Me }) {
                   user={user}
                   incident={i}
                   onDone={incidents.reload}
-                  onOpen={() => navigate(`/r/incidents/${i.id}`)}
+                  onOpen={() => navigate(link('incidents', i.id))}
                 />
               ))}
             </ul>

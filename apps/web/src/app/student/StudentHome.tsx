@@ -1,6 +1,7 @@
 import { HomeScreen } from '../../features/student/components/HomeScreen';
 import { CampusContacts } from '../../features/student/components/CampusContacts';
 import { useRoute } from '../router';
+import { ROUTES } from '../routes';
 import {
   AppIcon,
   Card,
@@ -49,7 +50,7 @@ export function StudentHome() {
           <button
             type="button"
             className="as-btn as-btn--light as-btn--sm"
-            onClick={() => navigate('/alerts')}
+            onClick={() => navigate(ROUTES.student.alerts)}
           >
             <AppIcon name="bell" size={16} /> {active[0].title}
             {active[0].incidentVerificationStatus && (
@@ -122,18 +123,18 @@ export function StudentHome() {
       )}
 
       <div className="as-quick">
-        <button type="button" onClick={() => navigate('/report')}>
+        <button type="button" onClick={() => navigate(ROUTES.student.report)}>
           <AppIcon name="report" size={22} /> Report incident{' '}
           <small>Unverified until reviewed</small>
         </button>
-        <button type="button" onClick={() => navigate('/sos')}>
+        <button type="button" onClick={() => navigate(ROUTES.student.sos)}>
           <AppIcon name="alert" size={22} /> Emergency SOS{' '}
           <small>Call 112 · send help request</small>
         </button>
-        <button type="button" onClick={() => navigate('/prepare')}>
+        <button type="button" onClick={() => navigate(ROUTES.student.prepare)}>
           <AppIcon name="book" size={22} /> Prepare <small>Instructions & drills</small>
         </button>
-        <button type="button" onClick={() => navigate('/map')}>
+        <button type="button" onClick={() => navigate(ROUTES.student.map)}>
           <AppIcon name="map" size={22} /> Campus map <small>Demo · not for navigation</small>
         </button>
       </div>

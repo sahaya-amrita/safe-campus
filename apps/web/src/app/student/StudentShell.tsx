@@ -41,6 +41,8 @@ import { useSession } from '../auth/session';
 import { appConfig } from '../config';
 import { DrillBanner } from '../DrillBanner';
 import { useRoute } from '../router';
+import { ROUTES } from '../routes';
+import { OfflineIndicator } from '../../design-system';
 import { TomHost, type AppDestination } from '../TomHost';
 import { AppIcon, ModeBanner, useAsync, type AppIconName } from '../ui';
 import {
@@ -74,7 +76,7 @@ const TABS: { id: Tab; icon: AppIconName; en: string; ta: string }[] = [
 export const STUDENT_DESTINATIONS: AppDestination[] = [
   {
     id: 'student.home',
-    path: '/home',
+    path: ROUTES.student.home,
     label: 'Home',
     description: 'Check-in status, safety actions and contacts.',
     keywords: ['home', 'check in', 'safe', 'help'],
@@ -82,7 +84,7 @@ export const STUDENT_DESTINATIONS: AppDestination[] = [
   },
   {
     id: 'student.map',
-    path: '/map',
+    path: ROUTES.student.map,
     label: 'Map',
     description: 'Demo campus map and digital twin. Not for navigation.',
     keywords: ['map', 'campus', 'building', 'twin'],
@@ -90,7 +92,7 @@ export const STUDENT_DESTINATIONS: AppDestination[] = [
   },
   {
     id: 'student.alerts',
-    path: '/alerts',
+    path: ROUTES.student.alerts,
     label: 'Alerts',
     description: 'Alerts sent to you and incidents you reported.',
     keywords: ['alert', 'notification', 'inbox', 'incident'],
@@ -98,7 +100,7 @@ export const STUDENT_DESTINATIONS: AppDestination[] = [
   },
   {
     id: 'student.prepare',
-    path: '/prepare',
+    path: ROUTES.student.prepare,
     label: 'Prepare',
     description: 'Approved instruction packs and practice drills.',
     keywords: ['prepare', 'drill', 'instructions', 'training', 'guide'],
@@ -106,7 +108,7 @@ export const STUDENT_DESTINATIONS: AppDestination[] = [
   },
   {
     id: 'student.profile',
-    path: '/profile',
+    path: ROUTES.student.profile,
     label: 'Profile',
     description: 'Your details, trusted contacts, history and settings.',
     keywords: ['profile', 'settings', 'contacts', 'language', 'logout'],
@@ -114,7 +116,7 @@ export const STUDENT_DESTINATIONS: AppDestination[] = [
   },
   {
     id: 'student.report',
-    path: '/report',
+    path: ROUTES.student.report,
     label: 'Report incident',
     description: 'Report something you see. Reports are unverified until reviewed.',
     keywords: ['report', 'incident', 'hazard'],
@@ -122,7 +124,7 @@ export const STUDENT_DESTINATIONS: AppDestination[] = [
   },
   {
     id: 'student.sos',
-    path: '/sos',
+    path: ROUTES.student.sos,
     label: 'Emergency SOS',
     description: 'Emergency screen: call 112 and send a help request.',
     keywords: ['sos', 'emergency', '112'],
@@ -297,7 +299,8 @@ export function StudentShell({ user }: { user: Me }) {
     setPrefs,
   };
 
-  const route = path.split('/').filter(Boolean)[0] ?? 'home';
+  // Paths look like /student/<tab>; the App gate only renders this shell under /student.
+  const route = path.split('/').filter(Boolean)[1] ?? 'home';
   const tab: Tab = (TABS.some((t) => t.id === route) ? route : 'home') as Tab;
   const unacknowledged = inbox.data?.items.filter((a) => !a.acknowledgedAt).length ?? 0;
   const waiting = entries.filter(
@@ -323,7 +326,7 @@ export function StudentShell({ user }: { user: Me }) {
           data-script={getLocale(language).script}
         >
           {route === 'sos' ? (
-            <SosScreen onClose={() => navigate('/home')} />
+            <SosScreen onClose={() => navigate(ROUTES.student.home)} />
           ) : (
             <div className="as-student" inert={helpOpen || undefined}>
               <a className="as-skip" href="#as-main">
@@ -339,14 +342,10 @@ export function StudentShell({ user }: { user: Me }) {
                     <p className="as-brand__tag">Campus safety companion</p>
                   </div>
                 </div>
-                <span className="as-topbar__status" role="status">
-                  <AppIcon name="wifi" size={14} />
-                  {connection === 'online'
-                    ? 'Online'
-                    : connection === 'offline'
-                      ? 'Offline'
-                      : 'Server unreachable'}
-                </span>
+                <OfflineIndicator
+                  online={connection !== 'offline'}
+                  serverUnreachable={connection === 'server-unreachable'}
+                />
               </header>
               <ModeBanner mode={mock ? 'MOCK' : user.mode} />
               <DrillBanner api={api} />
@@ -356,7 +355,7 @@ export function StudentShell({ user }: { user: Me }) {
               <button
                 type="button"
                 className="as-sos-fab"
-                onClick={() => navigate('/sos')}
+                onClick={() => navigate(ROUTES.student.sos)}
                 aria-label="Open emergency SOS screen"
               >
                 <AppIcon name="alert" size={20} /> SOS
@@ -370,7 +369,7 @@ export function StudentShell({ user }: { user: Me }) {
                       type="button"
                       className="as-tab"
                       aria-current={tab === t.id && route !== 'report' ? 'page' : undefined}
-                      onClick={() => navigate(`/${t.id}`)}
+                      onClick={() => navigate(`${ROUTES.student.root}/${t.id}`)}
                     >
                       <AppIcon name={t.icon} size={22} />
                       <span lang={tamil ? 'ta' : 'en'}>{tamil ? t.ta : t.en}</span>

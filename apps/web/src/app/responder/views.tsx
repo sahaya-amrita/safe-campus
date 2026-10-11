@@ -7,6 +7,7 @@ import '../../features/responder/responder.css';
 import type { HelpAction, HelpRequest, Me, ReviewDecision, SahayaApi } from '../api/sahaya';
 import { hasRole } from '../auth/session';
 import { useRoute } from '../router';
+import { useStaffLink } from '../staff/workspace';
 import { ControlRoom } from './ControlRoom';
 import { IncidentSearch } from './IncidentSearch';
 import { Stat, useActions } from './shared';
@@ -110,6 +111,7 @@ function ReviewForm({
 
 export function IncidentDetailView({ api, user, id }: { api: SahayaApi; user: Me; id: string }) {
   const { navigate } = useRoute();
+  const link = useStaffLink();
   const detail = useAsync(() => api.getIncident(id), [api, id], 15_000);
   const summary = useAsync(() => api.checkinSummary(id), [api, id], 15_000);
   const dispatches = useAsync(
@@ -127,7 +129,7 @@ export function IncidentDetailView({ api, user, id }: { api: SahayaApi; user: Me
         type="button"
         className="as-btn as-btn--ghost as-btn--sm"
         style={{ justifySelf: 'start' }}
-        onClick={() => navigate('/r/incidents')}
+        onClick={() => navigate(link('incidents'))}
       >
         <AppIcon name="back" size={16} /> All incidents
       </button>
@@ -222,7 +224,7 @@ export function IncidentDetailView({ api, user, id }: { api: SahayaApi; user: Me
                   type="button"
                   className="as-linkbtn as-small"
                   style={{ justifySelf: 'start' }}
-                  onClick={() => navigate('/r/dispatches')}
+                  onClick={() => navigate(link('dispatches'))}
                 >
                   Open dispatches
                 </button>
@@ -235,7 +237,7 @@ export function IncidentDetailView({ api, user, id }: { api: SahayaApi; user: Me
                   mode={user.mode}
                   incidentId={id}
                   defaultZoneId={d.zone_id}
-                  onDone={() => navigate('/r/alerts')}
+                  onDone={() => navigate(link('alerts'))}
                 />
               </Card>
             )}
@@ -348,6 +350,7 @@ export function DispatchesView({ api }: { api: SahayaApi }) {
   const list = useAsync(() => api.listDispatches(), [api], 15_000);
   const { run, busy, errors } = useActions();
   const { navigate } = useRoute();
+  const link = useStaffLink();
   return (
     <Card title="Simulated dispatches" icon="truck" labelledBy="as-disp">
       <p className="as-notice as-notice--warn">
@@ -397,7 +400,7 @@ export function DispatchesView({ api }: { api: SahayaApi }) {
               <button
                 type="button"
                 className="as-btn as-btn--ghost as-btn--sm"
-                onClick={() => navigate(`/r/incidents/${d.incidentId}`)}
+                onClick={() => navigate(link('incidents', d.incidentId))}
               >
                 Incident
               </button>

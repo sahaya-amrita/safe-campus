@@ -4,6 +4,8 @@ import { BRAND } from '../brand';
 import { describeProblem } from './api/client';
 import { useSession } from './auth/session';
 import { ModeBanner } from './ui';
+import { ROUTES } from './routes';
+import { Button, FormError, TextField } from '../design-system';
 
 /**
  * Fictional accounts created by `pnpm db:seed` (services/api/src/scripts/seed.ts).
@@ -66,37 +68,27 @@ export function LoginScreen({ notice }: { notice?: string | undefined }) {
           </p>
         )}
         <form className="as-form" onSubmit={(e) => void submit(e)}>
-          <label className="as-field">
-            Email
-            <input
-              className="as-input"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label className="as-field">
-            Password
-            <input
-              className="as-input"
-              type="password"
-              autoComplete="current-password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <p className="as-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="as-btn as-btn--block" disabled={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
+          <TextField
+            label="Email"
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <TextField
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            required
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <FormError>{error}</FormError>
+          <Button type="submit" block loading={busy} loadingLabel="Signing in…">
+            Sign in
+          </Button>
         </form>
         {showDemoAccounts && (
           <div className="as-demo-users">
@@ -118,6 +110,11 @@ export function LoginScreen({ notice }: { notice?: string | undefined }) {
             </div>
           </div>
         )}
+        <nav className="as-login__links" aria-label="Information pages">
+          <a href={`#${ROUTES.help}`}>Help</a>
+          <a href={`#${ROUTES.legal.privacy}`}>Privacy</a>
+          <a href={`#${ROUTES.legal.prototype}`}>About this prototype</a>
+        </nav>
       </div>
     </main>
   );
