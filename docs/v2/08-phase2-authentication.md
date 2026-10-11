@@ -4,12 +4,12 @@ Built on branch `feat/phase2-auth` (from `develop-v2` at `b1dc75f`).
 
 ## Decisions (approved 2026-10-11)
 
-| Question            | Decision                                                                                                                                                                    |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identity provider   | The API's **own email one-time codes**. No external identity service; the API keeps issuing its own JWT.                                                                    |
-| Guest access        | **No.** Accounts only.                                                                                                                                                      |
-| Registration        | **Allow-listed domains** (`AUTH_ALLOWED_EMAIL_DOMAINS`) self-register as `STUDENT`. Staff roles are granted only by an ADMIN; the first ADMIN is created with a server CLI. |
-| DEMO password login | **Development and tests only** (`DEMO_LOGIN_ENABLED=true`); returns 404 by default. Configuration refuses it in production.                                                 |
+| Question            | Decision                                                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity provider   | The API's **own email one-time codes**. No external identity service; the API keeps issuing its own JWT.                                                                                        |
+| Guest access        | **No.** Accounts only.                                                                                                                                                                          |
+| Registration        | **Allow-listed domains** (`AUTH_ALLOWED_EMAIL_DOMAINS`) self-register as `STUDENT`. Staff roles are granted only by an ADMIN; the first ADMIN is created with a server CLI.                     |
+| DEMO password login | **Development and tests only** (`DEMO_LOGIN_ENABLED=true`); returns 404 by default. In production it is refused unless `OPERATING_MODE=DEMO` (the team's hosted prototype opted in, `0b3b8e8`). |
 
 ## How sign-in works
 

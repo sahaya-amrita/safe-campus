@@ -31,7 +31,8 @@ services:
       # Render runs one proxy in front of the service (for sign-in rate limits).
       - key: TRUST_PROXY
         value: '1'
-      # Sign-in by email code (DEMO password login is refused in production).
+      # Sign-in by email code. DEMO password login is refused in production unless
+      # OPERATING_MODE=DEMO (this hosted prototype opts in below).
       # Set EMAIL_PROVIDER=resend with RESEND_API_KEY and EMAIL_FROM, or leave it
       # unset and the app reports that codes cannot be emailed.
       # Hosted prototype: fictional seeded DEMO accounts sign in with passwords.

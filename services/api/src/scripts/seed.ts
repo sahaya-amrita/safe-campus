@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { loadConfig } from '../config.js';
+import { authSettings, loadConfig } from '../config.js';
 import { createPool, withTransaction } from '../db.js';
 import { hashPassword } from '../security.js';
 
@@ -97,9 +97,11 @@ try {
     }
 
     const ids = new Map<string, string>();
-    // In production the published DEMO passwords are never stored (and any
-    // stored earlier are cleared): DEMO password login is refused there anyway.
-    const production = config.NODE_ENV === 'production';
+    // The published DEMO passwords are stored only where DEMO password login
+    // is allowed (local development, or a hosted prototype that opted in with
+    // OPERATING_MODE=DEMO). Anywhere else they are cleared, since nobody may
+    // use them.
+    const production = !authSettings(config).demoLoginEnabled && config.NODE_ENV === 'production';
     for (const [email, displayName, password, roles] of users) {
       const result = await client.query<{ id: string }>(
         `INSERT INTO users (email, display_name, password_hash, mode)
