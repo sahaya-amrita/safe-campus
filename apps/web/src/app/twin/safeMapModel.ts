@@ -1,7 +1,11 @@
 import type { HazardVerificationStatus } from '@sahaya/contracts';
-import type { CampusData, CampusFeature } from '../../features/maps/campus-model.ts';
+import {
+  projectCoordinate,
+  type CampusData,
+  type CampusFeature,
+} from '../../features/maps/campus-model.ts';
 import { featureCentre, projectFeature, type RiskArea } from '../../features/maps/safe-route.ts';
-import type { Building } from '../api/sahaya';
+import type { Building, RouteBlock } from '../api/sahaya';
 
 export interface MapIncident {
   id: string;
@@ -42,6 +46,7 @@ export function buildRiskAreas(
   incidents: readonly MapIncident[],
   alerts: readonly MapAlert[],
   whatIf: readonly string[],
+  blocks: readonly RouteBlock[] = [],
 ): { risks: RiskArea[]; unplaced: number } {
   const features = new Map(data.features.map((f) => [f.id, f]));
   const featureOf = new Map(buildings.map((b) => [b.id, b.metadata?.mapFeatureId ?? null]));
@@ -86,6 +91,16 @@ export function buildRiskAreas(
     }
     if (!placed) unplaced++;
   }
+  for (const b of blocks) {
+    if (b.clearedAt) continue;
+    risks.push({
+      id: `block:${b.id}`,
+      kind: 'BLOCKED',
+      label: `Blocked by responder: ${b.reason}`,
+      centre: projectCoordinate([b.longitude, b.latitude], data.bounds),
+      radius: b.radiusM,
+    });
+  }
   for (const featureId of whatIf) {
     const area = around(featureId, 15);
     if (area)
@@ -103,5 +118,6 @@ export const RISK_STYLE: Record<RiskArea['kind'], { label: string; colour: strin
   VERIFIED_INCIDENT: { label: 'Verified incident', colour: '#b42318' },
   REPORTED_INCIDENT: { label: 'Unverified report', colour: '#d9730d' },
   ALERT_AREA: { label: 'Alert area', colour: '#b7791f' },
+  BLOCKED: { label: 'Blocked (responder)', colour: '#3b3b3b' },
   WHAT_IF: { label: 'Practice hazard (local)', colour: '#7a3fa0' },
 };

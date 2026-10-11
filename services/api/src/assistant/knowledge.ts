@@ -112,18 +112,28 @@ export interface RegisteredTour {
 
 /**
  * Server-side registry. Must match the destinations the web app registers with
- * Tom's navigation adapter. Student screens are added once Claude Code 1
- * registers them in the shared app.
+ * Tom's navigation adapter (ResponderShell and StudentShell). The SOS screen is
+ * deliberately absent: emergencies are handled by fixed rules, never the model.
  */
+const STAFF_ROLES: readonly Role[] = ['RESPONDER', 'INCIDENT_VERIFIER', 'DRILL_MANAGER', 'ADMIN'];
+const REVIEW_ROLES: readonly Role[] = ['RESPONDER', 'INCIDENT_VERIFIER', 'ADMIN'];
+
 export const DESTINATIONS: readonly RegisteredDestination[] = [
-  { id: 'responder.help-requests', label: 'Help requests', roles: ['RESPONDER', 'ADMIN'] },
-  {
-    id: 'responder.hazard-review',
-    label: 'Hazard review',
-    roles: ['RESPONDER', 'INCIDENT_VERIFIER', 'ADMIN'],
-  },
-  { id: 'responder.roll-call', label: 'Roll-call summary', roles: ['RESPONDER', 'ADMIN'] },
-  { id: 'responder.contacts', label: 'Contacts & resources', roles: ['RESPONDER', 'ADMIN'] },
+  { id: 'responder.overview', label: 'Overview (control room)', roles: STAFF_ROLES },
+  { id: 'responder.incidents', label: 'Incidents', roles: REVIEW_ROLES },
+  { id: 'responder.help-requests', label: 'Help requests', roles: REVIEW_ROLES },
+  { id: 'responder.dispatches', label: 'Dispatches', roles: ['RESPONDER', 'ADMIN'] },
+  { id: 'responder.alerts', label: 'Alerts', roles: REVIEW_ROLES },
+  { id: 'responder.packs', label: 'Instruction packs', roles: ['INCIDENT_VERIFIER', 'ADMIN'] },
+  { id: 'responder.drills', label: 'Drills', roles: STAFF_ROLES },
+  { id: 'responder.map', label: 'Campus map', roles: STAFF_ROLES },
+  { id: 'responder.contacts', label: 'Contacts & resources', roles: STAFF_ROLES },
+  { id: 'student.home', label: 'Home', roles: ['STUDENT'] },
+  { id: 'student.map', label: 'Campus map', roles: ['STUDENT'] },
+  { id: 'student.alerts', label: 'Alerts', roles: ['STUDENT'] },
+  { id: 'student.prepare', label: 'Prepare', roles: ['STUDENT'] },
+  { id: 'student.profile', label: 'Profile', roles: ['STUDENT'] },
+  { id: 'student.report', label: 'Report an incident', roles: ['STUDENT'] },
 ];
 
 export const TOURS: readonly RegisteredTour[] = [

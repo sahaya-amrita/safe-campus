@@ -18,7 +18,8 @@ import {
 
 export type Point = readonly [number, number];
 
-export type RiskKind = 'VERIFIED_INCIDENT' | 'REPORTED_INCIDENT' | 'ALERT_AREA' | 'WHAT_IF';
+export type RiskKind =
+  'VERIFIED_INCIDENT' | 'REPORTED_INCIDENT' | 'ALERT_AREA' | 'BLOCKED' | 'WHAT_IF';
 
 export interface RiskArea {
   id: string;
@@ -113,6 +114,13 @@ function polygonArea(points: readonly Point[]): number {
     a += p[0] * q[1] - q[0] * p[1];
   }
   return Math.abs(a) / 2;
+}
+
+/** Inverse of `projectCoordinate`: local metres back to [longitude, latitude]. */
+export function unprojectPoint([x, z]: Point, bounds: CampusData['bounds']): [number, number] {
+  const latitude = (bounds[1] + bounds[3]) / 2;
+  const longitude = (bounds[0] + bounds[2]) / 2;
+  return [longitude + x / (111_320 * Math.cos((latitude * Math.PI) / 180)), latitude - z / 111_320];
 }
 
 export function projectFeature(feature: CampusFeature, data: CampusData): Point[] {

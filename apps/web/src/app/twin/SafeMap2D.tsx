@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react';
+import {
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type WheelEvent,
+} from 'react';
 import { featureName, type CampusData } from '../../features/maps/campus-model.ts';
 import {
   featureCentre,
@@ -42,7 +49,8 @@ export function SafeMap2D({
   destination: SafeDestination | null;
   grounds: readonly SafeDestination[];
   highlight: readonly string[];
-  onPick: (featureId: string) => void;
+  /** A tap: the building under it (if any) and the point in local metres. */
+  onPick: (featureId: string | null, point: Point) => void;
   pickHint: string;
 }) {
   const shapes = useMemo(() => {
@@ -125,8 +133,12 @@ export function SafeMap2D({
   const onPointerUp = (e: PointerEvent<SVGSVGElement>) => {
     pointers.current.delete(e.pointerId);
   };
-  const pick = (id: string) => {
-    if (moved.current <= 6) onPick(id);
+  const onClick = (e: MouseEvent<SVGSVGElement>) => {
+    if (moved.current > 6) return;
+    const target = e.target as Element;
+    const featureId = target.getAttribute('data-feature-id');
+    const world = toWorld(e.clientX, e.clientY);
+    onPick(featureId, [world.x, world.y]);
   };
 
   const zoomedIn = box.w < shapes.fit.w * 0.55;
@@ -147,6 +159,7 @@ export function SafeMap2D({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onClick={onClick}
       >
         <defs>
           <pattern
@@ -184,7 +197,7 @@ export function SafeMap2D({
                 key={f.id}
                 points={toPoints(pts)}
                 className={`as-safemap__building${marked.has(f.id) ? ' is-marked' : ''}`}
-                onClick={() => pick(f.id)}
+                data-feature-id={f.id}
               >
                 <title>{featureName(f)}</title>
               </polygon>

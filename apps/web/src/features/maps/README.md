@@ -126,3 +126,6 @@ default, works without WebGL) or 3D (this module's Three.js scene with overlays)
 - **Open grounds are not designated assembly points**, and every route is labelled
   "DEMO route · not approved". Approved routes need institution-verified geometry
   and route variants (blueprint §11.4); this engine must not be presented as one.
+- **Blocked areas:** responders and admins can mark a spot impassable on the map
+  (`POST /maps/blocks`, audited). Everyone's routes avoid it until a responder
+  clears it.

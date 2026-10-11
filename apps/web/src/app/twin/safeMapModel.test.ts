@@ -90,6 +90,36 @@ describe('buildRiskAreas', () => {
   });
 });
 
+describe('route blocks', () => {
+  it('turns active responder blocks into BLOCKED areas and ignores cleared ones', () => {
+    const block = {
+      id: 'k1',
+      longitude: 76.9,
+      latitude: 10.9036,
+      radiusM: 25,
+      reason: 'Fallen tree',
+      mode: 'DEMO' as const,
+      createdAt: '2026-10-11T00:00:00Z',
+      clearedAt: null,
+    };
+    const { risks } = buildRiskAreas(
+      data,
+      buildings,
+      [],
+      [],
+      [],
+      [block, { ...block, id: 'k2', clearedAt: '2026-10-11T01:00:00Z' }],
+    );
+    expect(risks).toHaveLength(1);
+    expect(risks[0]).toMatchObject({
+      id: 'block:k1',
+      kind: 'BLOCKED',
+      label: 'Blocked by responder: Fallen tree',
+      radius: 25,
+    });
+  });
+});
+
 describe('isActiveAlert', () => {
   it('treats only authorised or queued alerts as in force', () => {
     expect(
