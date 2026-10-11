@@ -17,6 +17,7 @@
     "admin:grant": "tsx src/scripts/grant-admin.ts",
     "dev:memory": "tsx src/scripts/dev-memory.ts",
     "purge:photos": "tsx src/scripts/purge-photos.ts",
+    "push:keys": "tsx src/scripts/push-keys.ts",
     "assistant:smoke": "tsx src/assistant/smoke.ts"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
     "pg": "latest",
     "pino": "latest",
     "pino-http": "latest",
+    "web-push": "3.6.7",
     "zod": "latest"
   },
   "devDependencies": {
@@ -37,6 +39,7 @@
     "@types/node": "latest",
     "@types/pg": "latest",
     "@types/supertest": "latest",
+    "@types/web-push": "3.6.4",
     "pg-mem": "^3.0.14",
     "pino-pretty": "latest",
     "supertest": "latest",

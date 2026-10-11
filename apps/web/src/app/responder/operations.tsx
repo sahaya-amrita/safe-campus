@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ResponderView, RollCallStatus } from '@sahaya/contracts';
 import {
   Button,
@@ -11,6 +11,7 @@ import {
 import { ApiError, describeProblem } from '../api/client';
 import type { SahayaApi } from '../api/sahaya';
 import { Pill, formatWhen, useAsync, type Tone } from '../ui';
+import { browserPushEnvironment, type PushEnvironment } from '../../lib/push';
 
 const DUTY: { value: ResponderView['availability']; label: string }[] = [
   { value: 'AVAILABLE', label: 'On duty' },
@@ -79,6 +80,104 @@ export function DutyControl({ api }: { api: SahayaApi }) {
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Phone notices (Phase 8): optional Web Push for matched help requests. Off
+ * unless the server has push keys. A notice only says a request was matched;
+ * the in-app inbox stays the record, so on-duty responders still check it.
+ */
+export function PhoneNotices({ api, env: injected }: { api: SahayaApi; env?: PushEnvironment }) {
+  const env = useMemo(() => injected ?? browserPushEnvironment(), [injected]);
+  const config = useAsync(() => api.pushConfig(), [api]);
+  const [onDevice, setOnDevice] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!env.supported) return;
+    let live = true;
+    env
+      .current()
+      .then((sub) => live && setOnDevice(Boolean(sub)))
+      .catch(() => live && setOnDevice(false));
+    return () => {
+      live = false;
+    };
+  }, [env]);
+
+  const view = config.data;
+  if (!view) return null;
+  if (!view.enabled)
+    return (
+      <p className="as-small as-muted" role="note">
+        {view.note}
+      </p>
+    );
+
+  const turnOn = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const permission = env.permission() === 'granted' ? 'granted' : await env.requestPermission();
+      if (permission !== 'granted') {
+        setError('Notifications are blocked for this site. Allow them in the browser settings.');
+        return;
+      }
+      const sub = await env.subscribe(view.publicKey!);
+      await api.registerPushDevice(sub);
+      setOnDevice(true);
+      config.reload();
+    } catch (reason) {
+      setError(describeProblem(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const turnOff = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const endpoint = await env.unsubscribe();
+      if (endpoint) await api.removePushDevice(endpoint);
+      setOnDevice(false);
+      config.reload();
+    } catch (reason) {
+      setError(describeProblem(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Surface title="Phone notices" description={view.note}>
+      {!env.supported ? (
+        <p className="as-small as-muted">
+          This browser cannot show notices. On iPhone, add Amrita Sahaya to the Home Screen first.
+        </p>
+      ) : (
+        <div className="as-row">
+          <Pill tone={onDevice ? 'ok' : 'neutral'}>
+            {onDevice ? 'On for this device' : 'Off for this device'}
+          </Pill>
+          {onDevice ? (
+            <Button variant="secondary" loading={busy} onClick={() => void turnOff()}>
+              Turn off on this device
+            </Button>
+          ) : (
+            <Button loading={busy} onClick={() => void turnOn()}>
+              Turn on for this device
+            </Button>
+          )}
+        </div>
+      )}
+      {error && (
+        <p className="as-small" role="alert">
+          {error}
+        </p>
+      )}
+    </Surface>
   );
 }
 

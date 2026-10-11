@@ -38,6 +38,8 @@ export const routeGraphUploadSchema = z.object({
         lat: latitude,
         lng: longitude,
         label: z.string().trim().max(120).optional(),
+        /** Floor number; ground = 0, basements negative. Missing means 0. */
+        floor: z.number().int().min(-10).max(60).optional(),
       }),
     )
     .min(2)
@@ -48,6 +50,8 @@ export const routeGraphUploadSchema = z.object({
         from: z.string().min(1).max(60),
         to: z.string().min(1).max(60),
         accessible: z.boolean().optional(),
+        /** Missing means PATH. LIFT edges are stored but never used for evacuation routes. */
+        kind: z.enum(['PATH', 'STAIRS', 'RAMP', 'LIFT']).optional(),
       }),
     )
     .min(1)
@@ -60,6 +64,8 @@ export const routeQuerySchema = z.object({
   fromLat: z.coerce.number().min(-90).max(90),
   fromLng: z.coerce.number().min(-180).max(180),
   safePointId: uuidSchema,
+  /** The floor the person is on; routes start from a node on that floor. */
+  fromFloor: z.coerce.number().int().min(-10).max(60).optional(),
   accessible: z
     .enum(['true', 'false'])
     .optional()
@@ -102,8 +108,18 @@ export interface NavigationStatus {
   safePoints: SafePointView[];
 }
 
+export interface FloorChangeView {
+  /** Index in `path` where the change begins. */
+  atStep: number;
+  from: number;
+  to: number;
+  via: 'STAIRS' | 'RAMP';
+}
+
 export interface RouteResponse {
-  path: { lat: number; lng: number }[];
+  path: { lat: number; lng: number; floor: number }[];
+  /** Floor changes along the path, in order. Lifts are never used. */
+  floorChanges: FloorChangeView[];
   distanceM: number;
   walkSeconds: number;
   graphVersion: string;

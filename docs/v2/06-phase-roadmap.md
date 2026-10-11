@@ -38,13 +38,13 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 
 ## Phase 4: responder operations and verification (built; see [10](./10-phase4-responder-operations.md))
 
-| Item                                                | Status                                                                                       |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Duty status, responder roster (`/admin/responders`) | **Built** (synthetic responders; audited)                                                    |
-| Incident verification and alert publication         | **Built** (verification existed; alerts about unverified incidents must be precautionary)    |
-| Notifications                                       | **Simulated, in-app only** (matched-request inbox); real delivery awaits a provider decision |
-| Evidence viewer                                     | **Built in Phase 3** (audited photo views)                                                   |
-| Roll call                                           | **Built** (per person, incident and drill)                                                   |
+| Item                                                | Status                                                                                    |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Duty status, responder roster (`/admin/responders`) | **Built** (synthetic responders; audited)                                                 |
+| Incident verification and alert publication         | **Built** (verification existed; alerts about unverified incidents must be precautionary) |
+| Notifications                                       | **In-app inbox**; optional Web Push added in Phase 8 (off without VAPID keys)             |
+| Evidence viewer                                     | **Built in Phase 3** (audited photo views)                                                |
+| Roll call                                           | **Built** (per person, incident and drill)                                                |
 
 ## Phase 5: maps, digital twin and safe points (built; see [11](./11-phase5-maps-navigation.md))
 
@@ -60,7 +60,7 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | --------------------------- | ------------------------------------------------------------------------------ |
 | Virtual drills and progress | **Built** (progress screen; drill after-action reviews with follow-up actions) |
 | Tom knowledge review        | **Built** (named reviewer; approval tied to exact wording)                     |
-| 3D floating Tom             | **Not done** (presentation only; deferred)                                     |
+| 3D floating Tom             | **Built in Phase 8** (shaded floating launcher; no motion with reduced motion) |
 
 ## Phase 7: administration, analytics and deployment (built; see [13](./13-phase7-admin-analytics-deploy.md))
 
@@ -71,11 +71,20 @@ Each phase ends with a review. The next phase starts only after approval. The mi
 | Privacy and support pages, final | **Draft remains** (needs institutional and legal review)                                                |
 | Deployment                       | **Hardened** (production seed, photo purge, proxy); the live deployment is run by the integration owner |
 
-## What remains after Phase 7 (owner actions, not code)
+## Phase 8: deferred features (built; see [14](./14-phase8-deferred-features.md))
+
+| Item                           | Status                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Indoor and floor-level routing | **Built** (floors, stairs and ramps; lifts never used; step-free refusal is explicit)            |
+| Background sync                | **Built** (the worker wakes the open app or reminds the user; it never sends or claims delivery) |
+| Real notification delivery     | **Built, off by default** (Web Push for matched responders; needs VAPID keys)                    |
+| 3D floating Tom                | **Built** (presentation only)                                                                    |
+
+## What remains after Phase 8 (owner actions, not code)
 
 1. **Institutional data:** verified route data and safe points (two administrators to approve), confirmed responder roster and zones, approved campus contacts and instruction packs.
 2. **Accounts and services:** production database, email provider and verified sender, first administrator, agreed ERT timers in System settings, a named reviewer for Tom's help text.
 3. **Reviews:** legal and institutional review of the privacy and help pages; native-speaker review of the five draft translations; accessibility audit with screen readers.
 4. **Testing:** real-device testing (Android Chrome, iPhone Safari) of sign-in, SOS, GPS, camera, offline and install.
 5. **Security:** rotate the Groq key that was exposed in a chat transcript.
-6. **Deferred features:** 3D floating Tom; indoor and floor-level routing; real notification delivery (needs a provider decision); background sync on Android.
+6. **Phase 8 set-up:** VAPID keys for phone notices (`push:keys`), indoor floor-by-floor survey data, a decision on any designated evacuation lifts, and device tests of push and background sync.

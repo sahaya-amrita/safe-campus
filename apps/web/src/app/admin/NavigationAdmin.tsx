@@ -282,8 +282,8 @@ export function SafePointsPage({ api, user }: { api: SahayaApi; user: Me }) {
 const EXAMPLE = `{
   "version": "2026-10-survey-1",
   "source": "Site survey by campus estates office",
-  "nodes": [{ "id": "gate", "lat": 10.9001, "lng": 76.9002, "label": "Main gate" }, { "id": "lawn", "lat": 10.9010, "lng": 76.9011 }],
-  "edges": [{ "from": "gate", "to": "lawn", "accessible": true }]
+  "nodes": [{ "id": "gate", "lat": 10.9001, "lng": 76.9002, "label": "Main gate" }, { "id": "lawn", "lat": 10.9010, "lng": 76.9011 }, { "id": "ab1-stair-1", "lat": 10.9012, "lng": 76.9013, "floor": 1 }, { "id": "ab1-stair-0", "lat": 10.9012, "lng": 76.9013, "floor": 0 }],
+  "edges": [{ "from": "gate", "to": "lawn", "accessible": true }, { "from": "lawn", "to": "ab1-stair-0" }, { "from": "ab1-stair-1", "to": "ab1-stair-0", "kind": "STAIRS" }]
 }`;
 
 /** Campus map data (ADMIN): upload and approve route graphs. */
@@ -339,7 +339,7 @@ export function MapDataPage({ api, user }: { api: SahayaApi; user: Me }) {
       {done && <StatusBanner tone="ok">{done}</StatusBanner>}
       <Surface
         title="Upload route data"
-        description="A walking network: points (nodes) and the paths that join them (edges)."
+        description="A walking network: points (nodes) and the paths that join them (edges). Indoors, give each node a floor (ground = 0) and mark edges between floors as STAIRS, RAMP or LIFT. Lifts are kept on record but never used for evacuation routes."
       >
         <label className="ds-field">
           <span className="ds-field__label">Route graph (JSON)</span>

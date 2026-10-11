@@ -2,10 +2,11 @@ import type { Logger } from 'pino';
 import type { Config } from './config.js';
 import type { DatabasePool } from './db.js';
 import { withTransaction } from './db.js';
+import { pushToResponder, type PushSender } from './notifications/push.js';
 
 interface OutboxRecord {
   id: string;
-  aggregate_type: 'ALERT' | 'DISPATCH';
+  aggregate_type: 'ALERT' | 'DISPATCH' | 'HELP_REQUEST';
   aggregate_id: string;
   event_type: string;
   payload: Record<string, unknown>;
@@ -17,6 +18,8 @@ export async function processOutboxBatch(
   config: Config,
   logger: Logger,
   useSkipLocked = true,
+  /** Phase 8: Web Push sender for matched-request notices; null keeps them in-app only. */
+  pushSender: PushSender | null = null,
 ) {
   return withTransaction(pool, async (client) => {
     const claimed = await client.query<OutboxRecord>(
@@ -51,6 +54,20 @@ export async function processOutboxBatch(
             `UPDATE dispatch_assignments SET status = 'NOTIFIED', updated_at = now()
              WHERE id = $1 AND status = 'CREATED'`,
             [event.aggregate_id],
+          );
+        } else if (
+          event.event_type === 'HELP_REQUEST_NOTIFY_RESPONDER' &&
+          pushSender &&
+          typeof event.payload.responderId === 'string'
+        ) {
+          const sent = await pushToResponder(client, pushSender, {
+            responderId: event.payload.responderId,
+            helpRequestId: event.aggregate_id,
+            mode: config.OPERATING_MODE,
+          });
+          logger.info(
+            { outboxEventId: event.id, devices: sent.attempted, accepted: sent.accepted },
+            'matched-request push handed to the push service (not a confirmation that anyone read it)',
           );
         }
         await client.query(

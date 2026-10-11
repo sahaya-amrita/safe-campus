@@ -44,6 +44,8 @@ export default defineConfig({
         // API responses are never cached: delivery state must come from the server.
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
+        // Phase 8: background-sync wake-up and push notices (public/sw-extra.js).
+        importScripts: ['sw-extra.js'],
       },
     }),
   ],

@@ -4,7 +4,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
 import type { Config } from './config.js';
 import type { DatabasePool } from './db.js';
-import { aStar, dijkstra, distanceM, validateGraph, type Graph } from './navigation/graph.js';
+import {
+  aStar,
+  dijkstra,
+  distanceM,
+  floorChanges,
+  nearestNode,
+  validateGraph,
+  type Graph,
+} from './navigation/graph.js';
 import { issueAccessToken } from './security.js';
 import { createTestPool, seedTestIdentity } from './test-support/database.js';
 
@@ -79,6 +87,91 @@ describe('path search', () => {
       }),
     ).toEqual(['Duplicate node id X', 'Edge 0 refers to a missing node']);
     expect(distanceM({ lat: 0, lng: 0 }, { lat: 0, lng: 1 })).toBeCloseTo(111_195, -2);
+  });
+});
+
+/** A small block: floor 2 corridor, stairs down via floor 1, a lift and a ramp at ground. */
+const building: Graph = {
+  nodes: [
+    { id: 'R2', lat: 10.91, lng: 76.91, floor: 2 },
+    { id: 'S2', lat: 10.9101, lng: 76.91, floor: 2 },
+    { id: 'S1', lat: 10.9101, lng: 76.91, floor: 1 },
+    { id: 'S0', lat: 10.9101, lng: 76.91, floor: 0 },
+    { id: 'L2', lat: 10.91, lng: 76.9101, floor: 2 },
+    { id: 'L0', lat: 10.91, lng: 76.9101, floor: 0 },
+    { id: 'EXIT', lat: 10.9102, lng: 76.9101, floor: 0 },
+    { id: 'AP', lat: 10.9105, lng: 76.9105 },
+  ],
+  edges: [
+    { from: 'R2', to: 'S2' },
+    { from: 'S2', to: 'S1', kind: 'STAIRS' },
+    { from: 'S1', to: 'S0', kind: 'STAIRS' },
+    { from: 'R2', to: 'L2' },
+    { from: 'L2', to: 'L0', kind: 'LIFT', accessible: true },
+    { from: 'S0', to: 'EXIT' },
+    { from: 'L0', to: 'EXIT' },
+    { from: 'EXIT', to: 'AP', kind: 'RAMP' },
+  ],
+};
+
+describe('floor-level routing', () => {
+  it('goes down the stairs, never uses the lift, and reports each floor change', () => {
+    expect(validateGraph(building)).toEqual([]);
+    const route = aStar(building, 'R2', 'AP')!;
+    expect(route.nodeIds).toEqual(['R2', 'S2', 'S1', 'S0', 'EXIT', 'AP']);
+    expect(floorChanges(building, route.nodeIds)).toEqual([
+      { atStep: 1, from: 2, to: 1, via: 'STAIRS' },
+      { atStep: 2, from: 1, to: 0, via: 'STAIRS' },
+    ]);
+    // Stairs add effort on top of walking distance.
+    expect(route.distanceM).toBeGreaterThan(30);
+  });
+
+  it('finds no step-free route from an upper floor when only a lift would do', () => {
+    expect(aStar(building, 'R2', 'AP', { accessibleOnly: true })).toBeNull();
+    expect(aStar(building, 'L0', 'AP', { accessibleOnly: true })!.nodeIds).toEqual([
+      'L0',
+      'EXIT',
+      'AP',
+    ]);
+  });
+
+  it('snaps to the right floor and refuses badly joined floors', () => {
+    const at = { lat: 10.9101, lng: 76.91 };
+    expect(nearestNode(building, at, 1)!.node.id).toBe('S1');
+    expect(nearestNode(building, at, 5)).toBeNull();
+    expect(
+      validateGraph({
+        nodes: [
+          { id: 'A', lat: 1, lng: 1, floor: 0 },
+          { id: 'B', lat: 1, lng: 1, floor: 1 },
+          { id: 'C', lat: 1, lng: 1, floor: 2.5 },
+        ],
+        edges: [
+          { from: 'A', to: 'B' },
+          { from: 'A', to: 'B', kind: 'STAIRS', accessible: true },
+        ],
+      }),
+    ).toEqual([
+      'Node C has an invalid floor',
+      'Edge 0 joins two floors; mark it STAIRS, RAMP or LIFT',
+      'Edge 1 is stairs and cannot be marked step-free',
+    ]);
+  });
+
+  it('A* still matches Dijkstra on random multi-floor graphs', () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const r = rng(seed * 7);
+      const base = randomGraph(seed, 30);
+      const graph: Graph = {
+        nodes: base.nodes.map((n) => ({ ...n, floor: Math.floor(r() * 4) })),
+        edges: base.edges.map((e) => ({ ...e, kind: r() < 0.1 ? 'LIFT' : 'STAIRS' })),
+      };
+      const a = aStar(graph, 'n0', 'n29');
+      const d = dijkstra(graph, 'n0', 'n29');
+      expect(Boolean(a)).toBe(Boolean(d));
+      if (a && d) expect(a.distanceM).toBeCloseTo(d.distanceM, 6);
+    }
   });
 });
 
@@ -220,13 +313,58 @@ describe('navigation API', () => {
     await block(10.9, 76.90135, 20);
     const detour = await route((point.body as { id: string }).id);
     expect(detour.body.path).toHaveLength(3);
-    expect(detour.body.path[1]).toEqual({ lat: 10.9009, lng: 76.9009 });
+    expect(detour.body.path[1]).toEqual({ lat: 10.9009, lng: 76.9009, floor: 0 });
+    expect(detour.body.floorChanges).toEqual([]);
     expect(detour.body.blocksAvoided).toBe(1);
 
     await block(10.9, 76.9, 50);
     const none = await route((point.body as { id: string }).id);
     expect(none.status).toBe(409);
     expect(none.body.error.code).toBe('NO_ROUTE');
+  });
+
+  it('routes from an upper floor by the stairs and says when no step-free route exists', async () => {
+    const graph = await request(app)
+      .post('/api/v1/admin/navigation/route-graphs')
+      .set(auth('adminA'))
+      .send({
+        version: 'b1',
+        source: 'Synthetic floor survey',
+        ...building,
+        reason: 'Test building',
+      });
+    expect(graph.status).toBe(201);
+    await review(`/api/v1/admin/navigation/route-graphs/${graph.body.id}/review`, 'adminB');
+    const point = await request(app)
+      .post('/api/v1/admin/navigation/safe-points')
+      .set(auth('adminA'))
+      .send({
+        name: 'Assembly point B',
+        kind: 'ASSEMBLY_POINT',
+        latitude: 10.9105,
+        longitude: 76.9105,
+        reason: 'Test point',
+      });
+    await review(`/api/v1/admin/navigation/safe-points/${point.body.id}/review`, 'adminB');
+    const id = (point.body as { id: string }).id;
+    const from = (extra: string) =>
+      request(app)
+        .get(`/api/v1/maps/route?fromLat=10.91&fromLng=76.91&safePointId=${id}${extra}`)
+        .set(auth('student'));
+
+    const down = await from('&fromFloor=2');
+    expect(down.status).toBe(200);
+    expect(down.body.path[0]).toMatchObject({ floor: 2 });
+    expect(down.body.floorChanges).toEqual([
+      { atStep: 1, from: 2, to: 1, via: 'STAIRS' },
+      { atStep: 2, from: 1, to: 0, via: 'STAIRS' },
+    ]);
+    const stepFree = await from('&fromFloor=2&accessible=true');
+    expect(stepFree.status).toBe(409);
+    expect(stepFree.body.error.message).toMatch(/lifts are not used/);
+    const wrongFloor = await from('&fromFloor=7');
+    expect(wrongFloor.status).toBe(422);
+    expect(wrongFloor.body.error.message).toMatch(/floor 7/);
   });
 
   it('refuses starts far from the approved routes and keeps admin endpoints closed', async () => {

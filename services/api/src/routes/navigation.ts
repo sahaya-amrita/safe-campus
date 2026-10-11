@@ -14,7 +14,14 @@ import type { Config } from '../config.js';
 import { withTransaction, type DatabasePool } from '../db.js';
 import { ApiError, conflict, notFound } from '../errors.js';
 import { requireRoles, validateBody, validateUuidParam } from '../middleware.js';
-import { aStar, nearestNode, validateGraph, type Graph } from '../navigation/graph.js';
+import {
+  aStar,
+  floorChanges,
+  floorOf,
+  nearestNode,
+  validateGraph,
+  type Graph,
+} from '../navigation/graph.js';
 
 /** Snap distance from the walker or a safe point to the approved graph. */
 const MAX_SNAP_M = 150;
@@ -161,14 +168,21 @@ export function navigationRouter(pool: DatabasePool) {
       throw UNAVAILABLE('this safe point is not approved.');
     const graph = graphRow.graph;
 
-    const start = nearestNode(graph, { lat: query.fromLat, lng: query.fromLng });
+    const start = nearestNode(graph, { lat: query.fromLat, lng: query.fromLng }, query.fromFloor);
     if (!start || start.distanceM > MAX_SNAP_M)
       throw new ApiError(
         422,
         'START_OFF_NETWORK',
-        'You are too far from any mapped route. Follow staff and signs.',
+        query.fromFloor === undefined
+          ? 'You are too far from any mapped route. Follow staff and signs.'
+          : `No approved route is mapped near you on floor ${query.fromFloor}. Follow staff and signs.`,
       );
-    const end = nearestNode(graph, { lat: Number(target.latitude), lng: Number(target.longitude) });
+    // Safe points have no floor: prefer ground-level nodes so a node stacked
+    // above the safe point on an upper floor is never taken as the destination.
+    const targetPoint = { lat: Number(target.latitude), lng: Number(target.longitude) };
+    const groundEnd = nearestNode(graph, targetPoint, 0);
+    const end =
+      groundEnd && groundEnd.distanceM <= MAX_SNAP_M ? groundEnd : nearestNode(graph, targetPoint);
     if (!end || end.distanceM > MAX_SNAP_M)
       throw UNAVAILABLE('this safe point is not connected to the approved routes.');
 
@@ -188,11 +202,17 @@ export function navigationRouter(pool: DatabasePool) {
       throw new ApiError(
         409,
         'NO_ROUTE',
-        'No approved route avoids the blocked areas. Follow staff and signs.',
+        query.accessible
+          ? 'No step-free approved route is available (lifts are not used in an evacuation). Use Help now so responders know where you are, and follow staff.'
+          : 'No approved route avoids the blocked areas. Follow staff and signs.',
       );
     const node = new Map(graph.nodes.map((n) => [n.id, n]));
     const body: RouteResponse = {
-      path: found.nodeIds.map((id) => ({ lat: node.get(id)!.lat, lng: node.get(id)!.lng })),
+      path: found.nodeIds.map((id) => {
+        const n = node.get(id)!;
+        return { lat: n.lat, lng: n.lng, floor: floorOf(n) };
+      }),
+      floorChanges: floorChanges(graph, found.nodeIds),
       distanceM: Math.round(found.distanceM),
       walkSeconds: Math.round(found.distanceM / WALK_M_PER_S),
       graphVersion: graphRow.version,

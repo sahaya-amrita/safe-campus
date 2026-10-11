@@ -6,3 +6,4 @@ export * from './useOnlineStatus';
 export { OfflineStorageError } from './idb';
 export * from './recordStore';
 export * from './appShell';
+export * from './backgroundSync';

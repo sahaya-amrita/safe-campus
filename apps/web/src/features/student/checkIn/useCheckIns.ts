@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { QueueSnapshot } from '../../../lib/offline';
+import { FLUSH_EVENT, requestBackgroundSync, type QueueSnapshot } from '../../../lib/offline';
 import type { CheckInDraft, CheckInReceipt, CheckInSession } from '../contracts/studentContract';
 import { findAccidentalRepeat, type CheckInEntry, type CheckInQueue } from './checkInQueue';
 
@@ -20,7 +20,9 @@ const systemNow = () => new Date();
 
 /**
  * Connects the check-in queue to React. Sends on mount and whenever the
- * browser reports the connection is back; never attempts while offline.
+ * browser reports the connection is back (or the service worker's background
+ * sync asks); never attempts while offline. Anything queued while offline also
+ * requests a background sync, which only wakes the app: it never reports delivery.
  */
 export function useCheckIns(queue: CheckInQueue, session: CheckInSession | null, now: () => Date = systemNow): UseCheckIns {
   const snapshot = useSyncExternalStore(queue.subscribe, queue.getSnapshot);
@@ -33,7 +35,11 @@ export function useCheckIns(queue: CheckInQueue, session: CheckInSession | null,
     const flush = () => void queue.flush();
     flush();
     window.addEventListener('online', flush);
-    return () => window.removeEventListener('online', flush);
+    window.addEventListener(FLUSH_EVENT, flush);
+    return () => {
+      window.removeEventListener('online', flush);
+      window.removeEventListener(FLUSH_EVENT, flush);
+    };
   }, [queue]);
 
   const submit = useCallback(
@@ -47,6 +53,7 @@ export function useCheckIns(queue: CheckInQueue, session: CheckInSession | null,
       setSubmitting(true);
       try {
         const entry = await queue.enqueue({ ...checkIn, session: sessionRef.current });
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) void requestBackgroundSync();
         void queue.flush();
         return { kind: 'queued', entry };
       } finally {

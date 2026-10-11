@@ -40,6 +40,16 @@ const envSchema = z
     OTP_RESEND_SECONDS: z.coerce.number().int().min(10).max(600).optional(),
     OTP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).optional(),
     OTP_MAX_PER_HOUR: z.coerce.number().int().min(1).max(30).optional(),
+
+    // --- Phase 8 Web Push (responder notices); off unless all three keys are set ---
+    PUSH_PROVIDER: z.enum(['disabled', 'webpush']).optional(),
+    VAPID_PUBLIC_KEY: z.string().min(40).optional(),
+    VAPID_PRIVATE_KEY: z.string().min(20).optional(),
+    /** Contact for push services: mailto: or https: URL. */
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:\/\/)/, 'Must start with mailto: or https://')
+      .optional(),
   })
   .superRefine((env, context) => {
     // A hosted prototype may opt in, but only while every record is DEMO data.
@@ -60,6 +70,16 @@ const envSchema = z
         code: 'custom',
         path: ['EMAIL_PROVIDER'],
         message: 'EMAIL_PROVIDER=resend needs RESEND_API_KEY and EMAIL_FROM',
+      });
+    if (
+      env.PUSH_PROVIDER === 'webpush' &&
+      (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT)
+    )
+      context.addIssue({
+        code: 'custom',
+        path: ['PUSH_PROVIDER'],
+        message:
+          'PUSH_PROVIDER=webpush needs VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT',
       });
   });
 
@@ -96,4 +116,12 @@ export function authSettings(config: Config): AuthSettings {
     otpMaxAttempts: config.OTP_MAX_ATTEMPTS ?? 5,
     otpMaxPerHour: config.OTP_MAX_PER_HOUR ?? 5,
   };
+}
+
+/** Phase 8: whether Web Push notices are on, and the public key browsers need. */
+export function pushSettings(config: Config): { enabled: boolean; publicKey: string | null } {
+  const enabled =
+    config.PUSH_PROVIDER === 'webpush' &&
+    Boolean(config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY && config.VAPID_SUBJECT);
+  return { enabled, publicKey: enabled ? config.VAPID_PUBLIC_KEY! : null };
 }

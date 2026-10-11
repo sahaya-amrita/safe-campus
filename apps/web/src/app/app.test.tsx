@@ -282,6 +282,7 @@ describe('HelpRequestsView', () => {
     const api = {
       listHelpRequests: vi.fn(async () => ({ items: [open] })),
       responderInbox: vi.fn(async () => ({ items: [], unseen: 0, note: '' })),
+      pushConfig: vi.fn(async () => ({ enabled: false, publicKey: null, devices: 0, note: 'Off' })),
       transitionHelpRequest,
     } as unknown as SahayaApi;
     render(<HelpRequestsView api={api} user={responder} />);

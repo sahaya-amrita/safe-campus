@@ -119,6 +119,59 @@
   flex: none;
 }
 
+/* Phase 8: floating Tom. A shaded face that floats for a few seconds when the
+   app opens, then rests; it tilts towards the pointer or keyboard focus.
+   Motion stops entirely when reduced motion is requested. */
+.sc-tom__float {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  perspective: 160px;
+}
+.sc-tom__face--3d {
+  filter: drop-shadow(0 2px 1.5px rgb(10 20 35 / 0.28));
+  transform-origin: 50% 60%;
+}
+.sc-tom__shine {
+  fill: #fff;
+  opacity: 0.45;
+}
+.sc-tom__float-shadow {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: -4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgb(10 20 35 / 0.22);
+  filter: blur(1px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sc-tom__face--3d {
+    transition: transform 220ms ease;
+    animation: sc-tom-float 3.2s ease-in-out 3;
+  }
+  .sc-tom__float-shadow {
+    animation: sc-tom-float-shadow 3.2s ease-in-out 3;
+  }
+  .sc-tom__launcher:hover .sc-tom__face--3d,
+  .sc-tom__launcher:focus-visible .sc-tom__face--3d {
+    animation: none;
+    transform: rotateY(-20deg) rotateX(10deg) translateY(-2px);
+  }
+}
+@keyframes sc-tom-float {
+  50% {
+    transform: translateY(-3px) rotateY(8deg);
+  }
+}
+@keyframes sc-tom-float-shadow {
+  50% {
+    transform: scaleX(0.72);
+    opacity: 0.6;
+  }
+}
+
 .sc-tom__panel {
   width: min(23.5rem, calc(100vw - 2rem));
   max-height: min(72vh, 38rem);
