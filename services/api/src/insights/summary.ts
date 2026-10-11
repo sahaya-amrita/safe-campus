@@ -80,7 +80,9 @@ export function checkSummary(text: string, facts: SummaryFacts): string | null {
   if (trimmed.length > 900) return 'too long';
   if (!/synthetic/i.test(trimmed)) return 'does not say the data is synthetic';
   if (/\bguarantee|\bno risk\b|\bcompletely safe\b/i.test(trimmed)) return 'overstates certainty';
-  const allowed = new Set(numbersIn(JSON.stringify(facts)));
+  const factNumbers = numbersIn(JSON.stringify(facts));
+  // Rounding a decimal fact (2.8 -> 3) is fine; inventing a number is not.
+  const allowed = new Set(factNumbers.flatMap((n) => [n, Math.floor(n), Math.ceil(n)]));
   const unknown = numbersIn(trimmed).filter((n) => !allowed.has(n));
   if (unknown.length > 0) return `numbers not in the facts: ${unknown.slice(0, 3).join(', ')}`;
   return null;
@@ -116,6 +118,7 @@ export function templateSummary(insights: InsightsResponse): string {
 const SYSTEM = `You summarise synthetic campus-safety statistics for a prototype app.
 Rules:
 - Use only the facts in the JSON you are given. Do not add numbers, causes, places, people or advice that are not in the facts.
+- Copy every number exactly as it appears in the facts. Do not count items, add numbers together or write any other number.
 - Say clearly that the data is synthetic and the patterns are illustrative.
 - Never describe or guess about any individual person.
 - Never tell the reader they are safe or that something will happen; forecasts are ranges, not certainties.
