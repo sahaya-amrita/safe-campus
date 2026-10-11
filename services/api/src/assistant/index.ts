@@ -4,6 +4,8 @@ import { loadAssistantConfig, type AssistantConfig } from './config.js';
 import type { DatabasePool } from '../db.js';
 import type { Logger } from 'pino';
 import { APP_KNOWLEDGE } from './content.js';
+import type { KnowledgeDoc } from './knowledge.js';
+import { reviewedKnowledge } from '../routes/learning.js';
 import { GroqAssistantProvider } from './groqProvider.js';
 import { loadPublishedPackDocs } from './instructionPacks.js';
 import { MockAssistantProvider } from './mockProvider.js';
@@ -84,11 +86,18 @@ export function createAssistant(
     allowDraftContent: config.ASSISTANT_ALLOW_DRAFT_CONTENT && core.OPERATING_MODE === 'DEMO',
     takeProviderBudget: () => limits.provider(),
     knowledge: async (locale) => {
+      // Help text counts as APPROVED only with a stored review of this exact text (Phase 6).
+      let help: readonly KnowledgeDoc[] = APP_KNOWLEDGE;
       try {
-        return [...APP_KNOWLEDGE, ...(await loadPublishedPackDocs(pool, locale))];
+        help = await reviewedKnowledge(pool);
+      } catch (error) {
+        logger.warn({ err: error }, 'assistant could not load content reviews');
+      }
+      try {
+        return [...help, ...(await loadPublishedPackDocs(pool, locale))];
       } catch (error) {
         logger.warn({ err: error }, 'assistant could not load instruction packs');
-        return APP_KNOWLEDGE;
+        return [...help];
       }
     },
     // Reasons and timings only. Question text is never logged.

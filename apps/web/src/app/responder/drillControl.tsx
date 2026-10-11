@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { RollCallCard } from './operations';
+import { DrillReviewPanel } from './drillReview';
 import type { Drill, Me, SahayaApi } from '../api/sahaya';
 import { useTourTarget } from '../../components/tom';
 import { hasRole } from '../auth/session';
@@ -161,7 +162,11 @@ export function DrillsView({ api, user }: { api: SahayaApi; user: Me }) {
                 <span className="as-item__title">{d.name}</span>
                 <Pill
                   tone={
-                    d.status === 'ACTIVE' ? 'danger' : d.status === 'COMPLETED' ? 'ok' : 'neutral'
+                    d.status === 'ACTIVE'
+                      ? 'danger'
+                      : d.status === 'COMPLETED' || d.status === 'REVIEWED'
+                        ? 'ok'
+                        : 'neutral'
                   }
                 >
                   {d.status}
@@ -204,6 +209,9 @@ export function DrillsView({ api, user }: { api: SahayaApi; user: Me }) {
               )}
               {canControl && (d.status === 'COMPLETED' || d.status === 'ACTIVE') && (
                 <DrillSummary api={api} drill={d} />
+              )}
+              {(d.status === 'COMPLETED' || d.status === 'REVIEWED') && (
+                <DrillReviewPanel api={api} drillId={d.id} canEdit={canControl} onSaved={reload} />
               )}
             </li>
           ))}

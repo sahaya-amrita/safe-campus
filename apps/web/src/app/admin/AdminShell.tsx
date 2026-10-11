@@ -18,6 +18,7 @@ import { AdminDashboard } from './AdminDashboard';
 import { AuditPage } from './AuditPage';
 import { RosterPage } from './RosterPage';
 import { MapDataPage, SafePointsPage } from './NavigationAdmin';
+import { TomContentPage } from './TomContentPage';
 import { UsersPage } from './UsersPage';
 import { PLANNED_ADMIN_SECTIONS } from './plannedSections';
 
@@ -83,6 +84,16 @@ export const ADMIN_NAV: StaffNavItem[] = [
     icon: 'pin',
     description: 'Propose and approve assembly points, shelters and exits (two-person rule).',
     keywords: ['safe point', 'assembly', 'shelter', 'exit', 'approve'],
+    roles: [ADMIN],
+  },
+  {
+    id: 'admin.tom-content',
+    section: 'tom-content',
+    path: `${ROUTES.admin.root}/tom-content`,
+    label: 'Tom help content',
+    icon: 'book',
+    description: "Review and approve Tom's help text. Approval covers the exact wording.",
+    keywords: ['tom', 'assistant', 'help', 'content', 'review', 'approve'],
     roles: [ADMIN],
   },
   {
@@ -174,6 +185,9 @@ function AdminWorkspace({ user }: { user: Me }) {
         break;
       case 'admin.users':
         view = <UsersPage api={api} user={user} />;
+        break;
+      case 'admin.tom-content':
+        view = <TomContentPage api={api} />;
         break;
       case 'admin.map-data':
         view = <MapDataPage api={api} user={user} />;
